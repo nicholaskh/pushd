@@ -12,8 +12,9 @@ type cmdline struct {
 }
 
 const (
-	CMD_SUBSCRIBED = "SUBSCRIBED"
-	CMD_PUBLISHED  = "PUBLISHED"
+	CMD_SUBSCRIBED         = "SUBSCRIBED"
+	CMD_ALREADY_SUBSCRIBED = "ALREADY_SUBSCRIBED"
+	CMD_PUBLISHED          = "PUBLISHED"
 )
 
 func processReq(cli *client) (string, error) {

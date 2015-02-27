@@ -7,9 +7,10 @@ import (
 )
 
 type client struct {
-	conn  net.Conn
-	input string
-	cl    *cmdline
+	conn     net.Conn
+	input    string
+	cl       *cmdline
+	channels map[string]int
 }
 
 const (
@@ -37,7 +38,7 @@ func startServ() {
 
 		}
 
-		go handleRequest(&client{conn: conn})
+		go handleRequest(&client{conn: conn, channels: make(map[string]int)})
 	}
 }
 
