@@ -1,7 +1,7 @@
 package main
 
 var (
-	pubsubChannels map[string][]*client = make(map[string][]*client)
+	pubsubChannels map[string]map[*client]int = make(map[string]map[*client]int)
 )
 
 func main() {

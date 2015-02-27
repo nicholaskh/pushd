@@ -12,9 +12,15 @@ type cmdline struct {
 }
 
 const (
-	CMD_SUBSCRIBED         = "SUBSCRIBED"
-	CMD_ALREADY_SUBSCRIBED = "ALREADY_SUBSCRIBED"
-	CMD_PUBLISHED          = "PUBLISHED"
+	CMD_SUBSCRIB    = "subscribe"
+	CMD_PUBLISH     = "publish"
+	CMD_UNSUBSCRIBE = "unsubscribe"
+
+	OUTPUT_SUBSCRIBED         = "SUBSCRIBED"
+	OUTPUT_ALREADY_SUBSCRIBED = "ALREADY SUBSCRIBED"
+	OUTPUT_PUBLISHED          = "PUBLISHED"
+	OUTPUT_NOT_SUBSCRIBED     = "NOT SUBSCRIBED"
+	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
 )
 
 func processReq(cli *client) (string, error) {
@@ -33,16 +39,19 @@ func processCmd(cli *client, cl *cmdline) (string, error) {
 	fmt.Println("cmd: " + cl.cmd)
 	var ret string
 	switch cl.cmd {
-	case "subscribe":
+	case CMD_SUBSCRIB:
 		ret = subscribe(cli, cl.params[0])
 
-	case "publish":
+	case CMD_PUBLISH:
 		if len(cl.params) < 2 {
 			// TODO log warning
 			return "", errors.New("Publish without msg")
 		} else {
 			ret = publish(cl.params[0], cl.params[1])
 		}
+
+	case CMD_UNSUBSCRIBE:
+		ret = unsubscribe(cli, cl.params[0])
 
 	default:
 		return "", errors.New("Cmd not found: " + cl.cmd)
