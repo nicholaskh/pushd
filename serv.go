@@ -6,6 +6,12 @@ import (
 	"net"
 )
 
+type client struct {
+	conn  net.Conn
+	input string
+	cl    *cmdline
+}
+
 const (
 	SERV_PORT = ":2222"
 )
@@ -31,19 +37,19 @@ func startServ() {
 
 		}
 
-		go handleRequest(conn)
+		go handleRequest(&client{conn: conn})
 	}
 }
 
-func handleRequest(conn net.Conn) {
+func handleRequest(cli *client) {
 	for {
 		buf := make([]byte, 1024)
-		_, err := conn.Read(buf)
+		_, err := cli.conn.Read(buf)
 
 		if err != nil {
 			if err == io.EOF {
 				// TODO log debug
-				conn.Close()
+				cli.conn.Close()
 				return
 			} else {
 				// TODO log
@@ -51,20 +57,20 @@ func handleRequest(conn net.Conn) {
 		}
 
 		fmt.Println(buf)
-		input := string(buf)
+		cli.input = string(buf)
 
-		ret, err := processReq(input)
+		ret, err := processReq(cli)
 		// TODO log
 		if err != nil {
 
 		}
 
-		if input[0:4] == "quit" {
+		if cli.input[0:4] == "quit" {
 			// TODO log
-			conn.Close()
+			cli.conn.Close()
 			break
 		}
 
-		conn.Write([]byte("Received: " + ret + "\n"))
+		cli.conn.Write([]byte("Received: " + ret + "\n"))
 	}
 }
