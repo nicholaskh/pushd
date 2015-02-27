@@ -27,10 +27,23 @@ func unsubscribe(cli *client, channel string) string {
 	if exists {
 		delete(cli.channels, channel)
 		delete(pubsubChannels[channel], cli)
+		if len(pubsubChannels[channel]) == 0 {
+			delete(pubsubChannels, channel)
+		}
 		return fmt.Sprintf("%s %s", OUTPUT_UNSUBSCRIBED, channel)
 	} else {
 		return fmt.Sprintf("%s %s", OUTPUT_NOT_SUBSCRIBED, channel)
 	}
+}
+
+func unsubscribeAllChannels(cli *client) {
+	for channel, _ := range cli.channels {
+		delete(pubsubChannels[channel], cli)
+		if len(pubsubChannels[channel]) == 0 {
+			delete(pubsubChannels, channel)
+		}
+	}
+	cli.channels = nil
 }
 
 func publish(channel, msg string) string {

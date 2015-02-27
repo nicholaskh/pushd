@@ -6,13 +6,6 @@ import (
 	"net"
 )
 
-type client struct {
-	conn     net.Conn
-	input    string
-	cl       *cmdline
-	channels map[string]int
-}
-
 const (
 	SERV_PORT = ":2222"
 )
@@ -50,7 +43,9 @@ func handleRequest(cli *client) {
 		if err != nil {
 			if err == io.EOF {
 				// TODO log debug
-				cli.conn.Close()
+				cli.Close()
+				fmt.Println(cli.channels)
+				fmt.Println(pubsubChannels)
 				return
 			} else {
 				// TODO log
@@ -63,15 +58,28 @@ func handleRequest(cli *client) {
 		ret, err := processReq(cli)
 		// TODO log
 		if err != nil {
-
+			cli.conn.Write([]byte(err.Error()))
+			continue
 		}
 
 		if cli.input[0:4] == "quit" {
 			// TODO log
-			cli.conn.Close()
+			cli.Close()
 			break
 		}
 
 		cli.conn.Write([]byte("Received: " + ret + "\n"))
 	}
+}
+
+type client struct {
+	conn     net.Conn
+	input    string
+	cl       *cmdline
+	channels map[string]int
+}
+
+func (this *client) Close() {
+	unsubscribeAllChannels(this)
+	this.conn.Close()
 }
