@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	cmap "github.com/nicholaskh/golib/concurrent/map"
+	log "github.com/nicholaskh/log4go"
 )
 
 var (
@@ -80,8 +81,7 @@ func publish(channel, msg string) string {
 	clients, exists := pubsubChannels.Get(channel)
 	if exists {
 		msgByte := []byte(msg)
-		// TODO log debug
-		//fmt.Println(clients)
+		log.Debug("channel %s subscribed by clients%s", channel, clients)
 		for cli, _ := range clients {
 			cli.msgQueue <- msgByte
 		}

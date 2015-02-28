@@ -2,13 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/nicholaskh/golib/server"
 	"io"
 	"net"
-)
 
-const (
-	SERV_ADDR = ":2222"
+	log "github.com/nicholaskh/log4go"
 )
 
 type Processor struct {
@@ -19,30 +16,35 @@ func NewProcessor() (this *Processor) {
 	return
 }
 
-func (this *Processor) run(conn net.Conn) {
+func (this *Processor) Run(conn net.Conn) {
 	cli := NewClient(conn)
-	go func(cli) {
+	go func(cli *Client) {
 		for {
 			input := make([]byte, 1024)
 			_, err := cli.conn.Read(input)
 
 			if err != nil {
 				if err == io.EOF {
-					// TODO log debug
+					log.Info("Client shutdown: %s", cli.conn.RemoteAddr())
 					cli.Close()
-					fmt.Println(cli.channels)
-					fmt.Println(pubsubChannels)
+					log.Debug("client channels: %s", cli.channels)
+					jsonChannels, err := pubsubChannels.MarshalJSON()
+					if err != nil {
+						log.Error("Json marshal error: %s", err.Error())
+					}
+
+					log.Debug("pubsub channels: %s", jsonChannels)
 					return
 				} else {
-					// TODO log
+					log.Error("Read from client[%s] error: %s", cli.conn.RemoteAddr(), err.Error())
 				}
 			}
 
-			//fmt.Println(input)
+			log.Debug("input: %x", input)
 			cl := NewCmdline(input, cli)
 			ret, err := cl.processCmd()
-			// TODO log
 			if err != nil {
+				log.Error("Process cmd[%s %s] error: %s", cl.cmd, cl.params, err.Error())
 				cli.conn.Write([]byte(err.Error()))
 				continue
 			}
