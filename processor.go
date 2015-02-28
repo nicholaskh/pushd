@@ -1,66 +1,94 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"strings"
+	"github.com/nicholaskh/golib/server"
+	"io"
+	"net"
 )
-
-type cmdline struct {
-	cmd    string
-	params []string
-}
 
 const (
-	CMD_SUBSCRIB    = "subscribe"
-	CMD_PUBLISH     = "publish"
-	CMD_UNSUBSCRIBE = "unsubscribe"
-
-	OUTPUT_SUBSCRIBED         = "SUBSCRIBED"
-	OUTPUT_ALREADY_SUBSCRIBED = "ALREADY SUBSCRIBED"
-	OUTPUT_PUBLISHED          = "PUBLISHED"
-	OUTPUT_NOT_SUBSCRIBED     = "NOT SUBSCRIBED"
-	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
+	SERV_ADDR = ":2222"
 )
 
-func processReq(cli *client) (string, error) {
-	return processCmd(cli, resolveCmd(cli.input))
+type Processor struct {
 }
 
-// TODO protocal
-func resolveCmd(input string) *cmdline {
-	input = trim(input)
-	parts := strings.Split(input, " ")
-	return &cmdline{cmd: trim(parts[0]), params: parts[1:]}
+func NewProcessor() (this *Processor) {
+	this = new(Processor)
+	return
 }
 
-func processCmd(cli *client, cl *cmdline) (string, error) {
-	// TODO log debug
-	fmt.Println("cmd: " + cl.cmd)
-	var ret string
-	switch cl.cmd {
-	case CMD_SUBSCRIB:
-		ret = subscribe(cli, cl.params[0])
+func (this *Processor) run(conn net.Conn) {
+	cli := NewClient(conn)
+	go func(cli) {
+		for {
+			input := make([]byte, 1024)
+			_, err := cli.conn.Read(input)
 
-	case CMD_PUBLISH:
-		if len(cl.params) < 2 {
-			// TODO log warning
-			return "", errors.New("Publish without msg")
-		} else {
-			ret = publish(cl.params[0], cl.params[1])
+			if err != nil {
+				if err == io.EOF {
+					// TODO log debug
+					cli.Close()
+					fmt.Println(cli.channels)
+					fmt.Println(pubsubChannels)
+					return
+				} else {
+					// TODO log
+				}
+			}
+
+			//fmt.Println(input)
+			cl := NewCmdline(input, cli)
+			ret, err := cl.processCmd()
+			// TODO log
+			if err != nil {
+				cli.conn.Write([]byte(err.Error()))
+				continue
+			}
+
+			if ret == "" {
+				return
+			} else {
+				cli.conn.Write([]byte("Received: " + ret + "\n"))
+			}
 		}
+	}(cli)
 
-	case CMD_UNSUBSCRIBE:
-		ret = unsubscribe(cli, cl.params[0])
-
-	default:
-		return "", errors.New("Cmd not found: " + cl.cmd)
-
-	}
-
-	return ret, nil
+	go cli.waitMsg()
 }
 
-func trim(str string) string {
-	return strings.TrimRight(str, string([]rune{0, 13, 10}))
+type Client struct {
+	conn     net.Conn
+	cl       *Cmdline
+	channels map[string]int
+	msgQueue chan []byte
+	output   chan []byte
+}
+
+func NewClient(conn net.Conn) (this *Client) {
+	this = new(Client)
+	this.conn = conn
+	this.channels = make(map[string]int)
+	this.msgQueue = make(chan []byte, 20)
+	this.output = make(chan []byte)
+	return
+}
+
+func (this *Client) waitMsg() {
+	for {
+		select {
+		case msg := <-this.msgQueue:
+			this.conn.Write(msg)
+
+		case msg := <-this.output:
+			this.conn.Write([]byte(fmt.Sprintf("Received: %s\n", msg)))
+		}
+	}
+}
+
+func (this *Client) Close() {
+	unsubscribeAllChannels(this)
+	close(this.msgQueue)
+	this.conn.Close()
 }

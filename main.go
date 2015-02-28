@@ -1,9 +1,13 @@
 package main
 
-var (
-	pubsubChannels map[string]map[*client]int = make(map[string]map[*client]int)
+import (
+	"github.com/nicholaskh/golib/server"
 )
 
+func init() {
+	parseFlags()
+}
+
 func main() {
-	startServ()
+	server.LaunchTCPServ(SERV_ADDR, NewProcessor())
 }
