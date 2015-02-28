@@ -20,7 +20,7 @@ func (this *Processor) Run(conn net.Conn) {
 	cli := NewClient(conn)
 	go func(cli *Client) {
 		for {
-			input := make([]byte, 1024)
+			input := make([]byte, 1460)
 			_, err := cli.conn.Read(input)
 
 			if err != nil {
@@ -35,7 +35,7 @@ func (this *Processor) Run(conn net.Conn) {
 
 					log.Debug("pubsub channels: %s", jsonChannels)
 					return
-				} else {
+				} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
 					log.Error("Read from client[%s] error: %s", cli.conn.RemoteAddr(), err.Error())
 				}
 			}

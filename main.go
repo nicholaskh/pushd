@@ -7,6 +7,11 @@ import (
 	log "github.com/nicholaskh/log4go"
 )
 
+var (
+	tcpServer *server.Server
+	confPushd *ConfigPushd
+)
+
 func init() {
 	parseFlags()
 
@@ -18,15 +23,19 @@ func init() {
 }
 
 func main() {
-	s := server.NewServer("pushd")
-	s.LoadConfig(options.configFile)
-	s.Launch()
-	s.LaunchTcpServ(NewProcessor())
+	tcpServer = server.NewServer("pushd")
+	tcpServer.LoadConfig(options.configFile)
+	tcpServer.Launch()
+
+	confPushd = new(ConfigPushd)
+	confPushd.LoadConfig(tcpServer.Conf)
+	tcpServer.LaunchTcpServ(confPushd.tcpListenAddr, NewProcessor(), confPushd.servPingInterval)
 
 	shutdown()
 }
 
 func shutdown() {
+	tcpServer.StopTcpServ()
 	log.Info("Terminated")
 	os.Exit(0)
 }

@@ -25,7 +25,6 @@ const (
 	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
 )
 
-// TODO protocal
 func NewCmdline(input []byte, cli *Client) (this *Cmdline) {
 	this = new(Cmdline)
 	parts := strings.Split(trim(string(input)), " ")
