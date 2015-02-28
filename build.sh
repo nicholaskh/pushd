@@ -1,5 +1,10 @@
 #!/bin/bash -e
 
+if [[ $1 = "-loc" ]]; then
+    find . -name '*.go' | xargs wc -l | sort -n
+    exit
+fi
+
 VER=0.1.0stable
 ID=$(git rev-parse HEAD | cut -c1-7)
 
