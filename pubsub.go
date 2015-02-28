@@ -20,14 +20,10 @@ func NewPubsubChannels() (this *PubsubChannels) {
 	return
 }
 
-func (this *PubsubChannels) Get(channel string) (map[*Client]int, bool) {
+func (this *PubsubChannels) Get(channel string) (clients map[*Client]int, exists bool) {
 	clientsInterface, exists := pubsubChannels.ConcurrentMap.Get(channel)
-	clients, ok := clientsInterface.(map[*Client]int)
-	if ok {
-		return clients, exists
-	} else {
-		return nil, exists
-	}
+	clients, _ = clientsInterface.(map[*Client]int)
+	return
 }
 
 // TODO subscribe count of channel

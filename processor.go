@@ -41,7 +41,11 @@ func (this *Processor) Run(conn net.Conn) {
 			}
 
 			log.Debug("input: %x", input)
+
 			cl := NewCmdline(input, cli)
+			if cl.cmd == "" {
+				continue
+			}
 			ret, err := cl.processCmd()
 			if err != nil {
 				log.Error("Process cmd[%s %s] error: %s", cl.cmd, cl.params, err.Error())

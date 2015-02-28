@@ -1,4 +1,6 @@
 {
 	tcp_listen_addr: ":2222"
 	serv_ping_interval: "5s"
+	
+	s2s_addr: "2223"
 }
