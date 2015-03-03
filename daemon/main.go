@@ -7,11 +7,13 @@ import (
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/s2s_proxy"
+	"github.com/nicholaskh/pushd/s2s_serv"
 	"github.com/nicholaskh/pushd/serv"
 )
 
 var (
 	pushdServ *serv.PushdServ
+	s2sServ   *s2s_serv.S2sServ
 )
 
 func init() {
@@ -31,12 +33,14 @@ func main() {
 
 	config.PushdConf = new(config.ConfigPushd)
 	config.PushdConf.LoadConfig(pushdServ.Conf)
-	go pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.SessionTimeout)
+	go pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.ConnTimeout)
 
 	s2s_proxy.Proxy = s2s_proxy.NewS2sProxy()
-	s2s_proxy.Proxy.WaitMsg()
+	go s2s_proxy.Proxy.WaitMsg()
 
-	//s2s_serv.server = NewS2sServ()
+	s2sServ = NewS2sServ()
+	s2sServ.LaunchProxyServ()
+
 	shutdown()
 }
 

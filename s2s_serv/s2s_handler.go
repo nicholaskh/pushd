@@ -1,4 +1,4 @@
-package s2s
+package s2s_serv
 
 import (
 	"github.com/nicholaskh/golib/set"

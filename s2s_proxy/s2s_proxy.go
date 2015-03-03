@@ -94,7 +94,7 @@ func NewS2sProxy() (this *S2sProxy) {
 	for _, server := range config.PushdConf.Servers {
 		_, exists := selfAddr[server]
 		if !exists {
-			peer = NewPeer(this.getS2sAddr(server))
+			peer = NewPeer(GetS2sAddr(server))
 			this.peers = append(this.peers, peer)
 		}
 	}
@@ -123,15 +123,6 @@ func (this *S2sProxy) WaitMsg() {
 	}
 }
 
-/*
-func (this *S2sProxy) startProxyServ() {
-	s := NewS2sServ()
-	//TODO
-	//s.LaunchTcpServ(confPushd.s2sAddr, s, confPushd.s2sPingInterval)
-	s.LaunchTcpServ(this.getS2sAddr(config.PushdConf.TcpListenAddr), s, config.PushdConf.S2sPingInterval)
-}
-*/
-
 func (this *S2sProxy) GetPeersByChannel(channel string) (peers set.Set, exists bool) {
 	peersInterface, exists := this.channelPeers.Get(channel)
 	if peersInterface != nil {
@@ -143,7 +134,7 @@ func (this *S2sProxy) GetPeersByChannel(channel string) (peers set.Set, exists b
 }
 
 // TODO port should fixed
-func (this *S2sProxy) getS2sAddr(servAddr string) (s2sAddr string) {
+func GetS2sAddr(servAddr string) (s2sAddr string) {
 	parts := strings.Split(servAddr, ":")
 	ip := parts[0]
 	port := parts[1]

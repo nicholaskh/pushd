@@ -9,6 +9,7 @@ import (
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/client"
 	"github.com/nicholaskh/pushd/engine"
+	"github.com/nicholaskh/pushd/s2s_proxy"
 )
 
 type S2sServ struct {
@@ -48,8 +49,7 @@ func (this *S2sServ) Run(cli *server.Client) {
 			continue
 		}
 
-		_, err = cl.processCmd()
-		this.processCmd(client.cl)
+		err = this.processCmd(client.cl)
 
 		if err != nil {
 			log.Debug("Process peer cmd[%s %s] error: %s", cl.cmd, cl.params, err.Error())
@@ -60,8 +60,9 @@ func (this *S2sServ) Run(cli *server.Client) {
 
 }
 
-func (this *S2sServ) processCmd(cl *Cmdline) {
-	if cl.cmd == CMD_PUBLISH {
+func (this *S2sServ) processCmd(cl *Cmdline) error {
+	switch cl.cmd {
+	case CMD_PUBLISH {
 
 	}
 
@@ -72,4 +73,22 @@ func (this *S2sServ) processCmd(cl *Cmdline) {
 		}
 		s2sProxy.channelPeers.Set(channel)
 	}
+}
+
+func (this *S2sServ) LaunchProxyServ() {
+	s := NewS2sServ()
+	//FIXME
+	//s.LaunchTcpServ(confPushd.s2sAddr, s, confPushd.s2sPingInterval)
+	s.LaunchTcpServ(GetS2sAddr(config.PushdConf.TcpListenAddr), s, config.PushdConf.S2sConnTimeout)
+}
+
+// TODO port should fixed
+func GetS2sAddr(servAddr string) (s2sAddr string) {
+	parts := strings.Split(servAddr, ":")
+	ip := parts[0]
+	port := parts[1]
+	intPort, _ := strconv.Atoi(port)
+	s2sPort := strconv.Itoa((intPort + 1))
+	s2sAddr = fmt.Sprintf("%s:%s", ip, s2sPort)
+	return
 }
