@@ -6,7 +6,7 @@ import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
-	//"github.com/nicholaskh/pushd/s2s"
+	"github.com/nicholaskh/pushd/s2s_proxy"
 	"github.com/nicholaskh/pushd/serv"
 )
 
@@ -31,11 +31,12 @@ func main() {
 
 	config.PushdConf = new(config.ConfigPushd)
 	config.PushdConf.LoadConfig(pushdServ.Conf)
-	pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.SessionTimeout)
-	/*
-		s2s.Proxy = NewS2sProxy()
-		s2s.Proxy.startProxyServ()
-	*/
+	go pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.SessionTimeout)
+
+	s2s_proxy.Proxy = s2s_proxy.NewS2sProxy()
+	s2s_proxy.Proxy.WaitMsg()
+
+	//s2s_serv.server = NewS2sServ()
 	shutdown()
 }
 

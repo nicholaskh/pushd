@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	cmap "github.com/nicholaskh/golib/concurrent/map"
+	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/client"
+	"github.com/nicholaskh/pushd/s2s_proxy"
 )
 
 var (
@@ -40,6 +42,13 @@ func subscribe(cli *client.Client, channel string) string {
 			clients[cli] = 1
 		} else {
 			clients = map[*client.Client]int{cli: 1}
+
+			//s2s
+			_, exists = s2s_proxy.Proxy.GetPeersByChannel(channel)
+			if !exists {
+				s2s_proxy.Proxy.SubMsgChan <- channel
+			}
+
 		}
 		PubsubChannels.Set(channel, clients)
 
@@ -84,6 +93,13 @@ func publish(channel, msg string) string {
 		for cli, _ := range clients {
 			cli.MsgQueue <- msg
 		}
+	}
+
+	//s2s
+	var peers set.Set
+	peers, exists = s2s_proxy.Proxy.GetPeersByChannel(channel)
+	if exists {
+		s2s_proxy.Proxy.PubMsgChan <- s2s_proxy.NewPubTuple(peers, msg, channel)
 	}
 
 	return OUTPUT_PUBLISHED
