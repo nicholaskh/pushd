@@ -7,7 +7,6 @@ import (
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/client"
-	"github.com/nicholaskh/pushd/s2s_proxy"
 )
 
 var (
@@ -44,9 +43,9 @@ func subscribe(cli *client.Client, channel string) string {
 			clients = map[*client.Client]int{cli: 1}
 
 			//s2s
-			_, exists = s2s_proxy.Proxy.GetPeersByChannel(channel)
+			_, exists = Proxy.GetPeersByChannel(channel)
 			if !exists {
-				s2s_proxy.Proxy.SubMsgChan <- channel
+				Proxy.SubMsgChan <- channel
 			}
 
 		}
@@ -97,9 +96,10 @@ func publish(channel, msg string) string {
 
 	//s2s
 	var peers set.Set
-	peers, exists = s2s_proxy.Proxy.GetPeersByChannel(channel)
+	peers, exists = Proxy.GetPeersByChannel(channel)
+	log.Debug("now peers %s", peers)
 	if exists {
-		s2s_proxy.Proxy.PubMsgChan <- s2s_proxy.NewPubTuple(peers, msg, channel)
+		Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel)
 	}
 
 	return OUTPUT_PUBLISHED

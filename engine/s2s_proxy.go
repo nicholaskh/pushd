@@ -1,13 +1,13 @@
-package s2s_proxy
+package engine
 
 import (
 	"fmt"
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 
 	cmap "github.com/nicholaskh/golib/concurrent/map"
-	"github.com/nicholaskh/golib/ip"
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
@@ -69,7 +69,7 @@ func (this *Peer) writeMsg(msg string) {
 }
 
 type S2sProxy struct {
-	peers []*Peer
+	peers map[string]*Peer
 
 	// TODO lru cache
 	channelPeers cmap.ConcurrentMap
@@ -83,21 +83,17 @@ func NewS2sProxy() (this *S2sProxy) {
 	// TODO s2s channel backlog
 	this.SubMsgChan = make(chan string, 10)
 	this.PubMsgChan = make(chan *PubTuple, 10)
-	this.peers = make([]*Peer, 0)
-	selfIps := ip.LocalIpv4Addrs()
-	selfPort := strings.Split(config.PushdConf.TcpListenAddr, ":")[1]
-	selfAddr := make(map[string]int)
-	for _, selfIp := range selfIps {
-		selfAddr[fmt.Sprintf("%s:%s", selfIp, selfPort)] = 1
-	}
+	this.peers = make(map[string]*Peer)
+
 	var peer *Peer
 	for _, server := range config.PushdConf.Servers {
-		_, exists := selfAddr[server]
-		if !exists {
-			peer = NewPeer(GetS2sAddr(server))
-			this.peers = append(this.peers, peer)
+		if server != config.PushdConf.TcpListenAddr {
+			s2sServer := GetS2sAddr(server)
+			peer = NewPeer(s2sServer)
+			this.peers[s2sServer] = peer
 		}
 	}
+	log.Debug("%s", this.peers)
 	this.channelPeers = cmap.New()
 	return
 }
@@ -106,15 +102,16 @@ func (this *S2sProxy) WaitMsg() {
 	for {
 		select {
 		case tuple := <-this.PubMsgChan:
-			log.Warn("bbbb")
 			for peerInterface := range tuple.peers.Iter() {
-				peer, _ := peerInterface.(Peer)
+				log.Debug("peer was %s %s", peerInterface, reflect.TypeOf(peerInterface))
+				peer, _ := peerInterface.(*Peer)
+				log.Debug("peer is %s %s", peer, reflect.TypeOf(peer))
 				go peer.writeMsg(fmt.Sprintf("%s %s %s", S2S_PUB_CMD, tuple.channel, tuple.msg))
 			}
 
 		case channel := <-this.SubMsgChan:
 			for _, peer := range this.peers {
-				go peer.writeMsg(fmt.Sprintf("%s %s", S2S_SUB_CMD, channel))
+				go peer.writeMsg(fmt.Sprintf("%s %s %s", S2S_SUB_CMD, channel, config.PushdConf.TcpListenAddr))
 			}
 
 			//case channel := <-this.UnsubMsgChan:

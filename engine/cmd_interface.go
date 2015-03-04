@@ -16,7 +16,7 @@ type Cmdline struct {
 }
 
 const (
-	CMD_SUBSCRIB    = "sub"
+	CMD_SUBSCRIBE   = "sub"
 	CMD_PUBLISH     = "pub"
 	CMD_UNSUBSCRIBE = "unsub"
 
@@ -40,7 +40,7 @@ func (this *Cmdline) ProcessCmd() (string, error) {
 	log.Debug("Input cmd: %s %s", this.Cmd, this.Params)
 	var ret string
 	switch this.Cmd {
-	case CMD_SUBSCRIB:
+	case CMD_SUBSCRIBE:
 		ret = subscribe(this.Client, this.Params[0])
 
 	case CMD_PUBLISH:

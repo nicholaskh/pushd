@@ -1,4 +1,4 @@
-package s2s_serv
+package engine
 
 import (
 	"io"
@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/nicholaskh/golib/server"
+	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/client"
-	"github.com/nicholaskh/pushd/engine"
-	"github.com/nicholaskh/pushd/s2s_proxy"
+	"github.com/nicholaskh/pushd/config"
 )
 
 type S2sServ struct {
@@ -44,15 +44,15 @@ func (this *S2sServ) Run(cli *server.Client) {
 
 		log.Debug("peer input: %x", input)
 
-		cl := engine.NewCmdline(input, client)
-		if cl.cmd == "" {
+		cl := NewCmdline(input, client)
+		if cl.Cmd == "" {
 			continue
 		}
 
-		err = this.processCmd(client.cl)
+		err = this.processCmd(cl)
 
 		if err != nil {
-			log.Debug("Process peer cmd[%s %s] error: %s", cl.cmd, cl.params, err.Error())
+			log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
 			client.Conn.Write([]byte(err.Error()))
 			continue
 		}
@@ -61,18 +61,21 @@ func (this *S2sServ) Run(cli *server.Client) {
 }
 
 func (this *S2sServ) processCmd(cl *Cmdline) error {
-	switch cl.cmd {
-	case CMD_PUBLISH {
+	switch cl.Cmd {
+	case CMD_PUBLISH:
+		publish(cl.Params[0], cl.Params[1])
 
-	}
-
-	if cl.cmd == CMD_SUBSCRIBE {
-		peers, exists := s2sProxy.channelPeers.getPeersByChannel(channel)
-		if exists {
-			peers.Add()
+	case CMD_SUBSCRIBE:
+		log.Debug("peer sub %s %s", cl.Cmd, cl.Params)
+		peers, exists := Proxy.GetPeersByChannel(cl.Params[0])
+		if !exists {
+			peers = set.NewSet()
 		}
-		s2sProxy.channelPeers.Set(channel)
+		peers.Add(Proxy.peers[GetS2sAddr(cl.Params[1])])
+		Proxy.channelPeers.Set(cl.Params[0], peers)
 	}
+
+	return nil
 }
 
 func (this *S2sServ) LaunchProxyServ() {
@@ -80,15 +83,4 @@ func (this *S2sServ) LaunchProxyServ() {
 	//FIXME
 	//s.LaunchTcpServ(confPushd.s2sAddr, s, confPushd.s2sPingInterval)
 	s.LaunchTcpServ(GetS2sAddr(config.PushdConf.TcpListenAddr), s, config.PushdConf.S2sConnTimeout)
-}
-
-// TODO port should fixed
-func GetS2sAddr(servAddr string) (s2sAddr string) {
-	parts := strings.Split(servAddr, ":")
-	ip := parts[0]
-	port := parts[1]
-	intPort, _ := strconv.Atoi(port)
-	s2sPort := strconv.Itoa((intPort + 1))
-	s2sAddr = fmt.Sprintf("%s:%s", ip, s2sPort)
-	return
 }

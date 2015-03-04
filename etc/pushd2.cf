@@ -4,11 +4,11 @@
 		"127.0.0.1:2232",
 	]
 	
-	tcp_listen_addr: ":2232"
-	session_timeout: "2m"
+	tcp_listen_addr: "127.0.0.1:2232"
+	conn_timeout: "2m"
 	
 	s2s_addr: ":2223"
-	s2s_ping_interval: "2m"
+	s2s_conn_timeout: "2m"
 	
 	
 }
