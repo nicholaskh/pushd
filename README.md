@@ -38,7 +38,7 @@ An open source distributed pubsub(publish/subscribe) server
 *   Smart metrics with low overhead
 
 
-\.	 example.net <--------------> im.example.com
+	  example.net <--------------> im.example.com
 	     ^								   ^
 	     |                                |
 	     v                                v
