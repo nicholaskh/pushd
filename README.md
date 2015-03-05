@@ -33,6 +33,7 @@ An open source distributed pubsub(publish/subscribe) server
 
 *   Self manageable cluster
 *	Use a distributed Client-Server architecture
+		
 		example.net <--------------> im.example.com
 		     ^								   ^
 		     |                                |
