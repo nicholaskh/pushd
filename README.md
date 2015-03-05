@@ -52,5 +52,5 @@ An open source pubsub(publish/subscribe) server
     - increase it if you need over 128(default) simultaneous outstanding connections
 *   hot reload config
 *   bloom filter for overmuch channels
-*	unit test
+*	benchmark
 *	use "jid" of one client to get the destination server more efficient
