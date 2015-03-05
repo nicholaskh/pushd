@@ -32,6 +32,7 @@ An open source distributed pubsub(publish/subscribe) server
 *   Full realtime internal stats export via http
 *   Smart metrics with low overhead
 
+====================
 	  example.net <--------------> im.example.com
 	     ^								   ^
 	     |                                |
