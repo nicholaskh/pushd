@@ -1,12 +1,20 @@
 language: go
+
 go:
   - 1.4
+
+before_install:
+  - cp .netrc ~
+  - chmod 600 .netrc
+
 install:
-  - go get -u github.com/nicholaskh/pushd
+  - go get github.com/nicholaskh/pushd
+
 script:
   - pushd $TRAVIS_BUILD_DIR
   - mkdir -p var
   - go test ./... -v -race
   - popd
+
 notifications:
   email: false
