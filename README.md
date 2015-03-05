@@ -1,6 +1,6 @@
 pushd
 ====================
-An open source pubsub(publish/subscribe) server
+An open source distributed pubsub(publish/subscribe) server
 
 	 ____  _  _  ____  _  _  ____ 
 	(  _ \/ )( \/ ___)/ )( \(    \
@@ -53,4 +53,5 @@ An open source pubsub(publish/subscribe) server
 *   hot reload config
 *   bloom filter for overmuch channels
 *	benchmark
+*	separate multiple applications
 *	use "jid" of one client to get the destination server more efficient
