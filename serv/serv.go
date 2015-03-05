@@ -52,7 +52,7 @@ func (this *PushdServ) Run(cli *server.Client) {
 
 		client.LastTime = time.Now()
 
-		log.Debug("input: %x", input)
+		//log.Debug("input: %x", input)
 
 		cl := engine.NewCmdline(input, client)
 		if cl.Cmd == "" {
@@ -65,7 +65,7 @@ func (this *PushdServ) Run(cli *server.Client) {
 			continue
 		}
 
-		client.Output <- fmt.Sprintf("Received: %s\n", ret)
+		client.Output <- fmt.Sprintf("%s\n", ret)
 	}
 
 }

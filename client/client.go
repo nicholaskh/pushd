@@ -8,6 +8,7 @@ type Client struct {
 	Channels map[string]int
 	MsgQueue chan string
 	Output   chan string
+	Uname    string
 	*server.Client
 }
 
