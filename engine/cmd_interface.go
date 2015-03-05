@@ -62,7 +62,7 @@ func (this *Cmdline) ProcessCmd() (ret string, err error) {
 	// TODO use one appId/secretKey pair
 	case CMD_TOKEN:
 		// TODO more secure token generator
-		ret = str.Rand(16)
+		ret = str.Rand(32)
 		userToken.Set(this.Params[0], ret)
 
 	case CMD_AUTH:
