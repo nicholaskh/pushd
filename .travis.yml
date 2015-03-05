@@ -11,10 +11,7 @@ install:
   - go get -u github.com/nicholaskh/pushd/daemon
 
 script:
-  - pushd $TRAVIS_BUILD_DIR
-  - mkdir -p var
   - go test ./... -v -race
-  - popd
 
 notifications:
   email: false
