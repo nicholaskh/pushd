@@ -7,7 +7,7 @@ An open source distributed pubsub(publish/subscribe) server
 	 ) __/) \/ (\___ \) __ ( ) D (
 	(__)  \____/(____/\_)(_/(____/
 
-[![Build Status](https://travis-ci.org/nicholaskh/pushd.png?branch=master)](https://travis-ci.org/nicholaskh/pushd)
+[![Build Status](https://api.travis-ci.org/nicholaskh/pushd.svg?branch=master)](https://travis-ci.org/nicholaskh/pushd)
 
 
 ### Commands
