@@ -9,6 +9,7 @@ before_install:
 
 install:
   - git clone https://github.com/nicholaskh/pushd
+  - go get -u ./...
 
 script:
   - go test ./... -v
