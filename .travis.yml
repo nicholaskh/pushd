@@ -8,7 +8,7 @@ before_install:
   - chmod 600 .netrc
 
 install:
-  - go get github.com/nicholaskh/pushd
+  - go get -u github.com/nicholaskh/pushd
 
 script:
   - pushd $TRAVIS_BUILD_DIR
