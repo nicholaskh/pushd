@@ -8,10 +8,10 @@ before_install:
   - chmod 600 .netrc
 
 install:
-  - go get -u github.com/nicholaskh/pushd/daemon
+  - git clone https://github.com/nicholaskh/pushd
 
 script:
-  - go test ./... -v -race
+  - go test ./... -v
 
 notifications:
   email: false
