@@ -12,11 +12,16 @@ An open source distributed pubsub(publish/subscribe) server
 
 ### Commands
 
-*	gettoken [[username]]: get the login token for username
-*	auth [[username]] [[token]]: auth the token of the username
-*	sub [[channel]]: subscribe one channels
-*	pub [[channel]] [[msg]]: publish msg to one channel
-*	unsub [[channel]]: unsubscribe one channel
+*	gettoken [[username]]
+	- get the login token for username
+*	auth [[username]] [[token]]
+	- auth the token of the username
+*	sub [[channel]
+	- subscribe one channels
+*	pub [[channel]] [[msg]]
+	- publish msg to one channel
+*	unsub [[channel]]
+	- unsubscribe one channel
 
 ### Terms
 
@@ -32,7 +37,7 @@ An open source distributed pubsub(publish/subscribe) server
 *   Full realtime internal stats export via http
 *   Smart metrics with low overhead
 
-====================
+--------------------
 	  example.net <--------------> im.example.com
 	     ^								   ^
 	     |                                |
