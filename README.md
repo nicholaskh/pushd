@@ -33,15 +33,15 @@ An open source distributed pubsub(publish/subscribe) server
 
 *   Self manageable cluster
 *	Use a distributed Client-Server architecture
+		
+		example.net <--------------> im.example.com
+		     ^                                ^
+		     |                                |
+		     v                                v
+		   romeo                            juliet
 *   Highly usage of mem to improve latancy & throughput
 *   Full realtime internal stats export via http
 *   Smart metrics with low overhead
-
-        example.net <--------------> im.example.com
-            ^							     ^
-            |                               |
-            v                               v
-          romeo           				  juliet
 	
 ### Contribs
 
