@@ -77,7 +77,6 @@ func (this *PushdServ) Run(cli *server.Client) {
 		client.Output <- fmt.Sprintf("%s\n", ret)
 
 		elapsed = time.Since(t1)
-		log.Info(elapsed.Nanoseconds())
 		this.Stats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
 		this.Stats.CallPerSecond.Mark(1)
 	}

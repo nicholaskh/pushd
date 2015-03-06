@@ -37,13 +37,14 @@ func main() {
 	config.PushdConf = new(config.ConfigPushd)
 	config.PushdConf.LoadConfig(pushdServ.Conf)
 	go pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.ConnTimeout)
-	go pushdServ.Stats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
 
 	engine.Proxy = engine.NewS2sProxy()
 	go engine.Proxy.WaitMsg()
 
 	s2sServ = engine.NewS2sServ()
-	s2sServ.LaunchProxyServ()
+	go s2sServ.LaunchProxyServ()
+
+	pushdServ.Stats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
 
 	signal.RegisterSignalHandler(syscall.SIGINT, func(sig os.Signal) {
 		shutdown()

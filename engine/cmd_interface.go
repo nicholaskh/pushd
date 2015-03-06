@@ -53,7 +53,7 @@ func (this *Cmdline) ProcessCmd() (ret string, err error) {
 		if len(this.Params) < 2 {
 			return "", errors.New("Publish without msg\n")
 		} else {
-			ret = publish(this.Params[0], this.Params[1])
+			ret = publish(this.Params[0], this.Params[1], false)
 		}
 
 	case CMD_UNSUBSCRIBE:

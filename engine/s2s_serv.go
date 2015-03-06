@@ -63,7 +63,7 @@ func (this *S2sServ) Run(cli *server.Client) {
 func (this *S2sServ) processCmd(cl *Cmdline) error {
 	switch cl.Cmd {
 	case CMD_PUBLISH:
-		publish(cl.Params[0], cl.Params[1])
+		publish(cl.Params[0], cl.Params[1], true)
 
 	case CMD_SUBSCRIBE:
 		log.Debug("peer sub %s %s", cl.Cmd, cl.Params)

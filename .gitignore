@@ -25,6 +25,8 @@ _testmain.go
 
 panic.dump
 metrics.log
+metrics2.log
+daemon/daemon
 
 *.swp
 *.swo

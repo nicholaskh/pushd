@@ -76,6 +76,8 @@ type S2sProxy struct {
 	PubMsgChan   chan *PubTuple
 	SubMsgChan   chan string
 	UnsubMsgChan chan string
+
+	Stats *ProxyStats
 }
 
 func NewS2sProxy() (this *S2sProxy) {
@@ -95,6 +97,10 @@ func NewS2sProxy() (this *S2sProxy) {
 	}
 	log.Debug("%s", this.peers)
 	this.channelPeers = cmap.New()
+
+	this.Stats = newProxyStats()
+	this.Stats.registerMetrics()
+
 	return
 }
 
@@ -102,6 +108,7 @@ func (this *S2sProxy) WaitMsg() {
 	for {
 		select {
 		case tuple := <-this.PubMsgChan:
+			this.Stats.pubCalls.Mark(1)
 			for peerInterface := range tuple.peers.Iter() {
 				log.Debug("peer was %s %s", peerInterface, reflect.TypeOf(peerInterface))
 				peer, _ := peerInterface.(*Peer)
@@ -110,6 +117,8 @@ func (this *S2sProxy) WaitMsg() {
 			}
 
 		case channel := <-this.SubMsgChan:
+			this.Stats.subCalls.Mark(1)
+			this.Stats.outChannels.Mark(1)
 			for _, peer := range this.peers {
 				go peer.writeMsg(fmt.Sprintf("%s %s %s", S2S_SUB_CMD, channel, config.PushdConf.TcpListenAddr))
 			}

@@ -43,11 +43,7 @@ func subscribe(cli *client.Client, channel string) string {
 			clients = map[*client.Client]int{cli: 1}
 
 			//s2s
-			_, exists = Proxy.GetPeersByChannel(channel)
-			if !exists {
-				Proxy.SubMsgChan <- channel
-			}
-
+			Proxy.SubMsgChan <- channel
 		}
 		PubsubChannels.Set(channel, clients)
 
@@ -85,7 +81,7 @@ func UnsubscribeAllChannels(cli *client.Client) {
 	cli.Channels = nil
 }
 
-func publish(channel, msg string) string {
+func publish(channel, msg string, fromS2s bool) string {
 	clients, exists := PubsubChannels.Get(channel)
 	if exists {
 		log.Debug("channel %s subscribed by clients%s", channel, clients)
@@ -94,13 +90,17 @@ func publish(channel, msg string) string {
 		}
 	}
 
-	//s2s
-	var peers set.Set
-	peers, exists = Proxy.GetPeersByChannel(channel)
-	log.Debug("now peers %s", peers)
-	if exists {
-		Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel)
-	}
+	if !fromS2s {
+		//s2s
+		var peers set.Set
+		peers, exists = Proxy.GetPeersByChannel(channel)
+		log.Debug("now peers %s", peers)
+		if exists {
+			Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel)
+		}
 
-	return OUTPUT_PUBLISHED
+		return OUTPUT_PUBLISHED
+	} else {
+		return ""
+	}
 }

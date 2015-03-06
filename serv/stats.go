@@ -15,8 +15,7 @@ type serverStats struct {
 
 func newServerStats() (this *serverStats) {
 	this = new(serverStats)
-	this.CallLatencies = metrics.NewHistogram(
-		metrics.NewExpDecaySample(1028, 0.015))
+	this.CallLatencies = metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015))
 	metrics.Register("latency.call", this.CallLatencies)
 	this.CallPerSecond = metrics.NewMeter()
 	metrics.Register("qps.call", this.CallPerSecond)
