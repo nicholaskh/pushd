@@ -31,7 +31,7 @@ const (
 
 func NewCmdline(input []byte, cli *client.Client) (this *Cmdline) {
 	this = new(Cmdline)
-	parts := strings.Split(trimCmdline(string(input)), " ")
+	parts := strings.SplitN(trimCmdline(string(input)), " ", 3)
 	this.Cmd = parts[0]
 	this.Params = parts[1:]
 	this.Client = cli

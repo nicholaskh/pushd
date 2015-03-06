@@ -41,6 +41,17 @@ func (this *Peer) connect() (err error) {
 	if err != nil {
 		log.Warn("s2s connect to %s error: %s", this.addr, err.Error())
 	}
+
+	// just wait for s2s server close the connection
+	go func() {
+		for {
+			input := make([]byte, 1460)
+			_, err = this.Conn.Read(input)
+			if err != nil {
+				this.Conn.Close()
+			}
+		}
+	}()
 	return
 }
 
@@ -48,7 +59,9 @@ func (this *Peer) writeMsg(msg string) {
 	var err error
 
 	if this.Conn != nil {
-		_, err = this.Write([]byte(msg))
+		var num int
+		num, err = this.Write([]byte(msg))
+		log.Info(num, err)
 	}
 	if err != nil || this.Conn == nil {
 		// retry

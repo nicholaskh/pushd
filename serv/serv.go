@@ -55,6 +55,7 @@ func (this *PushdServ) Run(cli *server.Client) {
 				return
 			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
 				log.Error("Read from client[%s] error: %s", client.Conn.RemoteAddr(), err.Error())
+				this.closeClient(client)
 				return
 			}
 		}

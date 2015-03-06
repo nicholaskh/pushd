@@ -36,6 +36,7 @@ func (this *S2sServ) Run(cli *server.Client) {
 				return
 			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
 				log.Error("Read from peer[%s] error: %s", client.Conn.RemoteAddr(), err.Error())
+				client.Conn.Close()
 				return
 			}
 		}
