@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	cmap "github.com/nicholaskh/golib/concurrent/map"
+	"github.com/nicholaskh/golib/cache"
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
@@ -43,15 +43,17 @@ func (this *Peer) connect() (err error) {
 	}
 
 	// just wait for s2s server close the connection
-	go func() {
-		for {
-			input := make([]byte, 1460)
-			_, err = this.Conn.Read(input)
-			if err != nil {
-				this.Conn.Close()
+	if this.Conn != nil {
+		go func() {
+			for {
+				input := make([]byte, 1460)
+				_, err = this.Conn.Read(input)
+				if err != nil {
+					this.Conn.Close()
+				}
 			}
-		}
-	}()
+		}()
+	}
 	return
 }
 
@@ -61,7 +63,6 @@ func (this *Peer) writeMsg(msg string) {
 	if this.Conn != nil {
 		var num int
 		num, err = this.Write([]byte(msg))
-		log.Info(num, err)
 	}
 	if err != nil || this.Conn == nil {
 		// retry
@@ -85,7 +86,7 @@ type S2sProxy struct {
 	peers map[string]*Peer
 
 	// TODO lru cache
-	channelPeers cmap.ConcurrentMap
+	channelPeers *cache.LruCache
 	PubMsgChan   chan *PubTuple
 	SubMsgChan   chan string
 	UnsubMsgChan chan string
@@ -109,7 +110,8 @@ func NewS2sProxy() (this *S2sProxy) {
 		}
 	}
 	log.Debug("%s", this.peers)
-	this.channelPeers = cmap.New()
+	// TODO
+	this.channelPeers = cache.NewLruCache(200000)
 
 	this.Stats = newProxyStats()
 	this.Stats.registerMetrics()
@@ -135,6 +137,7 @@ func (this *S2sProxy) WaitMsg() {
 			for _, peer := range this.peers {
 				go peer.writeMsg(fmt.Sprintf("%s %s %s", S2S_SUB_CMD, channel, config.PushdConf.TcpListenAddr))
 			}
+			// TODO save into redis
 
 			//case channel := <-this.UnsubMsgChan:
 			//TODO
@@ -144,6 +147,10 @@ func (this *S2sProxy) WaitMsg() {
 
 func (this *S2sProxy) GetPeersByChannel(channel string) (peers set.Set, exists bool) {
 	peersInterface, exists := this.channelPeers.Get(channel)
+	// TODO
+	// !exists=>read from redis and write to cache
+	// empty => delete from cache
+	// else use it
 	if peersInterface != nil {
 		peers, _ = peersInterface.(set.Set)
 	} else {
