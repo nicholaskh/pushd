@@ -2,13 +2,26 @@ pushd
 ====================
 An open source distributed pubsub(publish/subscribe) server
 
-     ____  _  _  ____  _  _  ____ 
+	 ____  _  _  ____  _  _  ____ 
 	(  _ \/ )( \/ ___)/ )( \(    \
 	 ) __/) \/ (\___ \) __ ( ) D (
 	(__)  \____/(____/\_)(_/(____/
 
 [![Build Status](https://travis-ci.org/nicholaskh/pushd.svg?branch=master)](https://travis-ci.org/nicholaskh/pushd)
 
+### Install
+
+*	No install, just use bin/pushd.linux or bin/pushd.mac
+
+### HowToUse
+
+1.	Run Server: bin/pushd.(linux|mac)
+2.	Run Client(eg. telnet): telnet localhost 2222
+	- sub channel1
+3.	Run another Client: telnet localhost 2222
+	- pub channel1 hello
+
+	Then Client 1 will receive the message "hello"
 
 ### Commands
 
@@ -23,10 +36,11 @@ An open source distributed pubsub(publish/subscribe) server
 *	unsub [[channel]]
 	- unsubscribe one channel
 
+
 ### Terms
 
 *	Serv
-*   Engine
+*	Engine
 *	s2s
 
 ### Highlights
