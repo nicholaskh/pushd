@@ -27,6 +27,7 @@ panic.dump
 metrics.log
 metrics2.log
 daemon/daemon
+etc/pushd2.cf
 
 *.swp
 *.swo
