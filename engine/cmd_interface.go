@@ -39,11 +39,11 @@ func NewCmdline(input []byte, cli *client.Client) (this *Cmdline) {
 }
 
 func (this *Cmdline) ProcessCmd() (ret string, err error) {
-	if this.Cmd != CMD_TOKEN && this.Cmd != CMD_AUTH {
-		if err = checkLogin(this.Client.Uname); err != nil {
-			return "", err
-		}
-	}
+	//if this.Cmd != CMD_TOKEN && this.Cmd != CMD_AUTH {
+	//	if err = checkLogin(this.Client.Uname); err != nil {
+	//		return "", err
+	//	}
+	//}
 
 	switch this.Cmd {
 	case CMD_SUBSCRIBE:

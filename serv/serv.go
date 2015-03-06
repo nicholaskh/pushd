@@ -14,11 +14,13 @@ import (
 
 type PushdServ struct {
 	*server.Server
+	Stats *serverStats
 }
 
 func NewPushdServ() (this *PushdServ) {
 	this = new(PushdServ)
 	this.Server = server.NewServer("pushd")
+	this.Stats = newServerStats()
 
 	return
 }
@@ -27,9 +29,16 @@ func (this *PushdServ) Run(cli *server.Client) {
 	client := client.NewClient()
 	client.Client = cli
 	go client.WaitMsg()
+
+	var (
+		t1      time.Time
+		elapsed time.Duration
+	)
 	for {
 		input := make([]byte, 1460)
 		_, err := client.Conn.Read(input)
+
+		t1 = time.Now()
 
 		if err != nil {
 			if err == io.EOF {
@@ -66,6 +75,11 @@ func (this *PushdServ) Run(cli *server.Client) {
 		}
 
 		client.Output <- fmt.Sprintf("%s\n", ret)
+
+		elapsed = time.Since(t1)
+		log.Info(elapsed.Nanoseconds())
+		this.Stats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
+		this.Stats.CallPerSecond.Mark(1)
 	}
 
 }
