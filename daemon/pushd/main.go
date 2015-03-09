@@ -48,7 +48,7 @@ func main() {
 
 	config.PushdConf = new(config.ConfigPushd)
 	config.PushdConf.LoadConfig(pushdServ.Conf)
-	go pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.ConnTimeout)
+	go pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.SessionTimeout)
 
 	engine.Proxy = engine.NewS2sProxy()
 	go engine.Proxy.WaitMsg()

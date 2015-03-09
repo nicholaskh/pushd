@@ -12,11 +12,11 @@
 	}
 	
 	tcp_listen_addr: "127.0.0.1:2222"
-	conn_timeout: "2m"
+	session_timeout: "2m"
 	
 	s2s_addr: ":2223"
-	s2s_conn_timeout: "2m"
+	s2s_session_timeout: "2m"
 	
 	metrics_logfile: "metrics.log"
-	stats_output_interval: "10s"
+	stats_output_interval: "2m"
 }

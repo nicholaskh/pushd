@@ -83,5 +83,5 @@ func (this *S2sServ) LaunchProxyServ() {
 	s := NewS2sServ()
 	//FIXME
 	//s.LaunchTcpServ(confPushd.s2sAddr, s, confPushd.s2sPingInterval)
-	s.LaunchTcpServ(GetS2sAddr(config.PushdConf.TcpListenAddr), s, config.PushdConf.S2sConnTimeout)
+	s.LaunchTcpServ(GetS2sAddr(config.PushdConf.TcpListenAddr), s, config.PushdConf.S2sSessionTimeout)
 }

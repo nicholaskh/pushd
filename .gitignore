@@ -26,7 +26,7 @@ _testmain.go
 panic.dump
 metrics.log
 metrics2.log
-daemon/daemon
+daemon/pushd/pushd
 etc/pushd2.cf
 
 *.swp
