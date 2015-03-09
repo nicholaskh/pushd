@@ -8,8 +8,8 @@ import (
 
 	"runtime/debug"
 
-	"github.com/funkygao/golib/signal"
 	"github.com/nicholaskh/golib/server"
+	"github.com/nicholaskh/golib/signal"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine"
