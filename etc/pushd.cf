@@ -4,6 +4,13 @@
 		"127.0.0.1:2232",
 	]
 	
+	redis: {
+		addr: "127.0.0.1:6379"
+		conn_timeout: "5s"
+		read_timeout: "5s"
+		write_timeout: "5s"
+	}
+	
 	tcp_listen_addr: "127.0.0.1:2222"
 	conn_timeout: "2m"
 	

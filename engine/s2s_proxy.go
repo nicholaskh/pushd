@@ -61,8 +61,7 @@ func (this *Peer) writeMsg(msg string) {
 	var err error
 
 	if this.Conn != nil {
-		var num int
-		num, err = this.Write([]byte(msg))
+		_, err = this.Write([]byte(msg))
 	}
 	if err != nil || this.Conn == nil {
 		// retry

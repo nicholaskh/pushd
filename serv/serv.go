@@ -60,6 +60,11 @@ func (this *PushdServ) Run(cli *server.Client) {
 			}
 		}
 
+		if err != nil {
+			log.Debug("Client auth fail: %s", err.Error())
+			this.sendClient(client, err.Error())
+		}
+
 		client.LastTime = time.Now()
 
 		//log.Debug("input: %x", input)
@@ -68,14 +73,21 @@ func (this *PushdServ) Run(cli *server.Client) {
 		if cl.Cmd == "" {
 			continue
 		}
-		ret, err := cl.ProcessCmd()
+
+		err = engine.AclCheck(client, cl.Cmd)
 		if err != nil {
-			log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-			client.Output <- err.Error()
+			this.sendClient(client, err.Error())
 			continue
 		}
 
-		client.Output <- fmt.Sprintf("%s\n", ret)
+		ret, err := cl.Process()
+		if err != nil {
+			log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
+			this.sendClient(client, err.Error())
+			continue
+		}
+
+		this.sendClient(client, ret)
 
 		elapsed = time.Since(t1)
 		this.Stats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
@@ -84,7 +96,11 @@ func (this *PushdServ) Run(cli *server.Client) {
 
 }
 
-func (this *PushdServ) closeClient(client *client.Client) {
-	client.Close()
-	engine.UnsubscribeAllChannels(client)
+func (this *PushdServ) sendClient(cli *client.Client, msg string) {
+	cli.Output <- fmt.Sprintf("%s\n", msg)
+}
+
+func (this *PushdServ) closeClient(cli *client.Client) {
+	cli.Close()
+	engine.UnsubscribeAllChannels(cli)
 }

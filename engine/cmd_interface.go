@@ -20,7 +20,8 @@ const (
 	CMD_PUBLISH     = "pub"
 	CMD_UNSUBSCRIBE = "unsub"
 	CMD_TOKEN       = "gettoken"
-	CMD_AUTH        = "auth"
+	CMD_AUTH_CLIENT = "auth_client"
+	CMD_AUTH_SERVER = "auth_server"
 
 	OUTPUT_SUBSCRIBED         = "SUBSCRIBED"
 	OUTPUT_ALREADY_SUBSCRIBED = "ALREADY SUBSCRIBED"
@@ -38,13 +39,7 @@ func NewCmdline(input []byte, cli *client.Client) (this *Cmdline) {
 	return
 }
 
-func (this *Cmdline) ProcessCmd() (ret string, err error) {
-	//if this.Cmd != CMD_TOKEN && this.Cmd != CMD_AUTH {
-	//	if err = checkLogin(this.Client.Uname); err != nil {
-	//		return "", err
-	//	}
-	//}
-
+func (this *Cmdline) Process() (ret string, err error) {
 	switch this.Cmd {
 	case CMD_SUBSCRIBE:
 		ret = subscribe(this.Client, this.Params[0])
@@ -59,16 +54,34 @@ func (this *Cmdline) ProcessCmd() (ret string, err error) {
 	case CMD_UNSUBSCRIBE:
 		ret = unsubscribe(this.Client, this.Params[0])
 
-	// TODO use one appId/secretKey pair
+	//use one appId/secretKey pair
+	case CMD_AUTH_SERVER:
+		if this.Client.Authed {
+			ret = "Already authed"
+			err = nil
+		} else {
+			ret, err = authServer(this.Params[0], this.Params[1])
+			if err == nil {
+				this.Client.Authed = true
+				this.Client.Type = client.TYPE_SERVER
+			}
+		}
+
 	case CMD_TOKEN:
 		// TODO more secure token generator
 		ret = str.Rand(32)
-		userToken.Set(this.Params[0], ret)
+		tokenPool.Set(ret, 1)
 
-	case CMD_AUTH:
-		ret, err = authStep(this.Params[0], this.Params[1])
-		if err == nil {
-			this.Client.Uname = this.Params[0]
+	case CMD_AUTH_CLIENT:
+		if this.Client.Authed {
+			ret = "Already authed"
+			err = nil
+		} else {
+			ret, err = authClient(this.Params[0])
+			if err == nil {
+				this.Client.Authed = true
+				this.Client.Type = client.TYPE_CLIENT
+			}
 		}
 
 	default:

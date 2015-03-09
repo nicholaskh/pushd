@@ -19,6 +19,8 @@ type ConfigPushd struct {
 
 	MetricsLogfile      string
 	StatsOutputInterval time.Duration
+
+	Redis *ConfigRedis
 }
 
 func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
@@ -31,4 +33,11 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 
 	this.MetricsLogfile = cf.String("metrics_logfile", "metrics.log")
 	this.StatsOutputInterval = cf.Duration("stats_output_interval", time.Minute*10)
+
+	this.Redis = new(ConfigRedis)
+	section, err := cf.Section("redis")
+	if err != nil {
+		panic("Redis config not found")
+	}
+	this.Redis.LoadConfig(section)
 }

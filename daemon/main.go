@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"syscall"
 	"time"
+
+	"runtime/debug"
 
 	"github.com/funkygao/golib/signal"
 	"github.com/nicholaskh/golib/server"
@@ -29,6 +32,15 @@ func init() {
 }
 
 func main() {
+	defer func() {
+		//cleanup()
+
+		if err := recover(); err != nil {
+			fmt.Println(err)
+			debug.PrintStack()
+		}
+	}()
+
 	pushdServ = serv.NewPushdServ()
 	pushdServ.LoadConfig(options.configFile)
 	pushdServ.Launch()
