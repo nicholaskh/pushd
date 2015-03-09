@@ -15,6 +15,7 @@ An open source distributed pubsub(publish/subscribe) server
 
 ### HowToUse
 
+*	Stand alone
 1.	Run Server: bin/pushd.(linux|mac)
 2.	Run Client(eg. telnet): telnet localhost 2222
 	- sub channel1
@@ -22,6 +23,13 @@ An open source distributed pubsub(publish/subscribe) server
 	- pub channel1 hello
 
 	Then Client 1 will receive the message "hello"
+	
+*	Distributed env config
+1.	Set the 'servers' section to all the peers in the cluster
+	- note: the server in the 'servers' section must equal the 'tcp_listen_addr' option
+2.	For the config of every peer, set the 'tcp_listen_addr' to the corresponding address
+
+	Then the cluster will serve as one server
 
 ### Commands
 
