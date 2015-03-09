@@ -2,10 +2,12 @@ pushd
 ====================
 An open source distributed pubsub(publish/subscribe) server
 
-	 ____  _  _  ____  _  _  ____ 
-	(  _ \/ )( \/ ___)/ )( \(    \
-	 ) __/) \/ (\___ \) __ ( ) D (
-	(__)  \____/(____/\_)(_/(____/
+	                  _         _ 
+	  _ __  _   _ ___| |__   __| |
+	 | '_ \| | | / __| '_ \ / _` |
+	 | |_) | |_| \__ \ | | | (_| |
+	 | .__/ \__,_|___/_| |_|\__,_|
+	 |_|                                       
 
 [![Build Status](https://travis-ci.org/nicholaskh/pushd.svg?branch=master)](https://travis-ci.org/nicholaskh/pushd)
 
