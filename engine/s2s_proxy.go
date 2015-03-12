@@ -84,7 +84,6 @@ func (this *Peer) writeMsg(msg string) {
 type S2sProxy struct {
 	peers map[string]*Peer
 
-	// TODO lru cache
 	channelPeers *cache.LruCache
 	PubMsgChan   chan *PubTuple
 	SubMsgChan   chan string

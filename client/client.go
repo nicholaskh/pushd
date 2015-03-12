@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/nicholaskh/golib/server"
+	"github.com/nicholaskh/golib/sync2"
 )
 
 const (
@@ -16,6 +17,8 @@ type Client struct {
 	Uname    string
 	Type     uint8
 	Authed   bool
+	Closed   bool
+	Mutex    *sync2.Semaphore
 	*server.Client
 }
 
@@ -26,23 +29,34 @@ func NewClient() (this *Client) {
 	this.MsgQueue = make(chan string, 20)
 	this.Output = make(chan string)
 	this.Authed = false
+	this.Closed = false
+	this.Mutex = sync2.NewSemaphore(1, 0)
 	return
 }
 
 func (this *Client) WaitMsg() {
 	for {
 		select {
-		case msg := <-this.MsgQueue:
+		case msg, ok := <-this.MsgQueue:
+			if !ok {
+				return
+			}
 			this.Conn.Write([]byte(msg))
 
-		case msg := <-this.Output:
+		case msg, ok := <-this.Output:
+			if !ok {
+				return
+			}
 			this.Conn.Write([]byte(msg))
 		}
 	}
 }
 
 func (this *Client) Close() {
-	close(this.MsgQueue)
+	this.Mutex.Acquire()
+	this.Closed = true
+	this.Mutex.Release()
 	close(this.Output)
+	close(this.MsgQueue)
 	this.Conn.Close()
 }

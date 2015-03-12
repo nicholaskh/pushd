@@ -13,7 +13,6 @@ cd daemon/pushd
 if [[ $1 = "-linux" ]]; then
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/nicholaskh/golib/server.VERSION $VER -X github.com/nicholaskh/golib/server.BuildID $ID -w"
     mv pushd ../../bin/pushd.linux
-    exit
 else
     go build -ldflags "-X github.com/nicholaskh/golib/server.VERSION $VER -X github.com/nicholaskh/golib/server.BuildID $ID -w"
     #go build -race -v -ldflags "-X github.com/nicholaskh/golib/server.BuildID $ID -w"
@@ -21,3 +20,13 @@ else
     ../../bin/pushd.mac -v
 fi
 
+cd ../benchmark
+
+if [[ $1 = "-linux" ]]; then
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/nicholaskh/golib/server.VERSION $VER -X github.com/nicholaskh/golib/server.BuildID $ID -w"
+    mv benchmark ../../bin/benchmark.linux
+else
+    go build -ldflags "-X github.com/nicholaskh/golib/server.VERSION $VER -X github.com/nicholaskh/golib/server.BuildID $ID -w"
+    #go build -race -v -ldflags "-X github.com/nicholaskh/golib/server.BuildID $ID -w"
+    mv benchmark ../../bin/benchmark.mac
+fi

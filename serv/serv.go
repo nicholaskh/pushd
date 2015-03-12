@@ -46,12 +46,8 @@ func (this *PushdServ) Run(cli *server.Client) {
 				this.closeClient(client)
 
 				log.Debug("client channels: %s", client.Channels)
-				jsonChannels, err := engine.PubsubChannels.MarshalJSON()
-				if err != nil {
-					log.Error("Json marshal error: %s", err.Error())
-				}
 
-				log.Debug("pubsub channels: %s", jsonChannels)
+				log.Debug("pubsub channels: %s", engine.PubsubChannels)
 				return
 			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
 				log.Error("Read from client[%s] error: %s", client.Conn.RemoteAddr(), err.Error())
@@ -74,11 +70,11 @@ func (this *PushdServ) Run(cli *server.Client) {
 			continue
 		}
 
-		err = engine.AclCheck(client, cl.Cmd)
-		if err != nil {
-			this.sendClient(client, err.Error())
-			continue
-		}
+		//err = engine.AclCheck(client, cl.Cmd)
+		//if err != nil {
+		//	this.sendClient(client, err.Error())
+		//	continue
+		//}
 
 		ret, err := cl.Process()
 		if err != nil {
@@ -101,6 +97,6 @@ func (this *PushdServ) sendClient(cli *client.Client, msg string) {
 }
 
 func (this *PushdServ) closeClient(cli *client.Client) {
-	cli.Close()
 	engine.UnsubscribeAllChannels(cli)
+	cli.Close()
 }

@@ -1,7 +1,7 @@
 {
 	servers: [
 		"127.0.0.1:2222",
-		"127.0.0.1:2232",
+		//"127.0.0.1:2232",
 	]
 	
 	redis: {
@@ -18,5 +18,5 @@
 	s2s_session_timeout: "2m"
 	
 	metrics_logfile: "metrics.log"
-	stats_output_interval: "2m"
+	stats_output_interval: "10s"
 }

@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 
+	"github.com/nicholaskh/golib/cache"
 	cmap "github.com/nicholaskh/golib/concurrent/map"
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
@@ -14,18 +15,18 @@ var (
 )
 
 type PubsubChans struct {
-	cmap.ConcurrentMap
+	*cache.LruCache
 }
 
 func NewPubsubChannels() (this *PubsubChans) {
 	this = new(PubsubChans)
-	this.ConcurrentMap = cmap.New()
+	this.LruCache = cache.NewLruCache(200000)
 	return
 }
 
-func (this *PubsubChans) Get(channel string) (clients map[*client.Client]int, exists bool) {
-	clientsInterface, exists := PubsubChannels.ConcurrentMap.Get(channel)
-	clients, _ = clientsInterface.(map[*client.Client]int)
+func (this *PubsubChans) Get(channel string) (clients cmap.ConcurrentMap, exists bool) {
+	clientsInterface, exists := PubsubChannels.LruCache.Get(channel)
+	clients, _ = clientsInterface.(cmap.ConcurrentMap)
 	return
 }
 
@@ -38,9 +39,10 @@ func subscribe(cli *client.Client, channel string) string {
 		cli.Channels[channel] = 1
 		clients, exists := PubsubChannels.Get(channel)
 		if exists {
-			clients[cli] = 1
+			clients.Set(cli.RemoteAddr().String(), cli)
 		} else {
-			clients = map[*client.Client]int{cli: 1}
+			clients = cmap.New()
+			clients.Set(cli.RemoteAddr().String(), cli)
 
 			//s2s
 			Proxy.SubMsgChan <- channel
@@ -58,11 +60,11 @@ func unsubscribe(cli *client.Client, channel string) string {
 		delete(cli.Channels, channel)
 		clients, exists := PubsubChannels.Get(channel)
 		if exists {
-			delete(clients, cli)
+			clients.Remove(cli.RemoteAddr().String())
 		}
 		clients, exists = PubsubChannels.Get(channel)
 		if len(clients) == 0 {
-			PubsubChannels.Remove(channel)
+			PubsubChannels.Del(channel)
 		}
 		return fmt.Sprintf("%s %s", OUTPUT_UNSUBSCRIBED, channel)
 	} else {
@@ -73,9 +75,9 @@ func unsubscribe(cli *client.Client, channel string) string {
 func UnsubscribeAllChannels(cli *client.Client) {
 	for channel, _ := range cli.Channels {
 		clients, _ := PubsubChannels.Get(channel)
-		delete(clients, cli)
+		clients.Remove(cli.RemoteAddr().String())
 		if len(clients) == 0 {
-			PubsubChannels.Remove(channel)
+			PubsubChannels.Del(channel)
 		}
 	}
 	cli.Channels = nil
@@ -85,8 +87,13 @@ func publish(channel, msg string, fromS2s bool) string {
 	clients, exists := PubsubChannels.Get(channel)
 	if exists {
 		log.Debug("channel %s subscribed by clients%s", channel, clients)
-		for cli, _ := range clients {
-			cli.MsgQueue <- msg
+		for ele := range clients.Iter() {
+			cli := ele.Val.(*client.Client)
+			cli.Mutex.Acquire()
+			if !cli.Closed {
+				cli.MsgQueue <- msg
+			}
+			cli.Mutex.Release()
 		}
 	}
 

@@ -23,10 +23,10 @@ _testmain.go
 *.test
 *.prof
 
-panic.dump
-metrics.log
-metrics2.log
+*.dump
+*.log
 daemon/pushd/pushd
+daemon/benchmark/benchmark
 etc/pushd2.cf
 
 *.swp
