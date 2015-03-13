@@ -9,16 +9,15 @@ import (
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/client"
-	"github.com/nicholaskh/pushd/config"
 )
 
 type S2sServ struct {
-	*server.Server
+	*server.TcpServer
 }
 
 func NewS2sServ() (this *S2sServ) {
 	this = new(S2sServ)
-	this.Server = server.NewServer("pushd_s2s")
+	this.TcpServer = server.NewTcpServer("pushd_s2s")
 	return
 }
 
@@ -77,11 +76,4 @@ func (this *S2sServ) processCmd(cl *Cmdline) error {
 	}
 
 	return nil
-}
-
-func (this *S2sServ) LaunchProxyServ() {
-	s := NewS2sServ()
-	//FIXME
-	//s.LaunchTcpServ(confPushd.s2sAddr, s, confPushd.s2sPingInterval)
-	s.LaunchTcpServ(GetS2sAddr(config.PushdConf.TcpListenAddr), s, config.PushdConf.S2sSessionTimeout)
 }

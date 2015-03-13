@@ -13,13 +13,13 @@ import (
 )
 
 type PushdServ struct {
-	*server.Server
+	*server.TcpServer
 	Stats *serverStats
 }
 
 func NewPushdServ() (this *PushdServ) {
 	this = new(PushdServ)
-	this.Server = server.NewServer("pushd")
+	this.TcpServer = server.NewTcpServer("pushd")
 	this.Stats = newServerStats()
 
 	return

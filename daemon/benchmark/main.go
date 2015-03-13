@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/nicholaskh/golib/server"
@@ -40,17 +41,24 @@ func main() {
 }
 
 func buildConns() {
+	var wg sync.WaitGroup
 	var err error
 	tcpAddr, _ := net.ResolveTCPAddr("tcp", options.addr)
 	for i := 0; i < options.concurrency; i++ {
-		conns[i], err = net.DialTCP("tcp", nil, tcpAddr)
-		conns[i].SetLinger(0)
-		if err != nil {
-			lostConns++
-			log.Info("connection error: %s", err.Error())
-		}
+		wg.Add(1)
+		go func(i int) {
+			conns[i], err = net.DialTCP("tcp", nil, tcpAddr)
+			if err != nil {
+				lostConns++
+				log.Info("connection error: %s", err.Error())
+			} else {
+				conns[i].SetLinger(0)
+			}
+			wg.Done()
+		}(i)
 
 	}
+	wg.Wait()
 }
 
 func shutdown() {

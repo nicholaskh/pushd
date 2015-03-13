@@ -33,8 +33,6 @@ func init() {
 
 func main() {
 	defer func() {
-		//cleanup()
-
 		if err := recover(); err != nil {
 			fmt.Println(err)
 			debug.PrintStack()
@@ -48,13 +46,13 @@ func main() {
 
 	config.PushdConf = new(config.ConfigPushd)
 	config.PushdConf.LoadConfig(pushdServ.Conf)
-	go pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.SessionTimeout)
+	go pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.SessionTimeout, int32(200))
 
 	engine.Proxy = engine.NewS2sProxy()
 	go engine.Proxy.WaitMsg()
 
-	s2sServ = engine.NewS2sServ()
-	go s2sServ.LaunchProxyServ()
+	//s2sServ = engine.NewS2sServ()
+	//go s2sServ.LaunchTcpServ(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), s2sServ, config.PushdConf.S2sSessionTimeout, int32(8))
 
 	pushdServ.Stats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
 
