@@ -3,6 +3,7 @@ package engine
 import (
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/nicholaskh/golib/server"
@@ -26,7 +27,9 @@ func (this *S2sServ) Run(cli *server.Client) {
 	client.Client = cli
 	for {
 		input := make([]byte, 1460)
-		_, err := client.Conn.Read(input)
+		n, err := client.Conn.Read(input)
+
+		input = input[:n]
 
 		if err != nil {
 			if err == io.EOF {
@@ -42,19 +45,21 @@ func (this *S2sServ) Run(cli *server.Client) {
 
 		client.LastTime = time.Now()
 
-		log.Debug("peer input: %x", input)
+		log.Debug("peer input: %s", string(input))
 
-		cl := NewCmdline(input, client)
-		if cl.Cmd == "" {
-			continue
-		}
+		for _, inputUnit := range strings.Split(string(input), "\n") {
+			cl := NewCmdline(inputUnit, client)
+			if cl.Cmd == "" {
+				continue
+			}
 
-		err = this.processCmd(cl)
+			err = this.processCmd(cl)
 
-		if err != nil {
-			log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-			client.Conn.Write([]byte(err.Error()))
-			continue
+			if err != nil {
+				log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
+				client.Conn.Write([]byte(err.Error()))
+				continue
+			}
 		}
 	}
 

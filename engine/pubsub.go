@@ -32,6 +32,7 @@ func (this *PubsubChans) Get(channel string) (clients cmap.ConcurrentMap, exists
 
 // TODO subscribe count of channel
 func subscribe(cli *client.Client, channel string) string {
+	log.Debug("%x", channel)
 	_, exists := cli.Channels[channel]
 	if exists {
 		return fmt.Sprintf("%s %s", OUTPUT_ALREADY_SUBSCRIBED, channel)

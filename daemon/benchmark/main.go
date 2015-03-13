@@ -29,15 +29,17 @@ func main() {
 		log.Info("Start round %d", i)
 		for j := 0; j < options.concurrency; j++ {
 			if j%2 == 1 {
-				go conns[j].Write([]byte(fmt.Sprintf("sub channel%d", i)))
+				go conns[j].Write([]byte(fmt.Sprintf("sub channel%d\n", i)))
 			} else {
-				go conns[j].Write([]byte(fmt.Sprintf("pub channel%d hello", i)))
+				go conns[j].Write([]byte(fmt.Sprintf("pub channel%d hello\n", i)))
 			}
 		}
 		time.Sleep(time.Second)
 	}
 
 	shutdown()
+
+	time.Sleep(time.Second)
 }
 
 func buildConns() {
@@ -52,7 +54,7 @@ func buildConns() {
 				lostConns++
 				log.Info("connection error: %s", err.Error())
 			} else {
-				conns[i].SetLinger(0)
+				//conns[i].SetLinger(0)
 			}
 			wg.Done()
 		}(i)
@@ -62,7 +64,11 @@ func buildConns() {
 }
 
 func shutdown() {
-	for _, conn := range conns {
-		conn.Close()
+	for i, conn := range conns {
+		log.Info("close connection %d", i)
+		err := conn.Close()
+		if err != nil {
+			log.Info("close error: %s", err.Error())
+		}
 	}
 }

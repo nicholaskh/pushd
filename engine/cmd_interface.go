@@ -30,9 +30,9 @@ const (
 	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
 )
 
-func NewCmdline(input []byte, cli *client.Client) (this *Cmdline) {
+func NewCmdline(input string, cli *client.Client) (this *Cmdline) {
 	this = new(Cmdline)
-	parts := strings.SplitN(trimCmdline(string(input)), " ", 3)
+	parts := strings.SplitN(trimCmdline(input), " ", 3)
 	this.Cmd = parts[0]
 	this.Params = parts[1:]
 	this.Client = cli

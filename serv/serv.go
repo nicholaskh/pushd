@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/nicholaskh/golib/server"
@@ -36,7 +37,9 @@ func (this *PushdServ) Run(cli *server.Client) {
 	)
 	for {
 		input := make([]byte, 1460)
-		_, err := client.Conn.Read(input)
+		n, err := client.Conn.Read(input)
+
+		input = input[:n]
 
 		t1 = time.Now()
 
@@ -63,31 +66,33 @@ func (this *PushdServ) Run(cli *server.Client) {
 
 		client.LastTime = time.Now()
 
-		//log.Debug("input: %x", input)
+		log.Debug("input: %s", string(input))
 
-		cl := engine.NewCmdline(input, client)
-		if cl.Cmd == "" {
-			continue
+		for _, inputUnit := range strings.Split(string(input), "\n") {
+			cl := engine.NewCmdline(inputUnit, client)
+			if cl.Cmd == "" {
+				continue
+			}
+
+			//err = engine.AclCheck(client, cl.Cmd)
+			//if err != nil {
+			//	this.sendClient(client, err.Error())
+			//	continue
+			//}
+
+			ret, err := cl.Process()
+			if err != nil {
+				log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
+				this.sendClient(client, err.Error())
+				continue
+			}
+
+			this.sendClient(client, ret)
+
+			elapsed = time.Since(t1)
+			this.Stats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
+			this.Stats.CallPerSecond.Mark(1)
 		}
-
-		//err = engine.AclCheck(client, cl.Cmd)
-		//if err != nil {
-		//	this.sendClient(client, err.Error())
-		//	continue
-		//}
-
-		ret, err := cl.Process()
-		if err != nil {
-			log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-			this.sendClient(client, err.Error())
-			continue
-		}
-
-		this.sendClient(client, ret)
-
-		elapsed = time.Since(t1)
-		this.Stats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
-		this.Stats.CallPerSecond.Mark(1)
 	}
 
 }
