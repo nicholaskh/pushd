@@ -51,8 +51,8 @@ func main() {
 	engine.Proxy = engine.NewS2sProxy()
 	go engine.Proxy.WaitMsg()
 
-	//s2sServ = engine.NewS2sServ()
-	//go s2sServ.LaunchTcpServ(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), s2sServ, config.PushdConf.S2sSessionTimeout, int32(8))
+	s2sServ = engine.NewS2sServ()
+	go s2sServ.LaunchTcpServ(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), s2sServ, config.PushdConf.S2sSessionTimeout, int32(8))
 
 	pushdServ.Stats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
 
