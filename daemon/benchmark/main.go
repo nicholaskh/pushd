@@ -64,6 +64,7 @@ func buildConns() {
 func batchConn(batchSize, firstNum int) {
 	var err error
 	for i := 0; i < batchSize; i++ {
+		log.Info("%d", i)
 		conns[firstNum+i], err = net.DialTCP("tcp", nil, tcpAddr)
 		if err != nil {
 			lostConns++
@@ -73,21 +74,24 @@ func batchConn(batchSize, firstNum int) {
 		}
 	}
 	wg.Done()
+	log.Info("Established %d connections", batchSize)
 }
 
 func batchWrite(batchSize, firstNum, round int) {
 	for i := 0; i < batchSize; i++ {
-		if i%2 == 1 {
-			conns[firstNum+i].Write([]byte(fmt.Sprintf("sub channel%d\n", round)))
-		} else {
-			conns[firstNum+i].Write([]byte(fmt.Sprintf("pub channel%d hello\n", round)))
+		if conns[firstNum+i] != nil {
+			if i%2 == 1 {
+				conns[firstNum+i].Write([]byte(fmt.Sprintf("sub channel%d\n", round)))
+			} else {
+				conns[firstNum+i].Write([]byte(fmt.Sprintf("pub channel%d hello\n", round)))
+			}
 		}
 	}
 }
 
 func shutdown() {
 	for i, conn := range conns {
-		log.Info("close connection %d", i)
+		log.Debug("close connection %d", i)
 		err := conn.Close()
 		if err != nil {
 			log.Info("close error: %s", err.Error())
