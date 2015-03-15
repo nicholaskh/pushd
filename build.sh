@@ -5,7 +5,7 @@ if [[ $1 = "-loc" ]]; then
     exit
 fi
 
-VER=0.1.0stable
+VER=0.1.0beta
 ID=$(git rev-parse HEAD | cut -c1-7)
 
 cd daemon/pushd
