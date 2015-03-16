@@ -55,6 +55,7 @@ An open source distributed pubsub(publish/subscribe) server
 
 ### Highlights
 
+*   Support upto 100W connections/server
 *   Self manageable cluster
 *	Use a distributed Client-Server architecture
 		

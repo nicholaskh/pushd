@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"time"
 )
 
 var (
@@ -13,6 +14,8 @@ var (
 		logLevel     string
 		crashLogFile string
 		showVersion  bool
+		connTimeout  time.Duration
+		batchSize    int
 	}
 )
 
@@ -24,6 +27,8 @@ func parseFlags() {
 	flag.StringVar(&options.logFile, "log", "stdout", "log file")
 	flag.StringVar(&options.logLevel, "level", "info", "log level")
 	flag.StringVar(&options.crashLogFile, "crashlog", "panic.dump", "crash log file")
+	flag.DurationVar(&options.connTimeout, "tw", time.Second*2, "connection timeout")
+	flag.IntVar(&options.batchSize, "b", 500, "io batch size")
 
 	flag.Parse()
 

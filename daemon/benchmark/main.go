@@ -11,21 +11,15 @@ import (
 	log "github.com/nicholaskh/log4go"
 )
 
-const (
-	BATCH_SIZE = 500
-)
-
 var (
-	conns     []*net.TCPConn
+	conns     []net.Conn
 	lostConns int = 0
 	wg        sync.WaitGroup
-	tcpAddr   *net.TCPAddr
 )
 
 func init() {
 	parseFlags()
-	tcpAddr, _ = net.ResolveTCPAddr("tcp", options.addr)
-	conns = make([]*net.TCPConn, options.concurrency)
+	conns = make([]net.Conn, options.concurrency)
 
 	server.SetupLogging(options.logFile, options.logLevel, options.crashLogFile)
 }
@@ -36,8 +30,8 @@ func main() {
 	for i := 0; i < options.requests; i++ {
 		log.Info("Start round %d", i)
 		batchStart := 0
-		for connLeft := options.concurrency; connLeft > 0; connLeft -= BATCH_SIZE {
-			thisBatch := int(math.Min(float64(connLeft), float64(BATCH_SIZE)))
+		for connLeft := options.concurrency; connLeft > 0; connLeft -= options.batchSize {
+			thisBatch := int(math.Min(float64(connLeft), float64(options.batchSize)))
 			go batchWrite(thisBatch, batchStart, i)
 			batchStart += thisBatch
 		}
@@ -51,9 +45,9 @@ func main() {
 
 func buildConns() {
 	batchStart := 0
-	for connLeft := options.concurrency; connLeft > 0; connLeft -= BATCH_SIZE {
+	for connLeft := options.concurrency; connLeft > 0; connLeft -= options.batchSize {
 		wg.Add(1)
-		thisBatch := int(math.Min(float64(connLeft), float64(BATCH_SIZE)))
+		thisBatch := int(math.Min(float64(connLeft), float64(options.batchSize)))
 		go batchConn(thisBatch, batchStart)
 		batchStart += thisBatch
 	}
@@ -65,12 +59,10 @@ func batchConn(batchSize, firstNum int) {
 	var err error
 	for i := 0; i < batchSize; i++ {
 		log.Info("%d", i)
-		conns[firstNum+i], err = net.DialTCP("tcp", nil, tcpAddr)
+		conns[firstNum+i], err = net.DialTimeout("tcp", options.addr, options.connTimeout)
 		if err != nil {
 			lostConns++
 			log.Info("connection error: %s", err.Error())
-		} else {
-			//conns[i].SetLinger(0)
 		}
 	}
 	wg.Done()
