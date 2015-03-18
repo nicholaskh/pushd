@@ -67,6 +67,7 @@ An open source distributed pubsub(publish/subscribe) server
 *   Highly usage of mem to improve latancy & throughput
 *   Full realtime internal stats export via http
 *   Smart metrics with low overhead
+*   Use Mongodb as the message storage database
 	
 ### Contribs
 
@@ -82,4 +83,3 @@ An open source distributed pubsub(publish/subscribe) server
 *   hot reload config
 *   bloom filter for overmuch channels
 *	separate multiple applications
-*	use "jid" of one client to get the destination server more efficient
