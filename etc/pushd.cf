@@ -28,4 +28,7 @@
 	
 	metrics_logfile: "metrics.log"
 	stats_output_interval: "10s"
+	
+	msg_storage: "mongodb"
+	max_storage_outstanding_msg: 100
 }

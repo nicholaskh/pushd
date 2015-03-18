@@ -74,11 +74,11 @@ func (this *PushdServ) Run(cli *server.Client) {
 				continue
 			}
 
-			err = engine.AclCheck(client, cl.Cmd)
-			if err != nil {
-				this.sendClient(client, err.Error())
-				continue
-			}
+			//err = engine.AclCheck(client, cl.Cmd)
+			//if err != nil {
+			//	this.sendClient(client, err.Error())
+			//	continue
+			//}
 
 			ret, err := cl.Process()
 			if err != nil {

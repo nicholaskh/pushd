@@ -8,6 +8,8 @@ import (
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/client"
+	"github.com/nicholaskh/pushd/config"
+	"github.com/nicholaskh/pushd/engine/storage"
 )
 
 var (
@@ -95,6 +97,10 @@ func publish(channel, msg string, fromS2s bool) string {
 				cli.MsgQueue <- msg
 			}
 			cli.Mutex.Release()
+		}
+
+		if config.PushdConf.EnableStorage() {
+			storage.EnqueueMsg(channel, msg)
 		}
 	}
 

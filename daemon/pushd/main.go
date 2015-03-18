@@ -13,6 +13,7 @@ import (
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine"
+	"github.com/nicholaskh/pushd/engine/storage"
 	"github.com/nicholaskh/pushd/serv"
 )
 
@@ -54,11 +55,16 @@ func main() {
 	s2sServ = engine.NewS2sServ()
 	go s2sServ.LaunchTcpServ(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), s2sServ, config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
 
-	pushdServ.Stats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
+	if config.PushdConf.EnableStorage() {
+		storage.Init()
+		go storage.Serv()
+	}
 
 	signal.RegisterSignalHandler(syscall.SIGINT, func(sig os.Signal) {
 		shutdown()
 	})
+
+	pushdServ.Stats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
 
 	shutdown()
 }

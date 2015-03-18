@@ -22,6 +22,9 @@ type ConfigPushd struct {
 	MetricsLogfile      string
 	StatsOutputInterval time.Duration
 
+	MsgStorage               string
+	MaxStorageOutstandingMsg int
+
 	Redis *ConfigRedis
 	Mongo *ConfigMongo
 }
@@ -39,6 +42,11 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 	this.MetricsLogfile = cf.String("metrics_logfile", "metrics.log")
 	this.StatsOutputInterval = cf.Duration("stats_output_interval", time.Minute*10)
 
+	this.MsgStorage = cf.String("msg_storage", "")
+	if this.MsgStorage != "" {
+		this.MaxStorageOutstandingMsg = cf.Int("max_storage_outstanding_msg", 100)
+	}
+
 	this.Redis = new(ConfigRedis)
 	section, err := cf.Section("redis")
 	if err != nil {
@@ -52,4 +60,8 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 		panic("Mongodb config not found")
 	}
 	this.Mongo.LoadConfig(section)
+}
+
+func (this *ConfigPushd) EnableStorage() bool {
+	return this.MsgStorage != ""
 }
