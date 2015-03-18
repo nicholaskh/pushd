@@ -5,13 +5,13 @@ type msgTuple struct {
 	msg     string
 }
 
+type storageDriver interface {
+	func store()
+}
+
 var storage struct {
 	driver *storageDriver
 }
-
-import (
-	"labix.org/v2/mgo"
-)
 
 var (
 	msgQueue chan msgTuple

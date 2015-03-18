@@ -23,6 +23,7 @@ type ConfigPushd struct {
 	StatsOutputInterval time.Duration
 
 	Redis *ConfigRedis
+	Mongo *ConfigMongo
 }
 
 func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
@@ -44,4 +45,11 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 		panic("Redis config not found")
 	}
 	this.Redis.LoadConfig(section)
+
+	this.Mongo = new(ConfigMongo)
+	section, err = cf.Section("mongodb")
+	if err != nil {
+		panic("Mongodb config not found")
+	}
+	this.Mongo.LoadConfig(section)
 }

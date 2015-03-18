@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/nicholaskh/golib/cache"
-	//log "github.com/nicholaskh/log4go"
+	log "github.com/nicholaskh/log4go"
+	"github.com/nicholaskh/pushd/db"
+	"labix.org/v2/mgo/bson"
 )
 
 var (
@@ -25,16 +27,19 @@ func authClient(token string) (string, error) {
 }
 
 func authServer(appId, secretKey string) (string, error) {
-	conn := RedisConn()
-	resInterface, err := conn.Do("Get", fmt.Sprintf("appId:%s", appId))
+	session := db.MgoSession()
+	c := session.DB("pushd").C("user")
+
+	var result interface{}
+	err := c.Find(bson.M{"appId": "test_app"}).One(&result)
 	if err != nil {
-		panic("Get secret key from redis error")
+		log.Error("Error occured when query mongodb: %s", err.Error())
 	}
-	resByte, _ := resInterface.([]byte)
-	key := string(resByte)
+
+	key := result.(bson.M)["secretKey"]
 	if key == secretKey {
 		return fmt.Sprintf("Auth succeed"), nil
 	}
-	return "", errors.New("Server auth fail")
 
+	return "", errors.New("Server auth fail")
 }

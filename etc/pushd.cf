@@ -11,6 +11,13 @@
 		write_timeout: "5s"
 	}
 	
+	mongodb: {
+		addr: "127.0.0.1:27017"
+		conn_timeout: "5s"
+		sync_timeout: "5s"
+		operation_timeout: "5s"
+	}
+	
 	tcp_listen_addr: "127.0.0.1:2222"
 	session_timeout: "2m"
 	serv_initial_goroutine_num: 200
