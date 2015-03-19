@@ -14,9 +14,7 @@ func newMongodbDriver() (this *MongoStorage) {
 }
 
 func (this *MongoStorage) store(mt *msgTuple) error {
-	session := db.MgoSession()
-	c := session.DB("pushd").C("msg_log")
-	c.Insert(bson.M{"channel": mt.channel, "msg": mt.msg})
+	err := db.MgoSession().DB("pushd").C("msg_log").Insert(bson.M{"channel": mt.channel, "msg": mt.msg, "ts": mt.ts})
 
-	return nil
+	return err
 }

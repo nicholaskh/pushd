@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nicholaskh/golib/cache"
 	cmap "github.com/nicholaskh/golib/concurrent/map"
@@ -90,6 +91,7 @@ func publish(channel, msg string, fromS2s bool) string {
 	clients, exists := PubsubChannels.Get(channel)
 	if exists {
 		log.Debug("channel %s subscribed by clients%s", channel, clients)
+		ts := time.Now().UnixNano()
 		for ele := range clients.Iter() {
 			cli := ele.Val.(*client.Client)
 			cli.Mutex.Acquire()
@@ -100,7 +102,7 @@ func publish(channel, msg string, fromS2s bool) string {
 		}
 
 		if config.PushdConf.EnableStorage() {
-			storage.EnqueueMsg(channel, msg)
+			storage.EnqueueMsg(channel, msg, ts)
 		}
 	}
 

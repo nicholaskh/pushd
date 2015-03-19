@@ -27,8 +27,7 @@ func authClient(token string) (string, error) {
 }
 
 func authServer(appId, secretKey string) (string, error) {
-	session := db.MgoSession()
-	c := session.DB("pushd").C("user")
+	c := db.MgoSession().DB("pushd").C("user")
 
 	var result interface{}
 	err := c.Find(bson.M{"appId": "test_app"}).One(&result)

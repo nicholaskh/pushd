@@ -3,9 +3,11 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/nicholaskh/golib/str"
+	//log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/client"
 )
 
@@ -19,6 +21,7 @@ const (
 	CMD_SUBSCRIBE   = "sub"
 	CMD_PUBLISH     = "pub"
 	CMD_UNSUBSCRIBE = "unsub"
+	CMD_HISTORY     = "his"
 	CMD_TOKEN       = "gettoken"
 	CMD_AUTH_CLIENT = "auth_client"
 	CMD_AUTH_SERVER = "auth_server"
@@ -53,6 +56,19 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 	case CMD_UNSUBSCRIBE:
 		ret = unsubscribe(this.Client, this.Params[0])
+
+	case CMD_HISTORY:
+		ts, err := strconv.ParseInt(this.Params[0], 10, 64)
+		if err != nil {
+			return "", err
+		}
+		var channel string
+		if len(this.Params) > 1 {
+			channel = this.Params[1]
+		} else {
+			channel = ""
+		}
+		ret, err = history(ts, channel)
 
 	//use one appId/secretKey pair
 	case CMD_AUTH_SERVER:

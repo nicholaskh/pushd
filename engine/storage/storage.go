@@ -1,12 +1,14 @@
 package storage
 
 import (
+	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 )
 
 type msgTuple struct {
 	channel string
 	msg     string
+	ts      int64
 }
 
 type storageDriver interface {
@@ -37,11 +39,14 @@ func Serv() {
 	for {
 		select {
 		case mt := <-msgQueue:
-			driver.store(mt)
+			err := driver.store(mt)
+			if err != nil {
+				log.Error("Store msg log error: %s", err.Error())
+			}
 		}
 	}
 }
 
-func EnqueueMsg(channel, msg string) {
-	msgQueue <- &msgTuple{channel, msg}
+func EnqueueMsg(channel, msg string, ts int64) {
+	msgQueue <- &msgTuple{channel, msg, ts}
 }
