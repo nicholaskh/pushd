@@ -77,7 +77,7 @@ func (this *S2sServ) processCmd(cl *Cmdline) error {
 			peers = set.NewSet()
 		}
 		peers.Add(Proxy.peers[GetS2sAddr(cl.Params[1])])
-		Proxy.channelPeers.Set(cl.Params[0], peers)
+		Proxy.ChannelPeers.Set(cl.Params[0], peers)
 	}
 
 	return nil

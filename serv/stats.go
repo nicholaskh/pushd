@@ -1,11 +1,19 @@
 package serv
 
 import (
-	"log"
+	logger "log"
+	"net/http"
 	"os"
+	"runtime"
+	"syscall"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/nicholaskh/golib/server"
+	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/metrics"
+	"github.com/nicholaskh/pushd/config"
+	"github.com/nicholaskh/pushd/engine"
 )
 
 type serverStats struct {
@@ -24,11 +32,80 @@ func newServerStats() (this *serverStats) {
 }
 
 func (this *serverStats) Start(interval time.Duration, logFile string) {
+	this.launchHttpServ()
+	defer this.stopHttpServ()
 	metricsWriter, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		panic(err)
 	}
 	if interval > 0 {
-		metrics.Log(metrics.DefaultRegistry, interval, log.New(metricsWriter, "", log.LstdFlags))
+		metrics.Log(metrics.DefaultRegistry, interval, logger.New(metricsWriter, "", logger.LstdFlags))
 	}
+}
+
+func (this *serverStats) launchHttpServ() {
+	if config.PushdConf.StatsListenAddr == "" {
+		return
+	}
+
+	server.LaunchHttpServer(config.PushdConf.StatsListenAddr, config.PushdConf.ProfListenAddr)
+	server.RegisterHttpApi("/s/{cmd}",
+		func(w http.ResponseWriter, req *http.Request,
+			params map[string]interface{}) (interface{}, error) {
+			return this.handleHttpQuery(w, req, params)
+		}).Methods("GET")
+}
+
+func (this *serverStats) handleHttpQuery(w http.ResponseWriter, req *http.Request,
+	params map[string]interface{}) (interface{}, error) {
+	var (
+		vars   = mux.Vars(req)
+		cmd    = vars["cmd"]
+		output = make(map[string]interface{})
+	)
+
+	switch cmd {
+	case "ping":
+		output["status"] = "ok"
+
+	case "trace":
+		stack := make([]byte, 1<<20)
+		stackSize := runtime.Stack(stack, true)
+		output["callstack"] = string(stack[:stackSize])
+
+	case "sys":
+		output["goroutines"] = runtime.NumGoroutine()
+
+		memStats := new(runtime.MemStats)
+		runtime.ReadMemStats(memStats)
+		output["memory"] = *memStats
+
+		rusage := syscall.Rusage{}
+		syscall.Getrusage(0, &rusage)
+		output["rusage"] = rusage
+
+	case "stat":
+		output["ver"] = server.VERSION
+		output["build"] = server.BuildID
+		output["stats"] = map[string]interface{}{
+			"pubsub_channel_count": engine.PubsubChannels.Len(),
+			"s2s_channel_count":    engine.Proxy.ChannelPeers.Len(),
+		}
+		output["conf"] = *config.PushdConf
+
+	default:
+		return nil, server.ErrHttp404
+	}
+
+	if config.PushdConf.ProfListenAddr != "" {
+		output["pprof"] = "http://" +
+			config.PushdConf.ProfListenAddr + "/debug/pprof/"
+	}
+
+	return output, nil
+}
+
+func (this *serverStats) stopHttpServ() {
+	log.Info("stats httpd stopped")
+	server.StopHttpServer()
 }

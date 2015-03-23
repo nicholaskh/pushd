@@ -67,6 +67,7 @@ An open source distributed pubsub(publish/subscribe) server
 *   Highly usage of mem to improve latancy & throughput
 *   Full realtime internal stats export via http
 *   Smart metrics with low overhead
+*   Http system status report
 *   Use Mongodb as the message storage database
 	
 ### Contribs

@@ -84,7 +84,7 @@ func (this *Peer) writeMsg(msg string) {
 type S2sProxy struct {
 	peers map[string]*Peer
 
-	channelPeers *cache.LruCache
+	ChannelPeers *cache.LruCache
 	PubMsgChan   chan *PubTuple
 	SubMsgChan   chan string
 	UnsubMsgChan chan string
@@ -109,7 +109,7 @@ func NewS2sProxy() (this *S2sProxy) {
 	}
 	log.Debug("%s", this.peers)
 	// TODO
-	this.channelPeers = cache.NewLruCache(200000)
+	this.ChannelPeers = cache.NewLruCache(200000)
 
 	this.Stats = newProxyStats()
 	this.Stats.registerMetrics()
@@ -144,7 +144,7 @@ func (this *S2sProxy) WaitMsg() {
 }
 
 func (this *S2sProxy) GetPeersByChannel(channel string) (peers set.Set, exists bool) {
-	peersInterface, exists := this.channelPeers.Get(channel)
+	peersInterface, exists := this.ChannelPeers.Get(channel)
 	// TODO
 	// !exists=>read from redis and write to cache
 	// empty => delete from cache
