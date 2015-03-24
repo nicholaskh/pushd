@@ -89,14 +89,18 @@ func UnsubscribeAllChannels(cli *client.Client) {
 
 func publish(channel, msg string, fromS2s bool) string {
 	clients, exists := PubsubChannels.Get(channel)
+	ts := time.Now().UnixNano()
 	if exists {
 		log.Debug("channel %s subscribed by clients%s", channel, clients)
-		ts := time.Now().UnixNano()
 		for ele := range clients.Iter() {
 			cli := ele.Val.(*client.Client)
 			cli.Mutex.Acquire()
 			if !cli.Closed {
-				cli.MsgQueue <- msg
+				if !fromS2s {
+					cli.MsgQueue <- fmt.Sprintf("%s %d", msg, ts)
+				} else {
+					cli.MsgQueue <- msg
+				}
 			}
 			cli.Mutex.Release()
 		}
@@ -112,7 +116,7 @@ func publish(channel, msg string, fromS2s bool) string {
 		peers, exists = Proxy.GetPeersByChannel(channel)
 		log.Debug("now peers %s", peers)
 		if exists {
-			Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel)
+			Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, ts)
 		}
 
 		return OUTPUT_PUBLISHED
