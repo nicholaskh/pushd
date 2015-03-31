@@ -7,9 +7,6 @@ before_install:
   - cp .netrc ~
   - chmod 600 .netrc
 
-install:
-  - go get -t ./...
-
 script:
   - go test ./... -v
 
