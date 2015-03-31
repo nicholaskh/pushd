@@ -22,7 +22,7 @@ func NewS2sServ() (this *S2sServ) {
 	return
 }
 
-func (this *S2sServ) Run(cli *server.Client) {
+func (this *S2sServ) Handle(cli *server.Client) {
 	client := client.NewClient()
 	client.Client = cli
 	for {

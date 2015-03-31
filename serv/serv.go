@@ -26,7 +26,7 @@ func NewPushdServ() (this *PushdServ) {
 	return
 }
 
-func (this *PushdServ) Run(cli *server.Client) {
+func (this *PushdServ) Handle(cli *server.Client) {
 	client := client.NewClient()
 	client.Client = cli
 	go client.WaitMsg()

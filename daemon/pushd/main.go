@@ -47,13 +47,13 @@ func main() {
 
 	config.PushdConf = new(config.ConfigPushd)
 	config.PushdConf.LoadConfig(pushdServ.Conf)
-	go pushdServ.LaunchTcpServ(config.PushdConf.TcpListenAddr, pushdServ, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
+	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, pushdServ.Handle, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
 
 	engine.Proxy = engine.NewS2sProxy()
 	go engine.Proxy.WaitMsg()
 
 	s2sServ = engine.NewS2sServ()
-	go s2sServ.LaunchTcpServ(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), s2sServ, config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
+	go s2sServ.LaunchTcpServer(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), s2sServ.Handle, config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
 
 	if config.PushdConf.EnableStorage() {
 		storage.Init()
