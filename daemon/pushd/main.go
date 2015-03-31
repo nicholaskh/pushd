@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	pushdServ *serv.PushdServ
-	s2sServ   *engine.S2sServ
+	pushdServ *server.TcpServer
+	s2sServ   *server.TcpServer
 )
 
 func init() {
@@ -38,22 +38,24 @@ func main() {
 			fmt.Println(err)
 			debug.PrintStack()
 		}
+		shutdown()
 	}()
 
-	pushdServ = serv.NewPushdServ()
+	pushdServ = server.NewTcpServer("pushd")
 	pushdServ.LoadConfig(options.configFile)
 	pushdServ.Launch()
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
 
 	config.PushdConf = new(config.ConfigPushd)
 	config.PushdConf.LoadConfig(pushdServ.Conf)
-	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, pushdServ.Handle, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
+	servStats := serv.NewServerStats()
+	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, serv.NewClientHandler(pushdServ, servStats), config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
 
 	engine.Proxy = engine.NewS2sProxy()
 	go engine.Proxy.WaitMsg()
 
-	s2sServ = engine.NewS2sServ()
-	go s2sServ.LaunchTcpServer(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), s2sServ.Handle, config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
+	s2sServ = server.NewTcpServer("pushd_s2s")
+	go s2sServ.LaunchTcpServer(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), &engine.S2sClientHandler{}, config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
 
 	if config.PushdConf.EnableStorage() {
 		storage.Init()
@@ -64,9 +66,8 @@ func main() {
 		shutdown()
 	})
 
-	pushdServ.Stats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
+	servStats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
 
-	shutdown()
 }
 
 func shutdown() {

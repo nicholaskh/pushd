@@ -2,8 +2,6 @@ package serv
 
 import (
 	"fmt"
-	"io"
-	"net"
 	"strings"
 	"time"
 
@@ -13,95 +11,62 @@ import (
 	"github.com/nicholaskh/pushd/engine"
 )
 
-type PushdServ struct {
-	*server.TcpServer
-	Stats *serverStats
+type ClientHandler struct {
+	serv        *server.TcpServer
+	serverStats *ServerStats
+	client      *client.Client
 }
 
-func NewPushdServ() (this *PushdServ) {
-	this = new(PushdServ)
-	this.TcpServer = server.NewTcpServer("pushd")
-	this.Stats = newServerStats()
-
-	return
+func NewClientHandler(serv *server.TcpServer, serverStats *ServerStats) *ClientHandler {
+	return &ClientHandler{serv: serv, serverStats: serverStats}
 }
 
-func (this *PushdServ) Handle(cli *server.Client) {
-	client := client.NewClient()
-	client.Client = cli
-	go client.WaitMsg()
+func (this *ClientHandler) OnAccept(cli *server.Client) {
+	c := client.NewClient()
+	c.Client = cli
+	this.client = c
+}
 
+func (this *ClientHandler) OnRead(input string) {
 	var (
 		t1      time.Time
 		elapsed time.Duration
 	)
-	for {
-		input := make([]byte, 1460)
-		n, err := client.Conn.Read(input)
 
-		input = input[:n]
+	t1 = time.Now()
 
-		t1 = time.Now()
+	for _, inputUnit := range strings.Split(input, "\n") {
+		cl := engine.NewCmdline(inputUnit, this.client)
+		if cl.Cmd == "" {
+			continue
+		}
 
+		//err = engine.AclCheck(client, cl.Cmd)
+		//if err != nil {
+		//	this.sendClient(client, err.Error())
+		//	continue
+		//}
+
+		ret, err := cl.Process()
 		if err != nil {
-			if err == io.EOF {
-				log.Info("Client shutdown: %s", client.Conn.RemoteAddr())
-				this.closeClient(client)
-
-				log.Debug("client channels: %s", client.Channels)
-
-				log.Debug("pubsub channels: %s", engine.PubsubChannels)
-				return
-			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
-				log.Error("Read from client[%s] error: %s", client.Conn.RemoteAddr(), err.Error())
-				this.closeClient(client)
-				return
-			}
+			log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
+			this.client.WriteMsg(fmt.Sprintf("%s\n", err.Error()))
+			continue
 		}
 
-		if err != nil {
-			log.Debug("Client auth fail: %s", err.Error())
-			this.sendClient(client, err.Error())
-		}
+		this.client.WriteMsg(fmt.Sprintf("%s\n", ret))
 
-		client.LastTime = time.Now()
-
-		log.Debug("input: %s", string(input))
-
-		for _, inputUnit := range strings.Split(string(input), "\n") {
-			cl := engine.NewCmdline(inputUnit, client)
-			if cl.Cmd == "" {
-				continue
-			}
-
-			//err = engine.AclCheck(client, cl.Cmd)
-			//if err != nil {
-			//	this.sendClient(client, err.Error())
-			//	continue
-			//}
-
-			ret, err := cl.Process()
-			if err != nil {
-				log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-				this.sendClient(client, err.Error())
-				continue
-			}
-
-			this.sendClient(client, ret)
-
-			elapsed = time.Since(t1)
-			this.Stats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
-			this.Stats.CallPerSecond.Mark(1)
-		}
+		elapsed = time.Since(t1)
+		this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
+		this.serverStats.CallPerSecond.Mark(1)
 	}
 
 }
 
-func (this *PushdServ) sendClient(cli *client.Client, msg string) {
-	cli.Output <- fmt.Sprintf("%s\n", msg)
-}
+func (this *ClientHandler) OnClose() {
+	log.Debug("client channels: %s", this.client.Channels)
+	log.Debug("pubsub channels: %s", engine.PubsubChannels)
 
-func (this *PushdServ) closeClient(cli *client.Client) {
-	engine.UnsubscribeAllChannels(cli)
-	cli.Close()
+	engine.UnsubscribeAllChannels(this.client)
+	this.client.Close()
 }

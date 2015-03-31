@@ -35,6 +35,7 @@ func factory(driverType string) storageDriver {
 	}
 }
 
+// TODO - use flush mechanism
 func Serv() {
 	for {
 		select {

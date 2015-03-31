@@ -1,10 +1,7 @@
 package engine
 
 import (
-	"io"
-	"net"
 	"strings"
-	"time"
 
 	"github.com/nicholaskh/golib/server"
 	"github.com/nicholaskh/golib/set"
@@ -12,60 +9,43 @@ import (
 	"github.com/nicholaskh/pushd/client"
 )
 
-type S2sServ struct {
-	*server.TcpServer
+type S2sClientHandler struct {
+	client *client.Client
+	serv   *server.TcpServer
 }
 
-func NewS2sServ() (this *S2sServ) {
-	this = new(S2sServ)
-	this.TcpServer = server.NewTcpServer("pushd_s2s")
-	return
+func NewS2sClientHandler(serv *server.TcpServer) *S2sClientHandler {
+	return &S2sClientHandler{serv: serv}
 }
 
-func (this *S2sServ) Handle(cli *server.Client) {
-	client := client.NewClient()
-	client.Client = cli
-	for {
-		input := make([]byte, 1460)
-		n, err := client.Conn.Read(input)
+func (this *S2sClientHandler) OnAccept(cli *server.Client) {
+	c := client.NewClient()
+	c.Client = cli
+	this.client = c
+}
 
-		input = input[:n]
+func (this *S2sClientHandler) OnRead(input string) {
+	for _, inputUnit := range strings.Split(input, "\n") {
+		cl := NewCmdline(inputUnit, this.client)
+		if cl.Cmd == "" {
+			continue
+		}
+
+		err := this.processCmd(cl)
 
 		if err != nil {
-			if err == io.EOF {
-				log.Info("Peer shutdown: %s", client.Conn.RemoteAddr())
-				client.Conn.Close()
-				return
-			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
-				log.Error("Read from peer[%s] error: %s", client.Conn.RemoteAddr(), err.Error())
-				client.Conn.Close()
-				return
-			}
-		}
-
-		client.LastTime = time.Now()
-
-		log.Debug("peer input: %s", string(input))
-
-		for _, inputUnit := range strings.Split(string(input), "\n") {
-			cl := NewCmdline(inputUnit, client)
-			if cl.Cmd == "" {
-				continue
-			}
-
-			err = this.processCmd(cl)
-
-			if err != nil {
-				log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-				client.Conn.Write([]byte(err.Error()))
-				continue
-			}
+			log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
+			this.client.WriteMsg(err.Error())
+			continue
 		}
 	}
-
 }
 
-func (this *S2sServ) processCmd(cl *Cmdline) error {
+func (this *S2sClientHandler) OnClose() {
+	this.client.Close()
+}
+
+func (this *S2sClientHandler) processCmd(cl *Cmdline) error {
 	switch cl.Cmd {
 	case CMD_PUBLISH:
 		publish(cl.Params[0], cl.Params[1], true)

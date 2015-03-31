@@ -16,13 +16,13 @@ import (
 	"github.com/nicholaskh/pushd/engine"
 )
 
-type serverStats struct {
+type ServerStats struct {
 	CallLatencies metrics.Histogram
 	CallPerSecond metrics.Meter
 }
 
-func newServerStats() (this *serverStats) {
-	this = new(serverStats)
+func NewServerStats() (this *ServerStats) {
+	this = new(ServerStats)
 	this.CallLatencies = metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015))
 	metrics.Register("latency.call", this.CallLatencies)
 	this.CallPerSecond = metrics.NewMeter()
@@ -31,9 +31,9 @@ func newServerStats() (this *serverStats) {
 	return
 }
 
-func (this *serverStats) Start(interval time.Duration, logFile string) {
-	this.launchHttpServ()
-	defer this.stopHttpServ()
+func (this *ServerStats) Start(interval time.Duration, logFile string) {
+	this.launchHttpServer()
+	defer this.stopHttpServer()
 	metricsWriter, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		panic(err)
@@ -43,7 +43,7 @@ func (this *serverStats) Start(interval time.Duration, logFile string) {
 	}
 }
 
-func (this *serverStats) launchHttpServ() {
+func (this *ServerStats) launchHttpServer() {
 	if config.PushdConf.StatsListenAddr == "" {
 		return
 	}
@@ -56,7 +56,7 @@ func (this *serverStats) launchHttpServ() {
 		}).Methods("GET")
 }
 
-func (this *serverStats) handleHttpQuery(w http.ResponseWriter, req *http.Request,
+func (this *ServerStats) handleHttpQuery(w http.ResponseWriter, req *http.Request,
 	params map[string]interface{}) (interface{}, error) {
 	var (
 		vars   = mux.Vars(req)
@@ -105,7 +105,7 @@ func (this *serverStats) handleHttpQuery(w http.ResponseWriter, req *http.Reques
 	return output, nil
 }
 
-func (this *serverStats) stopHttpServ() {
+func (this *ServerStats) stopHttpServer() {
 	log.Info("stats httpd stopped")
 	server.StopHttpServer()
 }
