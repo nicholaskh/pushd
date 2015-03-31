@@ -8,8 +8,7 @@ before_install:
   - chmod 600 .netrc
 
 install:
-  - git clone https://github.com/nicholaskh/pushd
-  - go get -u ./...
+  - go get -t ./...
 
 script:
   - go test ./... -v
