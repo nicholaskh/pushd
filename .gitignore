@@ -31,3 +31,5 @@ etc/pushd2.cf
 
 *.swp
 *.swo
+
+.DS_Store
