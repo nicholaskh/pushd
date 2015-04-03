@@ -33,3 +33,5 @@ etc/pushd*.cf
 *.swo
 
 .DS_Store
+
+*.class
