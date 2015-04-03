@@ -8,13 +8,12 @@ import (
 
 	"github.com/nicholaskh/golib/str"
 	//log "github.com/nicholaskh/log4go"
-	"github.com/nicholaskh/pushd/client"
 )
 
 type Cmdline struct {
 	Cmd    string
 	Params []string
-	*client.Client
+	*Client
 }
 
 const (
@@ -33,7 +32,7 @@ const (
 	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
 )
 
-func NewCmdline(input string, cli *client.Client) (this *Cmdline) {
+func NewCmdline(input string, cli *Client) (this *Cmdline) {
 	this = new(Cmdline)
 	parts := strings.SplitN(trimCmdline(input), " ", 3)
 	this.Cmd = parts[0]
@@ -79,7 +78,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			ret, err = authServer(this.Params[0], this.Params[1])
 			if err == nil {
 				this.Client.Authed = true
-				this.Client.Type = client.TYPE_SERVER
+				this.Client.Type = TYPE_SERVER
 			}
 		}
 
@@ -96,7 +95,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			ret, err = authClient(this.Params[0])
 			if err == nil {
 				this.Client.Authed = true
-				this.Client.Type = client.TYPE_CLIENT
+				this.Client.Type = TYPE_CLIENT
 			}
 		}
 

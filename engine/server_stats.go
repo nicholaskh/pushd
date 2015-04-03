@@ -1,4 +1,4 @@
-package serv
+package engine
 
 import (
 	logger "log"
@@ -13,7 +13,6 @@ import (
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/metrics"
 	"github.com/nicholaskh/pushd/config"
-	"github.com/nicholaskh/pushd/engine"
 )
 
 type ServerStats struct {
@@ -88,8 +87,8 @@ func (this *ServerStats) handleHttpQuery(w http.ResponseWriter, req *http.Reques
 		output["ver"] = server.VERSION
 		output["build"] = server.BuildID
 		output["stats"] = map[string]interface{}{
-			"pubsub_channel_count": engine.PubsubChannels.Len(),
-			"s2s_channel_count":    engine.Proxy.ChannelPeers.Len(),
+			"pubsub_channel_count": PubsubChannels.Len(),
+			"s2s_channel_count":    Proxy.ChannelPeers.Len(),
 		}
 		output["conf"] = *config.PushdConf
 

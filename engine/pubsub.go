@@ -8,7 +8,6 @@ import (
 	cmap "github.com/nicholaskh/golib/concurrent/map"
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
-	"github.com/nicholaskh/pushd/client"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine/storage"
 )
@@ -34,7 +33,7 @@ func (this *PubsubChans) Get(channel string) (clients cmap.ConcurrentMap, exists
 }
 
 // TODO subscribe count of channel
-func subscribe(cli *client.Client, channel string) string {
+func subscribe(cli *Client, channel string) string {
 	log.Debug("%x", channel)
 	_, exists := cli.Channels[channel]
 	if exists {
@@ -58,7 +57,7 @@ func subscribe(cli *client.Client, channel string) string {
 
 }
 
-func unsubscribe(cli *client.Client, channel string) string {
+func unsubscribe(cli *Client, channel string) string {
 	_, exists := cli.Channels[channel]
 	if exists {
 		delete(cli.Channels, channel)
@@ -76,7 +75,7 @@ func unsubscribe(cli *client.Client, channel string) string {
 	}
 }
 
-func UnsubscribeAllChannels(cli *client.Client) {
+func UnsubscribeAllChannels(cli *Client) {
 	for channel, _ := range cli.Channels {
 		clients, _ := PubsubChannels.Get(channel)
 		clients.Remove(cli.RemoteAddr().String())
@@ -93,7 +92,7 @@ func publish(channel, msg string, fromS2s bool) string {
 	if exists {
 		log.Debug("channel %s subscribed by clients%s", channel, clients)
 		for ele := range clients.Iter() {
-			cli := ele.Val.(*client.Client)
+			cli := ele.Val.(*Client)
 			cli.Mutex.Acquire()
 			if !cli.Closed {
 				if !fromS2s {

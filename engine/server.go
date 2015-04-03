@@ -1,4 +1,4 @@
-package serv
+package engine
 
 import (
 	"fmt"
@@ -7,14 +7,13 @@ import (
 
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
-	"github.com/nicholaskh/pushd/client"
-	"github.com/nicholaskh/pushd/engine"
 )
 
 type ClientHandler struct {
-	serv        *server.TcpServer
-	serverStats *ServerStats
-	client      *client.Client
+	serv           *server.TcpServer
+	serverStats    *ServerStats
+	client         *Client
+	enableAclCheck bool
 }
 
 func NewClientHandler(serv *server.TcpServer, serverStats *ServerStats) *ClientHandler {
@@ -22,7 +21,7 @@ func NewClientHandler(serv *server.TcpServer, serverStats *ServerStats) *ClientH
 }
 
 func (this *ClientHandler) OnAccept(cli *server.Client) {
-	c := client.NewClient()
+	c := NewClient()
 	c.Client = cli
 	this.client = c
 }
@@ -36,16 +35,18 @@ func (this *ClientHandler) OnRead(input string) {
 	t1 = time.Now()
 
 	for _, inputUnit := range strings.Split(input, "\n") {
-		cl := engine.NewCmdline(inputUnit, this.client)
+		cl := NewCmdline(inputUnit, this.client)
 		if cl.Cmd == "" {
 			continue
 		}
 
-		//err = engine.AclCheck(client, cl.Cmd)
-		//if err != nil {
-		//	this.sendClient(client, err.Error())
-		//	continue
-		//}
+		if this.enableAclCheck {
+			err := AclCheck(this.client, cl.Cmd)
+			if err != nil {
+				this.client.WriteMsg(err.Error())
+				continue
+			}
+		}
 
 		ret, err := cl.Process()
 		if err != nil {
@@ -65,8 +66,16 @@ func (this *ClientHandler) OnRead(input string) {
 
 func (this *ClientHandler) OnClose() {
 	log.Debug("client channels: %s", this.client.Channels)
-	log.Debug("pubsub channels: %s", engine.PubsubChannels)
+	log.Debug("pubsub channels: %s", PubsubChannels)
 
-	engine.UnsubscribeAllChannels(this.client)
+	UnsubscribeAllChannels(this.client)
 	this.client.Close()
+}
+
+func (this *ClientHandler) EnableAclCheck() {
+	this.enableAclCheck = true
+}
+
+func (this *ClientHandler) DisableAclCheck() {
+	this.enableAclCheck = false
 }

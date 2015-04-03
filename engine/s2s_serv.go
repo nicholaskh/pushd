@@ -6,11 +6,10 @@ import (
 	"github.com/nicholaskh/golib/server"
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
-	"github.com/nicholaskh/pushd/client"
 )
 
 type S2sClientHandler struct {
-	client *client.Client
+	client *Client
 	serv   *server.TcpServer
 }
 
@@ -19,7 +18,7 @@ func NewS2sClientHandler(serv *server.TcpServer) *S2sClientHandler {
 }
 
 func (this *S2sClientHandler) OnAccept(cli *server.Client) {
-	c := client.NewClient()
+	c := NewClient()
 	c.Client = cli
 	this.client = c
 }

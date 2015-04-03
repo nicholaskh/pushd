@@ -14,7 +14,6 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine"
 	"github.com/nicholaskh/pushd/engine/storage"
-	"github.com/nicholaskh/pushd/serv"
 )
 
 var (
@@ -48,8 +47,10 @@ func main() {
 
 	config.PushdConf = new(config.ConfigPushd)
 	config.PushdConf.LoadConfig(pushdServ.Conf)
-	servStats := serv.NewServerStats()
-	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, serv.NewClientHandler(pushdServ, servStats), config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
+	servStats := engine.NewServerStats()
+	clientHandler := engine.NewClientHandler(pushdServ, servStats)
+	clientHandler.DisableAclCheck() // delete this line if need acl check
+	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, clientHandler, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
 
 	engine.Proxy = engine.NewS2sProxy()
 	go engine.Proxy.WaitMsg()
