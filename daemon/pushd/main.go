@@ -18,7 +18,7 @@ import (
 
 var (
 	pushdServ *server.TcpServer
-	s2sServ   *server.TcpServer
+	s2sServer *server.TcpServer
 )
 
 func init() {
@@ -50,17 +50,17 @@ func main() {
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
 
 	servStats := engine.NewServerStats()
-	clientHandler := engine.NewClientHandler(pushdServ, servStats)
+	pushdClientProcessor := engine.NewPushdClientProcessor(pushdServ, servStats)
 	if !options.aclCheck {
-		clientHandler.DisableAclCheck()
+		pushdClientProcessor.DisableAclCheck()
 	}
-	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, clientHandler, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
+	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, pushdClientProcessor, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
 
 	engine.Proxy = engine.NewS2sProxy()
 	go engine.Proxy.WaitMsg()
 
-	s2sServ = server.NewTcpServer("pushd_s2s")
-	go s2sServ.LaunchTcpServer(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), &engine.S2sClientHandler{}, config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
+	s2sServer = server.NewTcpServer("pushd_s2s")
+	go s2sServer.LaunchTcpServer(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), engine.NewS2sClientProcessor(s2sServer), config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
 
 	if config.PushdConf.EnableStorage() {
 		storage.Init()

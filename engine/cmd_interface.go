@@ -30,6 +30,7 @@ const (
 	OUTPUT_PUBLISHED          = "PUBLISHED"
 	OUTPUT_NOT_SUBSCRIBED     = "NOT SUBSCRIBED"
 	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
+	OUTPUT_MESSAGE_PREFIX     = 0
 )
 
 func NewCmdline(input string, cli *Client) (this *Cmdline) {

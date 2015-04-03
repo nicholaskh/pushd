@@ -99,9 +99,9 @@ func publish(channel, msg string, fromS2s bool) string {
 			cli.Mutex.Acquire()
 			if !cli.Closed {
 				if !fromS2s {
-					cli.WriteMsg(fmt.Sprintf("%s %d", msg, ts))
+					cli.WriteMsg(fmt.Sprintf("%c%s %d", OUTPUT_MESSAGE_PREFIX, msg, ts))
 				} else {
-					cli.WriteMsg(msg)
+					cli.WriteMsg(fmt.Sprintf("%c%s", OUTPUT_MESSAGE_PREFIX, msg))
 				}
 			}
 			cli.Mutex.Release()

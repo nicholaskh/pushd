@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/nicholaskh/golib/server"
 	"github.com/nicholaskh/golib/sync2"
+	log "github.com/nicholaskh/log4go"
 )
 
 const (
@@ -29,9 +30,16 @@ func NewClient() (this *Client) {
 	return
 }
 
-func (this *Client) Close() {
+func (this *Client) Close() error {
+	log.Debug("client channels: %s", this.Channels)
+	log.Debug("pubsub channels: %s", PubsubChannels)
+
+	UnsubscribeAllChannels(this)
+
 	this.Mutex.Acquire()
+	// TODO merge
 	this.Closed = true
+	err := this.Conn.Close()
 	this.Mutex.Release()
-	this.Conn.Close()
+	return err
 }
