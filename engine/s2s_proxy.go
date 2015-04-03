@@ -16,8 +16,9 @@ import (
 const (
 	RETRY_CNT = 2
 
-	S2S_SUB_CMD = "sub"
-	S2S_PUB_CMD = "pub"
+	S2S_SUB_CMD   = "sub"
+	S2S_PUB_CMD   = "pub"
+	S2S_UNSUB_CMD = "unsub"
 )
 
 var (
@@ -95,6 +96,7 @@ type S2sProxy struct {
 func NewS2sProxy() (this *S2sProxy) {
 	this = new(S2sProxy)
 	this.SubMsgChan = make(chan string, 100)
+	this.UnsubMsgChan = make(chan string, 100)
 	this.PubMsgChan = make(chan *PubTuple, 100)
 	this.peers = make(map[string]*Peer)
 
@@ -133,10 +135,14 @@ func (this *S2sProxy) WaitMsg() {
 			for _, peer := range this.peers {
 				go peer.writeMsg(fmt.Sprintf("%s %s %s", S2S_SUB_CMD, channel, config.PushdConf.TcpListenAddr))
 			}
-			// TODO save into redis
+			// TODO save into mongodb
 
-			//case channel := <-this.UnsubMsgChan:
-			//TODO
+		case channel := <-this.UnsubMsgChan:
+			this.Stats.unsubCalls.Mark(1)
+			this.Stats.outChannels.Mark(-1)
+			for _, peer := range this.peers {
+				go peer.writeMsg(fmt.Sprintf("%s %s %s", S2S_UNSUB_CMD, channel, config.PushdConf.TcpListenAddr))
+			}
 		}
 	}
 }
@@ -144,7 +150,7 @@ func (this *S2sProxy) WaitMsg() {
 func (this *S2sProxy) GetPeersByChannel(channel string) (peers set.Set, exists bool) {
 	peersInterface, exists := this.ChannelPeers.Get(channel)
 	// TODO
-	// !exists=>read from redis and write to cache
+	// !exists=>read from mongodb and write to cache
 	// empty => delete from cache
 	// else use it
 	if peersInterface != nil {

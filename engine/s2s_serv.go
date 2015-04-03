@@ -46,17 +46,27 @@ func (this *S2sClientHandler) OnClose() {
 
 func (this *S2sClientHandler) processCmd(cl *Cmdline) error {
 	switch cl.Cmd {
-	case CMD_PUBLISH:
+	case S2S_PUB_CMD:
 		publish(cl.Params[0], cl.Params[1], true)
 
-	case CMD_SUBSCRIBE:
-		log.Debug("peer sub %s %s", cl.Cmd, cl.Params)
+	case S2S_SUB_CMD:
+		log.Debug("peer %s %s", cl.Cmd, cl.Params)
 		peers, exists := Proxy.GetPeersByChannel(cl.Params[0])
 		if !exists {
 			peers = set.NewSet()
 		}
 		peers.Add(Proxy.peers[GetS2sAddr(cl.Params[1])])
 		Proxy.ChannelPeers.Set(cl.Params[0], peers)
+
+	case S2S_UNSUB_CMD:
+		log.Debug("peer unsub %s", cl.Params)
+		peers, exists := Proxy.GetPeersByChannel(cl.Params[0])
+		if !exists {
+			log.Error("Peer[%s] unsubscribe unexists channel[%s]", cl.Params[1], cl.Params[0])
+		} else {
+			peers.Remove(Proxy.peers[GetS2sAddr(cl.Params[1])])
+			Proxy.ChannelPeers.Set(cl.Params[0], peers)
+		}
 	}
 
 	return nil

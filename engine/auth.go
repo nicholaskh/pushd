@@ -16,7 +16,6 @@ var (
 )
 
 //Auth for client
-//TODO maybe sasl is more secure
 func authClient(token string) (string, error) {
 	if _, exists := tokenPool.Get(token); exists {
 		tokenPool.Del(token)

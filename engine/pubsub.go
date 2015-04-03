@@ -65,8 +65,12 @@ func unsubscribe(cli *Client, channel string) string {
 			clients.Remove(cli.RemoteAddr().String())
 		}
 		clients, exists = PubsubChannels.Get(channel)
-		if len(clients) == 0 {
+
+		if clients.Count() == 0 {
 			PubsubChannels.Del(channel)
+
+			//s2s
+			Proxy.UnsubMsgChan <- channel
 		}
 		return fmt.Sprintf("%s %s", OUTPUT_UNSUBSCRIBED, channel)
 	} else {
@@ -78,7 +82,7 @@ func UnsubscribeAllChannels(cli *Client) {
 	for channel, _ := range cli.Channels {
 		clients, _ := PubsubChannels.Get(channel)
 		clients.Remove(cli.RemoteAddr().String())
-		if len(clients) == 0 {
+		if clients.Count() == 0 {
 			PubsubChannels.Del(channel)
 		}
 	}
