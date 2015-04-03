@@ -55,10 +55,9 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 
 	this.Redis = new(ConfigRedis)
 	section, err := cf.Section("redis")
-	if err != nil {
-		panic("Redis config not found")
+	if err == nil {
+		this.Redis.LoadConfig(section)
 	}
-	this.Redis.LoadConfig(section)
 
 	this.Mongo = new(ConfigMongo)
 	section, err = cf.Section("mongodb")

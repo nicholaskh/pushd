@@ -1,10 +1,9 @@
 {
 	servers: [
 		"127.0.0.1:2222",
-		"127.0.0.1:2232",
 	]
 	
-	redis: {
+	redis_offline: {
 		addr: "127.0.0.1:6379"
 		conn_timeout: "5s"
 		read_timeout: "5s"
@@ -30,7 +29,7 @@
 	s2s_initial_goroutine_num: 8
 	
 	metrics_logfile: "metrics.log"
-	stats_output_interval: "10s"
+	stats_output_interval: "2m"
 	
 	msg_storage: "mongodb"
 	max_storage_outstanding_msg: 100

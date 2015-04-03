@@ -27,7 +27,7 @@ _testmain.go
 *.log
 daemon/pushd/pushd
 daemon/benchmark/benchmark
-etc/pushd2.cf
+etc/pushd*.cf
 
 *.swp
 *.swo
