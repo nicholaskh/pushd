@@ -29,6 +29,12 @@ func init() {
 	}
 
 	server.SetupLogging(options.logFile, options.logLevel, options.crashLogFile)
+
+	conf := server.LoadConfig(options.configFile)
+	config.PushdConf = new(config.ConfigPushd)
+	config.PushdConf.LoadConfig(conf)
+
+	engine.PubsubChannels = engine.NewPubsubChannels(config.PushdConf.PubsubChannelMaxItems)
 }
 
 func main() {
@@ -41,15 +47,13 @@ func main() {
 	}()
 
 	pushdServ = server.NewTcpServer("pushd")
-	pushdServ.LoadConfig(options.configFile)
-	pushdServ.Launch()
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
 
-	config.PushdConf = new(config.ConfigPushd)
-	config.PushdConf.LoadConfig(pushdServ.Conf)
 	servStats := engine.NewServerStats()
 	clientHandler := engine.NewClientHandler(pushdServ, servStats)
-	clientHandler.DisableAclCheck() // delete this line if need acl check
+	if !options.aclCheck {
+		clientHandler.DisableAclCheck()
+	}
 	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, clientHandler, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
 
 	engine.Proxy = engine.NewS2sProxy()

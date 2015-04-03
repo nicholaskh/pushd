@@ -13,16 +13,16 @@ import (
 )
 
 var (
-	PubsubChannels *PubsubChans = NewPubsubChannels()
+	PubsubChannels *PubsubChans
 )
 
 type PubsubChans struct {
 	*cache.LruCache
 }
 
-func NewPubsubChannels() (this *PubsubChans) {
+func NewPubsubChannels(maxChannelItems int) (this *PubsubChans) {
 	this = new(PubsubChans)
-	this.LruCache = cache.NewLruCache(200000)
+	this.LruCache = cache.NewLruCache(maxChannelItems)
 	return
 }
 
@@ -32,7 +32,6 @@ func (this *PubsubChans) Get(channel string) (clients cmap.ConcurrentMap, exists
 	return
 }
 
-// TODO subscribe count of channel
 func subscribe(cli *Client, channel string) string {
 	log.Debug("%x", channel)
 	_, exists := cli.Channels[channel]

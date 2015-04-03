@@ -94,9 +94,8 @@ type S2sProxy struct {
 
 func NewS2sProxy() (this *S2sProxy) {
 	this = new(S2sProxy)
-	// TODO s2s channel backlog
-	this.SubMsgChan = make(chan string, 10)
-	this.PubMsgChan = make(chan *PubTuple, 10)
+	this.SubMsgChan = make(chan string, 100)
+	this.PubMsgChan = make(chan *PubTuple, 100)
 	this.peers = make(map[string]*Peer)
 
 	var peer *Peer
@@ -108,8 +107,7 @@ func NewS2sProxy() (this *S2sProxy) {
 		}
 	}
 	log.Debug("%s", this.peers)
-	// TODO
-	this.ChannelPeers = cache.NewLruCache(200000)
+	this.ChannelPeers = cache.NewLruCache(config.PushdConf.S2sChannelPeersMaxItems)
 
 	this.Stats = newProxyStats()
 	this.Stats.registerMetrics()

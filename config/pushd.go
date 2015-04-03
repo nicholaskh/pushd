@@ -20,10 +20,15 @@ type ConfigPushd struct {
 	S2sAddr               string
 	S2sSessionTimeout     time.Duration
 	S2sIntialGoroutineNum int
-	Servers               []string
+
+	S2sChannelPeersMaxItems int
+
+	Servers []string
 
 	MetricsLogfile      string
 	StatsOutputInterval time.Duration
+
+	PubsubChannelMaxItems int
 
 	MsgStorage               string
 	MaxStorageOutstandingMsg int
@@ -43,10 +48,15 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 	this.S2sAddr = cf.String("s2s_addr", ":2223")
 	this.S2sSessionTimeout = cf.Duration("s2s_conn_timeout", time.Minute*2)
 	this.S2sIntialGoroutineNum = cf.Int("s2s_initial_goroutine_num", 8)
+
+	this.S2sChannelPeersMaxItems = cf.Int("s2s_channel_peers_max_items", 200000)
+
 	this.Servers = cf.StringList("servers", []string{this.TcpListenAddr})
 
 	this.MetricsLogfile = cf.String("metrics_logfile", "metrics.log")
 	this.StatsOutputInterval = cf.Duration("stats_output_interval", time.Minute*10)
+
+	this.PubsubChannelMaxItems = cf.Int("pubsub_channel_max_items", 200000)
 
 	this.MsgStorage = cf.String("msg_storage", "")
 	if this.MsgStorage != "" {

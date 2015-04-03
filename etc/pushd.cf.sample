@@ -28,8 +28,12 @@
 	s2s_session_timeout: "2m"
 	s2s_initial_goroutine_num: 8
 	
+	s2s_channel_peers_max_items: 2000000
+
 	metrics_logfile: "metrics.log"
 	stats_output_interval: "2m"
+	
+	pubsub_channel_max_items: 2000000
 	
 	msg_storage: "mongodb"
 	max_storage_outstanding_msg: 100
