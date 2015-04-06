@@ -96,7 +96,7 @@ func publish(channel, msg string, fromS2s bool) string {
 		log.Debug("channel %s subscribed by %d clients", channel, clients.Count())
 		for ele := range clients.Iter() {
 			cli := ele.Val.(*Client)
-			cli.Mutex.Acquire()
+			cli.Mutex.Lock()
 			if !cli.Closed {
 				if !fromS2s {
 					go cli.WriteMsg(fmt.Sprintf("%c%s %d", OUTPUT_MESSAGE_PREFIX, msg, ts))
@@ -104,7 +104,7 @@ func publish(channel, msg string, fromS2s bool) string {
 					go cli.WriteMsg(fmt.Sprintf("%c%s", OUTPUT_MESSAGE_PREFIX, msg))
 				}
 			}
-			cli.Mutex.Release()
+			cli.Mutex.Unlock()
 		}
 
 		if config.PushdConf.EnableStorage() {

@@ -21,20 +21,19 @@ func NewS2sClientProcessor(server *server.TcpServer) *S2sClientProcessor {
 
 func (this *S2sClientProcessor) Run() {
 	log.Debug("start server go routine")
-	this.server.AcceptLock.Acquire()
+	this.server.AcceptLock.Lock()
 	conn, err := this.server.Fd.(*net.TCPListener).AcceptTCP()
-	this.server.AcceptLock.Release()
+	this.server.AcceptLock.Unlock()
 	if err != nil {
 		log.Error("Accept error: %s", err.Error())
 	}
 
 	go this.Run()
 
-	client := NewClient()
-	client.Client = server.NewClient(conn, time.Now(), this.server.SessTimeout)
+	client := server.NewClient(conn, time.Now(), this.server.SessTimeout)
 
 	if this.server.SessTimeout.Nanoseconds() > int64(0) {
-		go client.Client.CheckTimeout(client.Close)
+		go client.CheckTimeout()
 	}
 
 	for {
@@ -66,9 +65,9 @@ func (this *S2sClientProcessor) Run() {
 	client.Done <- 0
 }
 
-func (this *S2sClientProcessor) OnRead(client *Client, input string) {
+func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {
 	for _, inputUnit := range strings.Split(input, "\n") {
-		cl := NewCmdline(inputUnit, client)
+		cl := NewCmdline(inputUnit, nil)
 		if cl.Cmd == "" {
 			continue
 		}

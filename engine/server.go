@@ -27,9 +27,9 @@ func NewPushdClientProcessor(server *server.TcpServer, serverStats *ServerStats)
 
 func (this *PushdClientProcessor) Run() {
 	log.Debug("start server go routine")
-	this.server.AcceptLock.Acquire()
+	this.server.AcceptLock.Lock()
 	conn, err := this.server.Fd.(*net.TCPListener).AcceptTCP()
-	this.server.AcceptLock.Release()
+	this.server.AcceptLock.Unlock()
 	if err != nil {
 		log.Error("Accept error: %s", err.Error())
 	}
@@ -38,9 +38,10 @@ func (this *PushdClientProcessor) Run() {
 
 	client := NewClient()
 	client.Client = server.NewClient(conn, time.Now(), this.server.SessTimeout)
+	client.OnClose = client.Close
 
 	if this.server.SessTimeout.Nanoseconds() > int64(0) {
-		go client.Client.CheckTimeout(client.Close)
+		go client.Client.CheckTimeout()
 	}
 
 	for {
@@ -117,8 +118,4 @@ func (this *PushdClientProcessor) EnableAclCheck() {
 
 func (this *PushdClientProcessor) DisableAclCheck() {
 	this.enableAclCheck = false
-}
-
-func (this *PushdClientProcessor) Close() {
-
 }
