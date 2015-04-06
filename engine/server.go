@@ -37,10 +37,10 @@ func (this *PushdClientProcessor) Run() {
 	go this.Run()
 
 	client := NewClient()
-	client.Client = &server.Client{Conn: conn, LastTime: time.Now(), Ticker: time.NewTicker(this.server.SessTimeout), Done: make(chan byte)}
+	client.Client = server.NewClient(conn, time.Now(), this.server.SessTimeout)
 
 	if this.server.SessTimeout.Nanoseconds() > int64(0) {
-		go this.server.CheckTimeout(client.Client, client.Close)
+		go client.Client.CheckTimeout(client.Close)
 	}
 
 	for {
@@ -90,7 +90,7 @@ func (this *PushdClientProcessor) OnRead(client *Client, input string) {
 		if this.enableAclCheck {
 			err := AclCheck(client, cl.Cmd)
 			if err != nil {
-				client.WriteMsg(err.Error())
+				go client.WriteMsg(err.Error())
 				continue
 			}
 		}
@@ -98,11 +98,11 @@ func (this *PushdClientProcessor) OnRead(client *Client, input string) {
 		ret, err := cl.Process()
 		if err != nil {
 			log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-			client.WriteMsg(fmt.Sprintf("%s\n", err.Error()))
+			go client.WriteMsg(fmt.Sprintf("%s\n", err.Error()))
 			continue
 		}
 
-		client.WriteMsg(fmt.Sprintf("%s\n", ret))
+		go client.WriteMsg(fmt.Sprintf("%s\n", ret))
 
 		elapsed = time.Since(t1)
 		this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)

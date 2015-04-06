@@ -31,10 +31,10 @@ func (this *S2sClientProcessor) Run() {
 	go this.Run()
 
 	client := NewClient()
-	client.Client = &server.Client{Conn: conn, LastTime: time.Now(), Ticker: time.NewTicker(this.server.SessTimeout), Done: make(chan byte)}
+	client.Client = server.NewClient(conn, time.Now(), this.server.SessTimeout)
 
 	if this.server.SessTimeout.Nanoseconds() > int64(0) {
-		go this.server.CheckTimeout(client.Client, client.Close)
+		go client.Client.CheckTimeout(client.Close)
 	}
 
 	for {
@@ -77,7 +77,7 @@ func (this *S2sClientProcessor) OnRead(client *Client, input string) {
 
 		if err != nil {
 			log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-			client.WriteMsg(err.Error())
+			go client.WriteMsg(err.Error())
 			continue
 		}
 	}

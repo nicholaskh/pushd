@@ -93,15 +93,15 @@ func publish(channel, msg string, fromS2s bool) string {
 	clients, exists := PubsubChannels.Get(channel)
 	ts := time.Now().UnixNano()
 	if exists {
-		log.Debug("channel %s subscribed by clients%s", channel, clients)
+		log.Debug("channel %s subscribed by %d clients", channel, clients.Count())
 		for ele := range clients.Iter() {
 			cli := ele.Val.(*Client)
 			cli.Mutex.Acquire()
 			if !cli.Closed {
 				if !fromS2s {
-					cli.WriteMsg(fmt.Sprintf("%c%s %d", OUTPUT_MESSAGE_PREFIX, msg, ts))
+					go cli.WriteMsg(fmt.Sprintf("%c%s %d", OUTPUT_MESSAGE_PREFIX, msg, ts))
 				} else {
-					cli.WriteMsg(fmt.Sprintf("%c%s", OUTPUT_MESSAGE_PREFIX, msg))
+					go cli.WriteMsg(fmt.Sprintf("%c%s", OUTPUT_MESSAGE_PREFIX, msg))
 				}
 			}
 			cli.Mutex.Release()

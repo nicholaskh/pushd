@@ -45,16 +45,22 @@ func NewCmdline(input string, cli *Client) (this *Cmdline) {
 func (this *Cmdline) Process() (ret string, err error) {
 	switch this.Cmd {
 	case CMD_SUBSCRIBE:
+		if len(this.Params) < 1 || this.Params[0] == "" {
+			return "", errors.New("Lack sub channel")
+		}
 		ret = subscribe(this.Client, this.Params[0])
 
 	case CMD_PUBLISH:
-		if len(this.Params) < 2 {
+		if len(this.Params) < 2 || this.Params[1] == "" {
 			return "", errors.New("Publish without msg\n")
 		} else {
 			ret = publish(this.Params[0], this.Params[1], false)
 		}
 
 	case CMD_UNSUBSCRIBE:
+		if len(this.Params) < 1 || this.Params[0] == "" {
+			return "", errors.New("Lack unsub channel")
+		}
 		ret = unsubscribe(this.Client, this.Params[0])
 
 	case CMD_HISTORY:

@@ -19,6 +19,8 @@ public class PushdClient {
     private BufferedReader in;
     private PushdProcessor processor;
 
+    private Thread subThread;
+
     public PushdClient(PushdProcessor processor) {
         this.processor = processor;
     }
@@ -26,44 +28,59 @@ public class PushdClient {
     public void connect(String host, int port) throws InterruptedException, IOException  {
         this.sock = new Socket();
         this.sock.connect(new InetSocketAddress(host, port));
-        this.out = new PrintStream(this.sock.getOutputStream());
+        this.out = new PrintStream(this.sock.getOutputStream(), false);
         this.in = new BufferedReader(new InputStreamReader(this.sock.getInputStream()));
-        Thread thread = new ReadThread(this.in, this.processor);
-        thread.start();
-        thread.join();
+        this.subThread = new ReadThread(this);
+        this.subThread.start();
     }
 
     private class ReadThread extends Thread {
 
-        private BufferedReader in;
-        private PushdProcessor processor;
+        private PushdClient client;
 
-        public ReadThread(BufferedReader in, PushdProcessor processor) {
-            this.in = in;
-            this.processor = processor;
+        public ReadThread(PushdClient client) {
+            this.client = client;
         }
 
         public void run() {
-            try {
-                while (true) {
-                    String ret = this.in.readLine();
-                    System.out.println(ret);
-                    if (ret.startsWith("\0")) {
-                        this.processor.RecvMessage(ret, 1111);
+            while (true) {
+                try {
+                    char[] buf = new char[1000];
+                    String str;
+                    String msg;
+                    long ts;
+                    int lastSpace;
+                    while (true) {
+                        System.out.println("start read");
+                        int num = this.client.in.read(buf, 0, 1000);
+                        if (num == 0) {
+                            System.out.println("eof");
+                            this.client.close();
+                            return;
+                        }
+                        str = String.valueOf(buf);
+                        System.out.println("end read\n");
+                        System.out.println(str);
+                        if (str.startsWith("\0")) {
+                            str = str.trim();
+                            lastSpace = str.lastIndexOf(' ');
+                            msg = str.substring(0, lastSpace);
+                            ts = Long.parseLong(str.substring(lastSpace + 1));
+                            this.client.processor.RecvMessage(msg, ts);
+                        }
                     }
-                }
-            } catch (IOException ex) {
+                } catch (IOException ex) {}
             }
         }
 
     }
 
     public void publish(String channel, String msg) throws IOException {
-        this.out.printf("pub %s %s", channel, msg);
+        this.out.print(String.format("pub %s %s", channel, msg));
     }
 
     public void subscribe(String channel) throws IOException {
-        this.out.printf("sub %s", channel);
+        this.out.print(String.format("sub %s", channel));
     }
 
     public void close() throws IOException {
@@ -76,12 +93,15 @@ public class PushdClient {
         PushdClient client = new PushdClient(new PushdProcessor(){
 
             public void RecvMessage(String msg, long ts) {
-                System.out.printf("Time[%d] received message: %s", ts, msg);
+                System.out.printf("Time[%d] received message: %s\n", ts, msg);
             }
 
         });
         client.connect("127.0.0.1", 2222);
+        System.out.println("start sub");
         client.subscribe("c1");
+        System.out.println("end sub\n");
+        client.subThread.join();
     }
 
     /*
