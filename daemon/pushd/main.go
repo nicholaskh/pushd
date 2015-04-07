@@ -56,6 +56,11 @@ func main() {
 	}
 	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, pushdClientProcessor, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
 
+	if config.PushdConf.LongPollingListenAddr != "" {
+		longPollingServer := engine.NewPushdLongPollingServer("pushd(long polling)")
+		go longPollingServer.Launch(config.PushdConf.LongPollingListenAddr, config.PushdConf.LongPollingSessionTimeout)
+	}
+
 	engine.Proxy = engine.NewS2sProxy()
 	go engine.Proxy.WaitMsg()
 

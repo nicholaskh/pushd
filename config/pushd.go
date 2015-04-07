@@ -14,6 +14,9 @@ type ConfigPushd struct {
 	SessionTimeout          time.Duration
 	ServInitialGoroutineNum int
 
+	LongPollingListenAddr     string
+	LongPollingSessionTimeout time.Duration
+
 	StatsListenAddr string
 	ProfListenAddr  string
 
@@ -41,6 +44,11 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 	this.TcpListenAddr = cf.String("tcp_listen_addr", ":2222")
 	this.SessionTimeout = cf.Duration("session_timeout", time.Minute*2)
 	this.ServInitialGoroutineNum = cf.Int("serv_initial_goroutine_num", 200)
+
+	this.LongPollingListenAddr = cf.String("long_polling_listen_addr", "")
+	if this.LongPollingListenAddr != "" {
+		this.LongPollingSessionTimeout = cf.Duration("long_polling_session_timeout", time.Minute)
+	}
 
 	this.StatsListenAddr = cf.String("stats_listen_addr", ":9020")
 	this.ProfListenAddr = cf.String("prof_listen_addr", ":9021")
