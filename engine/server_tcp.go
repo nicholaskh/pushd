@@ -25,19 +25,9 @@ func NewPushdClientProcessor(server *server.TcpServer, serverStats *ServerStats)
 	return this
 }
 
-func (this *PushdClientProcessor) Run() {
-	log.Debug("start server go routine")
-	this.server.AcceptLock.Lock()
-	conn, err := this.server.Fd.(*net.TCPListener).AcceptTCP()
-	this.server.AcceptLock.Unlock()
-	if err != nil {
-		log.Error("Accept error: %s", err.Error())
-	}
-
-	go this.Run()
-
+func (this *PushdClientProcessor) Run(c *server.Client) {
 	client := NewClient()
-	client.Client = server.NewClient(conn, time.Now(), this.server.SessTimeout)
+	client.Client = c
 	client.OnClose = client.Close
 
 	if this.server.SessTimeout.Nanoseconds() > int64(0) {

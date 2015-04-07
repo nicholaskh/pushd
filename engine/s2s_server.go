@@ -19,19 +19,7 @@ func NewS2sClientProcessor(server *server.TcpServer) *S2sClientProcessor {
 	return &S2sClientProcessor{server: server}
 }
 
-func (this *S2sClientProcessor) Run() {
-	log.Debug("start server go routine")
-	this.server.AcceptLock.Lock()
-	conn, err := this.server.Fd.(*net.TCPListener).AcceptTCP()
-	this.server.AcceptLock.Unlock()
-	if err != nil {
-		log.Error("Accept error: %s", err.Error())
-	}
-
-	go this.Run()
-
-	client := server.NewClient(conn, time.Now(), this.server.SessTimeout)
-
+func (this *S2sClientProcessor) Run(client *server.Client) {
 	if this.server.SessTimeout.Nanoseconds() > int64(0) {
 		go client.CheckTimeout()
 	}

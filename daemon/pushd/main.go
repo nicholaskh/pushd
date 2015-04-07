@@ -76,7 +76,7 @@ func main() {
 }
 
 func shutdown() {
-	pushdServ.StopTcpServ()
+	pushdServ.StopTcpServer()
 	log.Info("Terminated")
 	os.Exit(0)
 }
