@@ -1,0 +1,16 @@
+<html>
+    <head>
+        <script src="jquery-2.1.3.min.js"></script>
+        <script src="PushdClient.js"></script>
+        <script>
+            var client = PushdClient.init("127.0.0.1:9999");
+            client.onHistory = function(json){alert(json[0]['channel'] + ':' + json[0]['ts'] + ':' + json[0]['msg']);};
+            client.onPublish = function(data){alert(data);};
+            client.onSubscribe = function(data){alert(data);};
+
+            client.publish("chan", "abc");
+            client.subscribe("chan");
+            client.history("chan", 0);
+        </script>
+    </head>
+</html>

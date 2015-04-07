@@ -47,6 +47,10 @@ func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *h
 		return
 	}
 
+	conn.Write([]byte("HTTP/1.1 200 OK\r\n"))
+	conn.Write([]byte("Access-Control-Allow-Origin: *\r\n"))
+	conn.Write([]byte("\r\n"))
+
 	c := server.NewClient(conn, time.Now(), this.sessTimeout, server.CTYPE_LONG_POLLING)
 	client := NewClient()
 	client.Client = c
@@ -76,6 +80,7 @@ func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *h
 }
 
 func (this *PushdLongPollingServer) ServeHistory(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	vars := mux.Vars(req)
 	channel := vars["channel"]
 	ts := vars["ts"]
@@ -94,6 +99,7 @@ func (this *PushdLongPollingServer) ServeHistory(w http.ResponseWriter, req *htt
 }
 
 func (this *PushdLongPollingServer) ServePublish(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	vars := mux.Vars(req)
 	channel := vars["channel"]
 	msg := vars["msg"]
