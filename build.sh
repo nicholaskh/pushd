@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 if [[ $1 = "-loc" ]]; then
-    find . -name '*.go' -or -name '*.java' -or -name '*.js' | xargs wc -l | sort -n
+    find . -name '*.go' -or -name '*.java' -or -name '*.js' -or -name '*.html' | xargs wc -l | sort -n
     exit
 fi
 
