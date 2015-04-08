@@ -3,7 +3,7 @@
 var PushdClient = {
 
     addr: "",
-    subscribeTimeStamp: 0,
+    subscribeTs: 0,
 
     onHistory: null,
     onPublish: null,
@@ -23,9 +23,31 @@ var PushdClient = {
     },
     
     subscribe: function(channel) {
-        $.get('http://' + this.addr + '/sub/' + channel, null, function(data) {
+        $.get('http://' + this.addr + '/sub/' + channel + '/' + PushdClient.subscribeTs, null, function(data) {
+            if (!data) {
+                return;
+            }
+            if (data.indexOf('[') === 0) {
+                json = eval(data);
+                for (i in json) {
+                    if (json[i]['ts'] > PushdClient.subscribeTs) {
+                        PushdClient.subscribeTs = json[i]['ts'].toString();
+                    }
+                }
+            } else {
+                data = data.trim();
+                var ts = data.substr(data.lastIndexOf(" ") + 1);
+                json = [{
+                    channel: channel,
+                    msg: data.substr(0, data.lastIndexOf(" ")),
+                    ts: ts,
+                }];
+                if (ts > PushdClient.subscribeTs) {
+                    PushdClient.subscribeTs = ts;
+                }
+            }
             if (PushdClient.onSubscribe) {
-                PushdClient.onSubscribe(data);
+                PushdClient.onSubscribe(json);
             }
         });
     },

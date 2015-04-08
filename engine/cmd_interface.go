@@ -1,13 +1,14 @@
 package engine
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/nicholaskh/golib/str"
-	//log "github.com/nicholaskh/log4go"
+	log "github.com/nicholaskh/log4go"
 )
 
 type Cmdline struct {
@@ -74,7 +75,15 @@ func (this *Cmdline) Process() (ret string, err error) {
 		} else {
 			channel = ""
 		}
-		ret, err = history(ts, channel)
+		hisRet, err := history(ts, channel)
+		if err != nil {
+			log.Error(err)
+		}
+
+		var retBytes []byte
+		retBytes, err = json.Marshal(hisRet)
+
+		ret = string(retBytes)
 
 	//use one appId/secretKey pair
 	case CMD_AUTH_SERVER:

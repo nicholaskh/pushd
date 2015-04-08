@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
+	"labix.org/v2/mgo/bson"
 )
 
 type PushdLongPollingServer struct {
@@ -26,7 +28,7 @@ func NewPushdLongPollingServer(name string) *PushdLongPollingServer {
 
 func (this *PushdLongPollingServer) Launch(listenAddr string, sessTimeout time.Duration) {
 	this.sessTimeout = sessTimeout
-	this.HttpServer.RegisterHandler("/sub/{channel}", this.ServeSubscribe)
+	this.HttpServer.RegisterHandler("/sub/{channel}/{ts}", this.ServeSubscribe)
 	this.HttpServer.RegisterHandler("/pub/{channel}/{msg}", this.ServePublish)
 	this.HttpServer.RegisterHandler("/history/{channel}/{ts}", this.ServeHistory)
 	this.HttpServer.Launch(listenAddr)
@@ -35,6 +37,12 @@ func (this *PushdLongPollingServer) Launch(listenAddr string, sessTimeout time.D
 func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	channel := vars["channel"]
+	tsStr := vars["ts"]
+	ts, err := strconv.Atoi(tsStr)
+	if err != nil {
+		io.WriteString(w, "invalid timestamp")
+		return
+	}
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
@@ -50,6 +58,27 @@ func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *h
 	conn.Write([]byte("HTTP/1.1 200 OK\r\n"))
 	conn.Write([]byte("Access-Control-Allow-Origin: *\r\n"))
 	conn.Write([]byte("\r\n"))
+
+	//fetch history first
+	//if ts != 0 {
+	hisRet, err := history(int64(ts)+1, channel)
+	for i, hisRetEle := range hisRet {
+		retEleBson, _ := hisRetEle.(bson.M)
+		retEleBson["ts"] = strconv.Itoa(int(retEleBson["ts"].(int64)))
+		hisRet[i] = retEleBson
+	}
+	if err != nil {
+		log.Error(err)
+	}
+	if len(hisRet) > 0 {
+		var retBytes []byte
+		retBytes, err = json.Marshal(hisRet)
+
+		conn.Write(retBytes)
+		conn.Close()
+		return
+	}
+	//}
 
 	c := server.NewClient(conn, time.Now(), this.sessTimeout, server.CTYPE_LONG_POLLING)
 	client := NewClient()
@@ -90,11 +119,15 @@ func (this *PushdLongPollingServer) ServeHistory(w http.ResponseWriter, req *htt
 		return
 	}
 
-	ret, err := history(int64(tsInt), channel)
+	hisRet, err := history(int64(tsInt), channel)
 	if err != nil {
 		io.WriteString(w, fmt.Sprintf("fetch history of channel[%s] from[%d] error", channel, tsInt))
 		return
 	}
+	var retBytes []byte
+	retBytes, err = json.Marshal(hisRet)
+
+	ret := string(retBytes)
 	io.WriteString(w, ret)
 }
 

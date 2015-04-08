@@ -6,11 +6,11 @@
             var client = PushdClient.init("127.0.0.1:9999");
             client.onHistory = function(json){alert(json[0]['channel'] + ':' + json[0]['ts'] + ':' + json[0]['msg']);};
             client.onPublish = function(data){alert(data);};
-            client.onSubscribe = function(data){alert(data);};
+            client.onSubscribe = function(json){alert(json[0]['channel'] + ':' + json[0]['ts'] + ':' + json[0]['msg']); client.subscribe("chan")};
 
             client.publish("chan", "abc");
-            client.subscribe("chan");
             client.history("chan", 0);
+            client.subscribe("chan");
         </script>
     </head>
 </html>
