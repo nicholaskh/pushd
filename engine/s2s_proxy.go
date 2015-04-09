@@ -39,19 +39,27 @@ func NewPeer(addr string) (this *Peer) {
 }
 
 func (this *Peer) connect() (err error) {
-	this.Conn, err = net.Dial("tcp", this.addr)
+	//bind local addr since we will use this for peer addr on remote server
+	laddr, err := net.ResolveTCPAddr("tcp", config.PushdConf.TcpListenAddr)
+	if err != nil {
+		panic(err)
+	}
+	laddr.Port = 0
+	dialer := &net.Dialer{LocalAddr: laddr}
+
+	this.Conn, err = dialer.Dial("tcp", this.addr)
 	if err != nil {
 		log.Warn("s2s connect to %s error: %s", this.addr, err.Error())
 	}
-
-	// just wait for s2s server close the connection
 	if this.Conn != nil {
+		// just wait for s2s server close the connection
 		go func() {
 			for {
 				input := make([]byte, 1460)
 				_, err = this.Conn.Read(input)
 				if err != nil {
 					this.Conn.Close()
+					return
 				}
 			}
 		}()
@@ -127,22 +135,21 @@ func (this *S2sProxy) WaitMsg() {
 				log.Debug("peer was %s %s", peerInterface, reflect.TypeOf(peerInterface))
 				peer, _ := peerInterface.(*Peer)
 				log.Debug("peer is %s %s", peer, reflect.TypeOf(peer))
-				go peer.writeMsg(fmt.Sprintf("%s %s %s %d", S2S_PUB_CMD, tuple.channel, tuple.msg, tuple.ts))
+				go peer.writeMsg(fmt.Sprintf("%s %s %s %d\n", S2S_PUB_CMD, tuple.channel, tuple.msg, tuple.ts))
 			}
 
 		case channel := <-this.SubMsgChan:
 			this.Stats.subCalls.Mark(1)
 			this.Stats.outChannels.Mark(1)
 			for _, peer := range this.peers {
-				go peer.writeMsg(fmt.Sprintf("%s %s %s", S2S_SUB_CMD, channel, config.PushdConf.TcpListenAddr))
+				go peer.writeMsg(fmt.Sprintf("%s %s %s\n", S2S_SUB_CMD, channel))
 			}
-			// TODO save into mongodb
 
 		case channel := <-this.UnsubMsgChan:
 			this.Stats.unsubCalls.Mark(1)
 			this.Stats.outChannels.Mark(-1)
 			for _, peer := range this.peers {
-				go peer.writeMsg(fmt.Sprintf("%s %s %s", S2S_UNSUB_CMD, channel, config.PushdConf.TcpListenAddr))
+				go peer.writeMsg(fmt.Sprintf("%s %s %s\n", S2S_UNSUB_CMD, channel))
 			}
 		}
 	}

@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"fmt"
+
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 )
@@ -29,4 +31,12 @@ func (this *Client) Close() {
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
 	UnsubscribeAllChannels(this)
+}
+
+func (this *Client) FormatMessageOutput(msg string) string {
+	return fmt.Sprintf("%c%s%c", OUTPUT_MESSAGE_PREFIX, msg, OUTPUT_DELIMITER)
+}
+
+func (this *Client) FormatCommandOutput(msg string) string {
+	return fmt.Sprintf("%c%s%c", OUTPUT_COMMAND_PREFIX, msg, OUTPUT_DELIMITER)
 }

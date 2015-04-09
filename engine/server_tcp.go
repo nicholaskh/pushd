@@ -81,7 +81,7 @@ func (this *PushdClientProcessor) OnRead(client *Client, input string) {
 		if this.enableAclCheck {
 			err := AclCheck(client, cl.Cmd)
 			if err != nil {
-				go client.WriteMsg(err.Error())
+				go client.WriteMsg(client.FormatCommandOutput(fmt.Sprintf("%s", err.Error())))
 				continue
 			}
 		}
@@ -89,11 +89,11 @@ func (this *PushdClientProcessor) OnRead(client *Client, input string) {
 		ret, err := cl.Process()
 		if err != nil {
 			log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-			go client.WriteMsg(fmt.Sprintf("%s\n", err.Error()))
+			go client.WriteMsg(fmt.Sprintf("%c%s\n%c", OUTPUT_COMMAND_PREFIX, err.Error(), OUTPUT_DELIMITER))
 			continue
 		}
 
-		go client.WriteMsg(fmt.Sprintf("%s\n", ret))
+		go client.WriteMsg(fmt.Sprintf("%c%s\n%c", OUTPUT_COMMAND_PREFIX, ret, OUTPUT_DELIMITER))
 
 		elapsed = time.Since(t1)
 		this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)

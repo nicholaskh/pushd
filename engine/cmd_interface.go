@@ -25,6 +25,7 @@ const (
 	CMD_TOKEN       = "gettoken"
 	CMD_AUTH_CLIENT = "auth_client"
 	CMD_AUTH_SERVER = "auth_server"
+	CMD_PING        = "ping"
 
 	OUTPUT_SUBSCRIBED         = "SUBSCRIBED"
 	OUTPUT_ALREADY_SUBSCRIBED = "ALREADY SUBSCRIBED"
@@ -32,6 +33,9 @@ const (
 	OUTPUT_NOT_SUBSCRIBED     = "NOT SUBSCRIBED"
 	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
 	OUTPUT_MESSAGE_PREFIX     = 0
+	OUTPUT_COMMAND_PREFIX     = 1
+	OUTPUT_DELIMITER          = 2
+	OUTPUT_PONG               = "pong"
 )
 
 func NewCmdline(input string, cli *Client) (this *Cmdline) {
@@ -114,6 +118,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 				this.Client.Type = TYPE_CLIENT
 			}
 		}
+
+	case CMD_PING:
+		return OUTPUT_PONG, nil
 
 	default:
 		return "", errors.New(fmt.Sprintf("Cmd not found: %s\n", this.Cmd))

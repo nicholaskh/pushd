@@ -60,7 +60,7 @@ func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {
 			continue
 		}
 
-		err := this.processCmd(cl)
+		err := this.processCmd(cl, client)
 
 		if err != nil {
 			log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
@@ -70,7 +70,7 @@ func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {
 	}
 }
 
-func (this *S2sClientProcessor) processCmd(cl *Cmdline) error {
+func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) error {
 	switch cl.Cmd {
 	case S2S_PUB_CMD:
 		publish(cl.Params[0], cl.Params[1], true)
@@ -81,7 +81,8 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline) error {
 		if !exists {
 			peers = set.NewSet()
 		}
-		peers.Add(Proxy.peers[GetS2sAddr(cl.Params[1])])
+		log.Info(client.RemoteAddr())
+		peers.Add(Proxy.peers[GetS2sAddr(client.RemoteAddr().String())])
 		Proxy.ChannelPeers.Set(cl.Params[0], peers)
 
 	case S2S_UNSUB_CMD:
