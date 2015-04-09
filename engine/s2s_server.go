@@ -81,7 +81,7 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 		if !exists {
 			peers = set.NewSet()
 		}
-		log.Info(client.RemoteAddr())
+		log.Debug("Remote addr: %s", client.RemoteAddr())
 		peers.Add(Proxy.peers[GetS2sAddr(client.RemoteAddr().String())])
 		Proxy.ChannelPeers.Set(cl.Params[0], peers)
 
