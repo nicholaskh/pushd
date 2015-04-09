@@ -36,14 +36,18 @@ var PushdClient = {
                 }
             } else {
                 data = data.trim();
-                var ts = data.substr(data.lastIndexOf(" ") + 1);
-                json = [{
-                    channel: channel,
-                    msg: data.substr(0, data.lastIndexOf(" ")),
-                    ts: ts,
-                }];
-                if (ts > PushdClient.subscribeTs) {
-                    PushdClient.subscribeTs = ts;
+                var dataPeices = data.split("\2");
+                for(var i in dataPeices) {
+                    var dataEle = dataPeices[i];
+                    var ts = dataEle.substr(dataEle.lastIndexOf(" ") + 1);
+                    json = [{
+                        channel: channel,
+                        msg: dataEle.substr(0, dataEle.lastIndexOf(" ")),
+                        ts: ts,
+                    }];
+                    if (ts > PushdClient.subscribeTs) {
+                        PushdClient.subscribeTs = ts;
+                    }
                 }
             }
             if (PushdClient.onSubscribe) {
