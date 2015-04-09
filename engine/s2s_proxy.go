@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/nicholaskh/golib/cache"
@@ -14,6 +13,8 @@ import (
 )
 
 const (
+	S2S_PORT = 2223
+
 	RETRY_CNT = 2
 
 	S2S_SUB_CMD   = "sub"
@@ -161,14 +162,11 @@ func (this *S2sProxy) GetPeersByChannel(channel string) (peers set.Set, exists b
 	return
 }
 
-// TODO port should fixed
 func GetS2sAddr(servAddr string) (s2sAddr string) {
 	parts := strings.Split(servAddr, ":")
 	ip := parts[0]
-	port := parts[1]
-	intPort, _ := strconv.Atoi(port)
-	s2sPort := strconv.Itoa((intPort + 1))
-	s2sAddr = fmt.Sprintf("%s:%s", ip, s2sPort)
+	s2sPort := S2S_PORT
+	s2sAddr = fmt.Sprintf("%s:%d", ip, s2sPort)
 	return
 }
 

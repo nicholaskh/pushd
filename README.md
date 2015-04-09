@@ -17,6 +17,8 @@ An open source distributed pubsub(publish/subscribe) server
 
 ### HowToUse
 
+*   Should open port 2222(optional) and 2223 in firewall, we use that as the tcp server and s2s gateway
+
 *	Stand alone
 1.	Run Server: bin/pushd.(linux|mac)
 2.	Run Client(eg. telnet): telnet localhost 2222
