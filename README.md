@@ -50,6 +50,8 @@ An open source distributed pubsub(publish/subscribe) server
 	- publish msg to one channel
 *	unsub [[channel]]
 	- unsubscribe one channel
+*   history [[channel]] [[timestamp]]
+    - fetch the history of the channel from timestamp
 
 
 ### Terms
