@@ -34,6 +34,9 @@ An open source distributed pubsub(publish/subscribe) server
 2.	For the config of every peer, set the 'tcp_listen_addr' to the corresponding address
 
 	Then the cluster will serve as one server
+	
+### Architecture
+![Pushd Architecture](https://raw.githubusercontent.com/nicholaskh/pushd/master/doc/Architecture.png)
 
 ### Commands
 
