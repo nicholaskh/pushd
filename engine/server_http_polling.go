@@ -60,25 +60,25 @@ func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *h
 	conn.Write([]byte("\r\n"))
 
 	//fetch history first
-	//if ts != 0 {
-	hisRet, err := history(channel, int64(ts)+1)
-	for i, hisRetEle := range hisRet {
-		retEleBson, _ := hisRetEle.(bson.M)
-		retEleBson["ts"] = strconv.Itoa(int(retEleBson["ts"].(int64)))
-		hisRet[i] = retEleBson
-	}
-	if err != nil {
-		log.Error(err)
-	}
-	if len(hisRet) > 0 {
-		var retBytes []byte
-		retBytes, err = json.Marshal(hisRet)
+	if ts != 0 {
+		hisRet, err := history(channel, int64(ts)+1)
+		for i, hisRetEle := range hisRet {
+			retEleBson, _ := hisRetEle.(bson.M)
+			retEleBson["ts"] = strconv.Itoa(int(retEleBson["ts"].(int64)))
+			hisRet[i] = retEleBson
+		}
+		if err != nil {
+			log.Error(err)
+		}
+		if len(hisRet) > 0 {
+			var retBytes []byte
+			retBytes, err = json.Marshal(hisRet)
 
-		conn.Write(retBytes)
-		conn.Close()
-		return
+			conn.Write(retBytes)
+			conn.Close()
+			return
+		}
 	}
-	//}
 
 	c := server.NewClient(conn, time.Now(), this.sessTimeout, server.CTYPE_LONG_POLLING)
 	client := NewClient()
