@@ -13,16 +13,16 @@ func newMongodbDriver() (this *MongoStorage) {
 	return
 }
 
-func (this *MongoStorage) store(mt *msgTuple) error {
-	err := db.MgoSession().DB("pushd").C("msg_log").Insert(bson.M{"channel": mt.channel, "msg": mt.msg, "ts": mt.ts})
+func (this *MongoStorage) store(mt *MsgTuple) error {
+	err := db.MgoSession().DB("pushd").C("msg_log").Insert(bson.M{"channel": mt.Channel, "msg": mt.Msg, "ts": mt.Ts})
 
 	return err
 }
 
-func (this *MongoStorage) storeMulti(mts []*msgTuple) error {
+func (this *MongoStorage) storeMulti(mts []*MsgTuple) error {
 	records := make([]interface{}, 0)
 	for _, mt := range mts {
-		records = append(records, bson.M{"channel": mt.channel, "msg": mt.msg, "ts": mt.ts})
+		records = append(records, bson.M{"channel": mt.Channel, "msg": mt.Msg, "ts": mt.Ts})
 	}
 	err := db.MgoSession().DB("pushd").C("msg_log").Insert(records...)
 

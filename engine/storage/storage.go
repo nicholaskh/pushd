@@ -7,29 +7,29 @@ import (
 	"github.com/nicholaskh/pushd/config"
 )
 
-type msgTuple struct {
-	channel string
-	msg     string
-	ts      int64
+type MsgTuple struct {
+	Channel string `json:"channel"`
+	Msg     string `json:"msg"`
+	Ts      int64  `json:"ts"`
 }
 
 type storageDriver interface {
-	store(*msgTuple) error
-	storeMulti([]*msgTuple) error
+	store(*MsgTuple) error
+	storeMulti([]*MsgTuple) error
 }
 
 var (
-	msgQueue    chan *msgTuple
+	msgQueue    chan *MsgTuple
 	driver      storageDriver
-	writeBuffer chan *msgTuple
+	writeBuffer chan *MsgTuple
 )
 
 func Init() {
-	msgQueue = make(chan *msgTuple, config.PushdConf.MaxStorageOutstandingMsg)
+	msgQueue = make(chan *MsgTuple, config.PushdConf.MaxStorageOutstandingMsg)
 	driver = factory(config.PushdConf.MsgStorage)
-	msgCache = NewCache(config.PushdConf.MaxCacheMsgsEveryChannel)
+	MsgCache = NewCache(config.PushdConf.MaxCacheMsgsEveryChannel)
 	if config.PushdConf.MsgFlushPolicy != config.MSG_FLUSH_EVERY_TRX {
-		writeBuffer = make(chan *msgTuple, config.PushdConf.MsgStorageWriteBufferSize)
+		writeBuffer = make(chan *MsgTuple, config.PushdConf.MsgStorageWriteBufferSize)
 	}
 }
 
@@ -52,7 +52,7 @@ func Serv() {
 					//get current buffer length
 					cLen := len(writeBuffer)
 					if cLen > 0 {
-						records := make([]*msgTuple, 0)
+						records := make([]*MsgTuple, 0)
 						for i := 0; i < cLen; i++ {
 							if mt, ok := <-writeBuffer; ok {
 								records = append(records, mt)
@@ -75,8 +75,6 @@ func Serv() {
 	for {
 		select {
 		case mt := <-msgQueue:
-			msgCache.Store(mt)
-
 			if config.PushdConf.MsgFlushPolicy == config.MSG_FLUSH_EVERY_TRX {
 				err := driver.store(mt)
 				if err != nil {
@@ -90,5 +88,5 @@ func Serv() {
 }
 
 func EnqueueMsg(channel, msg string, ts int64) {
-	msgQueue <- &msgTuple{channel, msg, ts}
+	msgQueue <- &MsgTuple{channel, msg, ts}
 }

@@ -108,6 +108,7 @@ func publish(channel, msg string, fromS2s bool) string {
 		}
 	}
 
+	storage.MsgCache.Store(&storage.MsgTuple{Channel: channel, Msg: msg, Ts: ts})
 	if !fromS2s && config.PushdConf.EnableStorage() {
 		storage.EnqueueMsg(channel, msg, ts)
 	}

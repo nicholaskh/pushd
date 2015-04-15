@@ -61,7 +61,7 @@ func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *h
 
 	//fetch history first
 	//if ts != 0 {
-	hisRet, err := history(int64(ts)+1, channel)
+	hisRet, err := history(channel, int64(ts)+1)
 	for i, hisRetEle := range hisRet {
 		retEleBson, _ := hisRetEle.(bson.M)
 		retEleBson["ts"] = strconv.Itoa(int(retEleBson["ts"].(int64)))
@@ -119,7 +119,7 @@ func (this *PushdLongPollingServer) ServeHistory(w http.ResponseWriter, req *htt
 		return
 	}
 
-	hisRet, err := history(int64(tsInt), channel)
+	hisRet, err := history(channel, int64(tsInt))
 	if err != nil {
 		io.WriteString(w, fmt.Sprintf("fetch history of channel[%s] from[%d] error", channel, tsInt))
 		return

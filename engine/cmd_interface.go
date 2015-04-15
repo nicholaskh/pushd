@@ -69,17 +69,15 @@ func (this *Cmdline) Process() (ret string, err error) {
 		ret = unsubscribe(this.Client, this.Params[0])
 
 	case CMD_HISTORY:
-		ts, err := strconv.ParseInt(this.Params[0], 10, 64)
+		if len(this.Params) < 2 {
+			return "", errors.New("Invalid Params for history")
+		}
+		ts, err := strconv.ParseInt(this.Params[1], 10, 64)
 		if err != nil {
 			return "", err
 		}
-		var channel string
-		if len(this.Params) > 1 {
-			channel = this.Params[1]
-		} else {
-			channel = ""
-		}
-		hisRet, err := history(ts, channel)
+		channel := this.Params[0]
+		hisRet, err := fullHistory(channel, ts)
 		if err != nil {
 			log.Error(err)
 		}
