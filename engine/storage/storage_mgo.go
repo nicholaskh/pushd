@@ -18,3 +18,13 @@ func (this *MongoStorage) store(mt *msgTuple) error {
 
 	return err
 }
+
+func (this *MongoStorage) storeMulti(mts []*msgTuple) error {
+	records := make([]interface{}, 0)
+	for _, mt := range mts {
+		records = append(records, bson.M{"channel": mt.channel, "msg": mt.msg, "ts": mt.ts})
+	}
+	err := db.MgoSession().DB("pushd").C("msg_log").Insert(records...)
+
+	return err
+}

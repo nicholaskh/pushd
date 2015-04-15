@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+const (
+	MSG_FLUSH_EVERY_TRX = iota
+	MSG_FLUSH_EVERY_SECOND
+)
+
 var (
 	PushdConf *ConfigPushd
 )
@@ -32,8 +37,11 @@ type ConfigPushd struct {
 
 	PubsubChannelMaxItems int
 
-	MsgStorage               string
-	MaxStorageOutstandingMsg int
+	MsgStorage                string
+	MaxStorageOutstandingMsg  int
+	MsgFlushPolicy            int
+	MsgStorageWriteBufferSize int
+	MaxCacheMsgsEveryChannel  int
 
 	Redis *ConfigRedis
 	Mongo *ConfigMongo
@@ -67,6 +75,12 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 	this.MsgStorage = cf.String("msg_storage", "")
 	if this.MsgStorage != "" {
 		this.MaxStorageOutstandingMsg = cf.Int("max_storage_outstanding_msg", 100)
+		this.MsgFlushPolicy = cf.Int("msg_storage_flush_policy", MSG_FLUSH_EVERY_TRX)
+		if this.MsgFlushPolicy != MSG_FLUSH_EVERY_TRX && this.MsgFlushPolicy != MSG_FLUSH_EVERY_SECOND {
+			panic("invalid msg flush policy")
+		}
+		this.MsgStorageWriteBufferSize = cf.Int("msg_storage_write_buffer_size", 10000)
+		this.MaxCacheMsgsEveryChannel = cf.Int("max_cache_msgs_every_channel", 3000)
 	}
 
 	this.Redis = new(ConfigRedis)

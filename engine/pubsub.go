@@ -106,10 +106,10 @@ func publish(channel, msg string, fromS2s bool) string {
 			}
 			cli.Mutex.Unlock()
 		}
+	}
 
-		if config.PushdConf.EnableStorage() {
-			storage.EnqueueMsg(channel, msg, ts)
-		}
+	if !fromS2s && config.PushdConf.EnableStorage() {
+		storage.EnqueueMsg(channel, msg, ts)
 	}
 
 	if !fromS2s {

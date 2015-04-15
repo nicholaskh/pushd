@@ -40,4 +40,15 @@
 	
 	msg_storage: "mongodb"
 	max_storage_outstanding_msg: 100
+	
+	// 0: flush every trx
+	// 1: flush every second
+	msg_storage_flush_policy: 0
+	
+	// if msg_storage_flush_policy is not 0(flush every trx), then use a 
+	// backlog for the msgs to be flushed
+	msg_storage_write_buffer_size: 10000
+	
+	max_cache_msgs_every_channel: 3000
+	
 }
