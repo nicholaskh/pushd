@@ -47,7 +47,9 @@ func subscribe(cli *Client, channel string) string {
 			clients.Set(cli.RemoteAddr().String(), cli)
 
 			//s2s
-			Proxy.SubMsgChan <- channel
+			if config.PushdConf.IsDistMode() {
+				Proxy.SubMsgChan <- channel
+			}
 		}
 		PubsubChannels.Set(channel, clients)
 
@@ -70,7 +72,9 @@ func unsubscribe(cli *Client, channel string) string {
 			PubsubChannels.Del(channel)
 
 			//s2s
-			Proxy.UnsubMsgChan <- channel
+			if config.PushdConf.IsDistMode() {
+				Proxy.UnsubMsgChan <- channel
+			}
 		}
 		return fmt.Sprintf("%s %s", OUTPUT_UNSUBSCRIBED, channel)
 	} else {
@@ -115,11 +119,13 @@ func publish(channel, msg string, fromS2s bool) string {
 
 	if !fromS2s {
 		//s2s
-		var peers set.Set
-		peers, exists = Proxy.GetPeersByChannel(channel)
-		log.Debug("now peers %s", peers)
-		if exists {
-			Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, ts)
+		if config.PushdConf.IsDistMode() {
+			var peers set.Set
+			peers, exists = Proxy.GetPeersByChannel(channel)
+			log.Debug("now peers %s", peers)
+			if exists {
+				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, ts)
+			}
 		}
 
 		return OUTPUT_PUBLISHED

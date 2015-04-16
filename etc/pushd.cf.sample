@@ -1,8 +1,11 @@
 {
+	// server addresses of zk
+	// if not configured, then use standlone mode
 	etc_servers: [
 		"127.0.0.1:2181",
 	]
 	
+	// currently not used
 	redis_offline: {
 		addr: "127.0.0.1:6379"
 		conn_timeout: "5s"

@@ -9,6 +9,7 @@ import (
 	"github.com/nicholaskh/golib/server"
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
+	"github.com/nicholaskh/pushd/config"
 )
 
 type S2sClientProcessor struct {
@@ -80,7 +81,7 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 			peers = set.NewSet()
 		}
 		log.Debug("Remote addr: %s", client.RemoteAddr())
-		peers.Add(Proxy.peers[GetS2sAddr(client.RemoteAddr().String())])
+		peers.Add(Proxy.peers[config.GetS2sAddr(client.RemoteAddr().String())])
 		Proxy.ChannelPeers.Set(cl.Params[0], peers)
 
 	case S2S_UNSUB_CMD:
@@ -89,7 +90,7 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 		if !exists {
 			log.Error("Peer[%s] unsubscribe unexists channel[%s]", cl.Params[1], cl.Params[0])
 		} else {
-			peers.Remove(Proxy.peers[GetS2sAddr(cl.Params[1])])
+			peers.Remove(Proxy.peers[config.GetS2sAddr(client.RemoteAddr().String())])
 			Proxy.ChannelPeers.Set(cl.Params[0], peers)
 		}
 	}

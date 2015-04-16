@@ -1,13 +1,18 @@
 package config
 
 import (
-	conf "github.com/nicholaskh/jsconf"
+	"fmt"
+	"strings"
 	"time"
+
+	conf "github.com/nicholaskh/jsconf"
 )
 
 const (
 	MSG_FLUSH_EVERY_TRX = iota
 	MSG_FLUSH_EVERY_SECOND
+
+	S2S_PORT = 2223
 )
 
 var (
@@ -25,12 +30,13 @@ type ConfigPushd struct {
 	StatsListenAddr string
 	ProfListenAddr  string
 
+	S2sListenAddr         string
 	S2sSessionTimeout     time.Duration
 	S2sIntialGoroutineNum int
 
 	S2sChannelPeersMaxItems int
 
-	Servers []string
+	EtcServers []string
 
 	MetricsLogfile      string
 	StatsOutputInterval time.Duration
@@ -60,12 +66,16 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 	this.StatsListenAddr = cf.String("stats_listen_addr", ":9020")
 	this.ProfListenAddr = cf.String("prof_listen_addr", ":9021")
 
+	this.S2sListenAddr = GetS2sAddr(this.TcpListenAddr)
 	this.S2sSessionTimeout = cf.Duration("s2s_conn_timeout", time.Minute*2)
 	this.S2sIntialGoroutineNum = cf.Int("s2s_initial_goroutine_num", 8)
 
 	this.S2sChannelPeersMaxItems = cf.Int("s2s_channel_peers_max_items", 200000)
 
-	this.Servers = cf.StringList("servers", []string{this.TcpListenAddr})
+	this.EtcServers = cf.StringList("etc_servers", nil)
+	if len(this.EtcServers) == 0 {
+		this.EtcServers = nil
+	}
 
 	this.MetricsLogfile = cf.String("metrics_logfile", "metrics.log")
 	this.StatsOutputInterval = cf.Duration("stats_output_interval", time.Minute*10)
@@ -99,4 +109,16 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 
 func (this *ConfigPushd) EnableStorage() bool {
 	return this.MsgStorage != ""
+}
+
+func GetS2sAddr(servAddr string) (s2sAddr string) {
+	parts := strings.Split(servAddr, ":")
+	ip := parts[0]
+	s2sPort := S2S_PORT
+	s2sAddr = fmt.Sprintf("%s:%d", ip, s2sPort)
+	return
+}
+
+func (this *ConfigPushd) IsDistMode() bool {
+	return this.EtcServers != nil
 }

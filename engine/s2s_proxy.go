@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
-	"strings"
 
-	"github.com/nicholaskh/etclib"
 	"github.com/nicholaskh/golib/cache"
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
@@ -14,8 +12,6 @@ import (
 )
 
 const (
-	S2S_PORT = 2223
-
 	RETRY_CNT = 2
 
 	S2S_SUB_CMD   = "sub"
@@ -110,15 +106,8 @@ func NewS2sProxy() (this *S2sProxy) {
 	this.PubMsgChan = make(chan *PubTuple, 100)
 	this.peers = make(map[string]*Peer)
 
-	var peer *Peer
-	this.watchPeers()
-	for _, server := range config.PushdConf.Servers {
-		if server != config.PushdConf.TcpListenAddr {
-			s2sServer := GetS2sAddr(server)
-			peer = NewPeer(s2sServer)
-			this.peers[s2sServer] = peer
-		}
-	}
+	go watchPeers(this)
+
 	log.Debug("%s", this.peers)
 	this.ChannelPeers = cache.NewLruCache(config.PushdConf.S2sChannelPeersMaxItems)
 
@@ -128,8 +117,12 @@ func NewS2sProxy() (this *S2sProxy) {
 	return
 }
 
-func (this *S2sProxy) watchPeers() {
-
+func (this *S2sProxy) connectPeer(server string) {
+	if server == config.PushdConf.S2sListenAddr {
+		return
+	}
+	peer := NewPeer(server)
+	this.peers[server] = peer
 }
 
 func (this *S2sProxy) WaitMsg() {
@@ -148,14 +141,14 @@ func (this *S2sProxy) WaitMsg() {
 			this.Stats.subCalls.Mark(1)
 			this.Stats.outChannels.Mark(1)
 			for _, peer := range this.peers {
-				go peer.writeMsg(fmt.Sprintf("%s %s %s\n", S2S_SUB_CMD, channel))
+				go peer.writeMsg(fmt.Sprintf("%s %s\n", S2S_SUB_CMD, channel))
 			}
 
 		case channel := <-this.UnsubMsgChan:
 			this.Stats.unsubCalls.Mark(1)
 			this.Stats.outChannels.Mark(-1)
 			for _, peer := range this.peers {
-				go peer.writeMsg(fmt.Sprintf("%s %s %s\n", S2S_UNSUB_CMD, channel))
+				go peer.writeMsg(fmt.Sprintf("%s %s\n", S2S_UNSUB_CMD, channel))
 			}
 		}
 	}
@@ -172,14 +165,6 @@ func (this *S2sProxy) GetPeersByChannel(channel string) (peers set.Set, exists b
 	} else {
 		peers = nil
 	}
-	return
-}
-
-func GetS2sAddr(servAddr string) (s2sAddr string) {
-	parts := strings.Split(servAddr, ":")
-	ip := parts[0]
-	s2sPort := S2S_PORT
-	s2sAddr = fmt.Sprintf("%s:%d", ip, s2sPort)
 	return
 }
 

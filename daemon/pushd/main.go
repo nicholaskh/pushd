@@ -35,6 +35,10 @@ func init() {
 	config.PushdConf.LoadConfig(conf)
 
 	engine.PubsubChannels = engine.NewPubsubChannels(config.PushdConf.PubsubChannelMaxItems)
+
+	signal.RegisterSignalHandler(syscall.SIGINT, func(sig os.Signal) {
+		shutdown()
+	})
 }
 
 func main() {
@@ -45,6 +49,13 @@ func main() {
 		}
 		shutdown()
 	}()
+
+	if config.PushdConf.IsDistMode() {
+		err := engine.RegisterEtc()
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	pushdServ = server.NewTcpServer("pushd")
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
@@ -61,27 +72,36 @@ func main() {
 		go longPollingServer.Launch(config.PushdConf.LongPollingListenAddr, config.PushdConf.LongPollingSessionTimeout)
 	}
 
-	engine.Proxy = engine.NewS2sProxy()
-	go engine.Proxy.WaitMsg()
+	if config.PushdConf.IsDistMode() {
+		engine.Proxy = engine.NewS2sProxy()
+		go engine.Proxy.WaitMsg()
 
-	s2sServer = server.NewTcpServer("pushd_s2s")
-	go s2sServer.LaunchTcpServer(engine.GetS2sAddr(config.PushdConf.TcpListenAddr), engine.NewS2sClientProcessor(s2sServer), config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
+		s2sServer = server.NewTcpServer("pushd_s2s")
+		go s2sServer.LaunchTcpServer(config.PushdConf.S2sListenAddr, engine.NewS2sClientProcessor(s2sServer), config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
+	}
 
 	if config.PushdConf.EnableStorage() {
 		storage.Init()
 		go storage.Serv()
 	}
 
-	signal.RegisterSignalHandler(syscall.SIGINT, func(sig os.Signal) {
-		shutdown()
-	})
-
 	servStats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
 
 }
 
 func shutdown() {
-	pushdServ.StopTcpServer()
 	log.Info("Terminated")
+
+	if config.PushdConf.IsDistMode() {
+		err := engine.UnregisterEtc()
+		if err != nil {
+			log.Error(err)
+		}
+	}
+
+	if config.PushdConf.IsDistMode() {
+		s2sServer.StopTcpServer()
+	}
+	pushdServ.StopTcpServer()
 	os.Exit(0)
 }
