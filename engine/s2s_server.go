@@ -36,6 +36,7 @@ func (this *S2sClientProcessor) Run(client *server.Client) {
 				client.Close()
 				return
 			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
+				log.Error(err)
 				client.Close()
 				return
 			}

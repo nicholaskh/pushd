@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	pushdServ *server.TcpServer
-	s2sServer *server.TcpServer
+	pushdServer *server.TcpServer
+	s2sServer   *server.TcpServer
 )
 
 func init() {
@@ -50,22 +50,16 @@ func main() {
 		shutdown()
 	}()
 
-	if config.PushdConf.IsDistMode() {
-		err := engine.RegisterEtc()
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	pushdServ = server.NewTcpServer("pushd")
+	pushdServer = server.NewTcpServer("pushd")
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
 
 	servStats := engine.NewServerStats()
-	pushdClientProcessor := engine.NewPushdClientProcessor(pushdServ, servStats)
+	pushdClientProcessor := engine.NewPushdClientProcessor(pushdServer, servStats)
 	if !options.aclCheck {
 		pushdClientProcessor.DisableAclCheck()
 	}
-	go pushdServ.LaunchTcpServer(config.PushdConf.TcpListenAddr, pushdClientProcessor, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
+	go pushdServer.LaunchTcpServer(config.PushdConf.TcpListenAddr, pushdClientProcessor, config.PushdConf.SessionTimeout, config.PushdConf.ServInitialGoroutineNum)
+	go servStats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
 
 	if config.PushdConf.LongPollingListenAddr != "" {
 		longPollingServer := engine.NewPushdLongPollingServer("pushd(long polling)")
@@ -73,11 +67,16 @@ func main() {
 	}
 
 	if config.PushdConf.IsDistMode() {
-		engine.Proxy = engine.NewS2sProxy()
-		go engine.Proxy.WaitMsg()
-
 		s2sServer = server.NewTcpServer("pushd_s2s")
 		go s2sServer.LaunchTcpServer(config.PushdConf.S2sListenAddr, engine.NewS2sClientProcessor(s2sServer), config.PushdConf.S2sSessionTimeout, config.PushdConf.S2sIntialGoroutineNum)
+
+		err := engine.RegisterEtc()
+		if err != nil {
+			panic(err)
+		}
+
+		engine.Proxy = engine.NewS2sProxy()
+		go engine.Proxy.WaitMsg()
 	}
 
 	if config.PushdConf.EnableStorage() {
@@ -85,11 +84,16 @@ func main() {
 		go storage.Serv()
 	}
 
-	servStats.Start(config.PushdConf.StatsOutputInterval, config.PushdConf.MetricsLogfile)
-
+	<-make(chan int)
 }
 
 func shutdown() {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+			debug.PrintStack()
+		}
+	}()
 	log.Info("Terminated")
 
 	if config.PushdConf.IsDistMode() {
@@ -102,6 +106,7 @@ func shutdown() {
 	if config.PushdConf.IsDistMode() {
 		s2sServer.StopTcpServer()
 	}
-	pushdServ.StopTcpServer()
+	pushdServer.StopTcpServer()
+	time.Sleep(time.Second * 2)
 	os.Exit(0)
 }
