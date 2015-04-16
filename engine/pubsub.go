@@ -97,7 +97,7 @@ func publish(channel, msg string, fromS2s bool) string {
 		for ele := range clients.Iter() {
 			cli := ele.Val.(*Client)
 			cli.Mutex.Lock()
-			if !cli.Closed {
+			if cli.IsConnected() {
 				if !fromS2s {
 					go cli.WriteMsg(cli.FormatMessageOutput(fmt.Sprintf("%s %d", msg, ts)))
 				} else {

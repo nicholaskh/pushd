@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/nicholaskh/etclib"
 	"github.com/nicholaskh/golib/cache"
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
@@ -110,6 +111,7 @@ func NewS2sProxy() (this *S2sProxy) {
 	this.peers = make(map[string]*Peer)
 
 	var peer *Peer
+	this.watchPeers()
 	for _, server := range config.PushdConf.Servers {
 		if server != config.PushdConf.TcpListenAddr {
 			s2sServer := GetS2sAddr(server)
@@ -124,6 +126,10 @@ func NewS2sProxy() (this *S2sProxy) {
 	this.Stats.registerMetrics()
 
 	return
+}
+
+func (this *S2sProxy) watchPeers() {
+
 }
 
 func (this *S2sProxy) WaitMsg() {
@@ -158,7 +164,7 @@ func (this *S2sProxy) WaitMsg() {
 func (this *S2sProxy) GetPeersByChannel(channel string) (peers set.Set, exists bool) {
 	peersInterface, exists := this.ChannelPeers.Get(channel)
 	// TODO
-	// !exists=>read from mongodb and write to cache
+	// !exists => read from mongodb and write to cache
 	// empty => delete from cache
 	// else use it
 	if peersInterface != nil {

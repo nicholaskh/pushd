@@ -32,11 +32,9 @@ func (this *S2sClientProcessor) Run(client *server.Client) {
 
 		if err != nil {
 			if err == io.EOF {
-				log.Info("Client shutdown: %s", client.Conn.RemoteAddr())
 				client.Close()
 				return
 			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
-				log.Error("Read from client[%s] error: %s", client.Conn.RemoteAddr(), err.Error())
 				client.Close()
 				return
 			}
