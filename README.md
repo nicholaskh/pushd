@@ -13,7 +13,7 @@ An open source distributed pubsub(publish/subscribe) server
 
 ### Install
 
-*	No install, just use bin/pushd.linux or bin/pushd.mac
+*	Nothing to do, just use bin/pushd.linux or bin/pushd.mac
 
 ### HowToUse
 
