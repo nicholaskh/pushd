@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nicholaskh/golib/server"
-	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 )
@@ -76,24 +75,12 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 		publish(cl.Params[0], cl.Params[1], true)
 
 	case S2S_SUB_CMD:
-		log.Debug("peer %s %s", cl.Cmd, cl.Params)
-		peers, exists := Proxy.GetPeersByChannel(cl.Params[0])
-		if !exists {
-			peers = set.NewSet()
-		}
-		log.Debug("Remote addr: %s", client.RemoteAddr())
-		peers.Add(Proxy.peers[config.GetS2sAddr(client.RemoteAddr().String())])
-		Proxy.ChannelPeers.Set(cl.Params[0], peers)
+		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params[0])
+		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
 
 	case S2S_UNSUB_CMD:
-		log.Debug("peer unsub %s", cl.Params)
-		peers, exists := Proxy.GetPeersByChannel(cl.Params[0])
-		if !exists {
-			log.Error("Peer[%s] unsubscribe unexists channel[%s]", cl.Params[1], cl.Params[0])
-		} else {
-			peers.Remove(Proxy.peers[config.GetS2sAddr(client.RemoteAddr().String())])
-			Proxy.ChannelPeers.Set(cl.Params[0], peers)
-		}
+		log.Debug("Remote addr %s unsub: %s", client.RemoteAddr(), cl.Params[0])
+		Proxy.Router.RemovePeerFromChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
 	}
 
 	return nil

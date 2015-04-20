@@ -23,7 +23,7 @@ func watchPeers(proxy *S2sProxy) {
 			case servers := <-eventChan:
 				log.Debug(servers)
 				for _, server := range servers {
-					proxy.connectPeer(server)
+					proxy.Router.connectPeer(server)
 				}
 			}
 		}

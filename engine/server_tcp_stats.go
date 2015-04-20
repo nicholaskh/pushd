@@ -88,7 +88,7 @@ func (this *ServerStats) handleHttpQuery(w http.ResponseWriter, req *http.Reques
 		output["build"] = server.BuildID
 		output["stats"] = map[string]interface{}{
 			"pubsub_channel_count": PubsubChannels.Len(),
-			"s2s_channel_count":    Proxy.ChannelPeers.Len(),
+			"s2s_channel_count":    Proxy.Router.cache.Len(),
 		}
 		output["conf"] = *config.PushdConf
 

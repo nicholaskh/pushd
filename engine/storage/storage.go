@@ -16,6 +16,7 @@ type MsgTuple struct {
 type storageDriver interface {
 	store(*MsgTuple) error
 	storeMulti([]*MsgTuple) error
+	fetchByChannelAndTs(channel string, ts int64) (result []interface{}, err error)
 }
 
 var (
@@ -89,4 +90,8 @@ func Serv() {
 
 func EnqueueMsg(channel, msg string, ts int64) {
 	msgQueue <- &MsgTuple{channel, msg, ts}
+}
+
+func FetchHistory(channel string, ts int64) (result []interface{}, err error) {
+	return driver.fetchByChannelAndTs(channel, ts)
 }

@@ -121,7 +121,7 @@ func publish(channel, msg string, fromS2s bool) string {
 		//s2s
 		if config.PushdConf.IsDistMode() {
 			var peers set.Set
-			peers, exists = Proxy.GetPeersByChannel(channel)
+			peers, exists = Proxy.Router.LookupPeersByChannel(channel)
 			log.Debug("now peers %s", peers)
 			if exists {
 				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, ts)

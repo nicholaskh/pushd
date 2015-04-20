@@ -2,10 +2,8 @@ package engine
 
 import (
 	"fmt"
-	"net"
 	"reflect"
 
-	"github.com/nicholaskh/golib/cache"
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
@@ -23,75 +21,8 @@ var (
 	Proxy *S2sProxy
 )
 
-type Peer struct {
-	addr string
-	net.Conn
-}
-
-func NewPeer(addr string) (this *Peer) {
-	this = new(Peer)
-	this.addr = addr
-	this.connect()
-	return
-}
-
-func (this *Peer) connect() (err error) {
-	//bind local addr since we will use this for peer addr on remote server
-	laddr, err := net.ResolveTCPAddr("tcp", config.PushdConf.TcpListenAddr)
-	if err != nil {
-		panic(err)
-	}
-	laddr.Port = 0
-	dialer := &net.Dialer{LocalAddr: laddr}
-
-	this.Conn, err = dialer.Dial("tcp", this.addr)
-	if err != nil {
-		log.Warn("s2s connect to %s error: %s", this.addr, err.Error())
-	}
-	if this.Conn != nil {
-		// just wait for s2s server close the connection
-		go func() {
-			for {
-				input := make([]byte, 1460)
-				_, err = this.Conn.Read(input)
-				if err != nil {
-					this.Conn.Close()
-					return
-				}
-			}
-		}()
-	}
-	return
-}
-
-func (this *Peer) writeMsg(msg string) {
-	var err error
-
-	if this.Conn != nil {
-		_, err = this.Write([]byte(msg))
-	}
-	if err != nil || this.Conn == nil {
-		// retry
-		for i := 0; i < RETRY_CNT; i++ {
-			err = this.connect()
-			if err != nil {
-				log.Warn("write to peer %s error: %s", this.addr, err.Error())
-			} else {
-				if this.Conn != nil {
-					_, err = this.Write([]byte(msg))
-					if err == nil {
-						break
-					}
-				}
-			}
-		}
-	}
-}
-
 type S2sProxy struct {
-	peers map[string]*Peer
-
-	ChannelPeers *cache.LruCache
+	Router       *Router
 	PubMsgChan   chan *PubTuple
 	SubMsgChan   chan string
 	UnsubMsgChan chan string
@@ -104,25 +35,15 @@ func NewS2sProxy() (this *S2sProxy) {
 	this.SubMsgChan = make(chan string, 100)
 	this.UnsubMsgChan = make(chan string, 100)
 	this.PubMsgChan = make(chan *PubTuple, 100)
-	this.peers = make(map[string]*Peer)
 
 	go watchPeers(this)
 
-	log.Debug("%s", this.peers)
-	this.ChannelPeers = cache.NewLruCache(config.PushdConf.S2sChannelPeersMaxItems)
+	this.Router = NewRouter(config.PushdConf.S2sChannelPeersMaxItems)
 
 	this.Stats = newProxyStats()
 	this.Stats.registerMetrics()
 
 	return
-}
-
-func (this *S2sProxy) connectPeer(server string) {
-	if server == config.PushdConf.S2sListenAddr {
-		return
-	}
-	peer := NewPeer(server)
-	this.peers[server] = peer
 }
 
 func (this *S2sProxy) WaitMsg() {
@@ -140,32 +61,22 @@ func (this *S2sProxy) WaitMsg() {
 		case channel := <-this.SubMsgChan:
 			this.Stats.subCalls.Mark(1)
 			this.Stats.outChannels.Mark(1)
-			for _, peer := range this.peers {
+			for _, peer := range this.Router.Peers {
 				go peer.writeMsg(fmt.Sprintf("%s %s\n", S2S_SUB_CMD, channel))
 			}
 
 		case channel := <-this.UnsubMsgChan:
 			this.Stats.unsubCalls.Mark(1)
 			this.Stats.outChannels.Mark(-1)
-			for _, peer := range this.peers {
+			for _, peer := range this.Router.Peers {
 				go peer.writeMsg(fmt.Sprintf("%s %s\n", S2S_UNSUB_CMD, channel))
 			}
 		}
 	}
 }
 
-func (this *S2sProxy) GetPeersByChannel(channel string) (peers set.Set, exists bool) {
-	peersInterface, exists := this.ChannelPeers.Get(channel)
-	// TODO
-	// !exists => read from mongodb and write to cache
-	// empty => delete from cache
-	// else use it
-	if peersInterface != nil {
-		peers, _ = peersInterface.(set.Set)
-	} else {
-		peers = nil
-	}
-	return
+func (this *S2sProxy) ForwardMsg(msg, channel string, peers set.Set) {
+
 }
 
 type PubTuple struct {
