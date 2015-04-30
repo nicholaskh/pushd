@@ -75,10 +75,6 @@ func (this *S2sProxy) WaitMsg() {
 	}
 }
 
-func (this *S2sProxy) ForwardMsg(msg, channel string, peers set.Set) {
-
-}
-
 type PubTuple struct {
 	peers   set.Set
 	msg     string
