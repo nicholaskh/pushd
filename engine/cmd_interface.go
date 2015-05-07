@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nicholaskh/golib/str"
 	log "github.com/nicholaskh/log4go"
 )
 
@@ -50,12 +49,18 @@ func NewCmdline(input string, cli *Client) (this *Cmdline) {
 func (this *Cmdline) Process() (ret string, err error) {
 	switch this.Cmd {
 	case CMD_SUBSCRIBE:
+		if !this.Client.IsClient() {
+			return "", ErrNotPermit
+		}
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack sub channel")
 		}
 		ret = subscribe(this.Client, this.Params[0])
 
 	case CMD_PUBLISH:
+		if !this.Client.IsClient() && !this.Client.IsServer() {
+			return "", ErrNotPermit
+		}
 		if len(this.Params) < 2 || this.Params[1] == "" {
 			return "", errors.New("Publish without msg\n")
 		} else {
@@ -63,12 +68,18 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 	case CMD_UNSUBSCRIBE:
+		if !this.Client.IsClient() {
+			return "", ErrNotPermit
+		}
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack unsub channel")
 		}
 		ret = unsubscribe(this.Client, this.Params[0])
 
 	case CMD_HISTORY:
+		if !this.Client.IsClient() {
+			return "", ErrNotPermit
+		}
 		if len(this.Params) < 2 {
 			return "", errors.New("Invalid Params for history")
 		}
@@ -89,31 +100,39 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 	//use one appId/secretKey pair
 	case CMD_AUTH_SERVER:
-		if this.Client.Authed {
-			ret = "Already authed"
+		if len(this.Params) < 2 {
+			return "", errors.New("Invalid Params for auth_server")
+		}
+		if this.Client.IsServer() {
+			ret = "Already authed server"
 			err = nil
 		} else {
 			ret, err = authServer(this.Params[0], this.Params[1])
 			if err == nil {
-				this.Client.Authed = true
-				this.Client.Type = TYPE_SERVER
+				this.Client.SetServer()
 			}
 		}
 
 	case CMD_TOKEN:
-		// TODO more secure token generator
-		ret = str.Rand(32)
-		tokenPool.Set(ret, 1)
+		if !this.Client.IsServer() {
+			return "", ErrNotPermit
+		}
+		ret = getToken()
+		if ret == "" {
+			return "", errors.New("gettoken error")
+		}
 
 	case CMD_AUTH_CLIENT:
-		if this.Client.Authed {
-			ret = "Already authed"
+		if len(this.Params) < 1 {
+			return "", errors.New("Invalid Params for auth_client")
+		}
+		if this.Client.IsClient() {
+			ret = "Already authed client"
 			err = nil
 		} else {
 			ret, err = authClient(this.Params[0])
 			if err == nil {
-				this.Client.Authed = true
-				this.Client.Type = TYPE_CLIENT
+				this.Client.SetClient()
 			}
 		}
 

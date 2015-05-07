@@ -15,15 +15,29 @@ const (
 type Client struct {
 	Channels map[string]int
 	Type     uint8
-	Authed   bool
 	*server.Client
 }
 
 func NewClient() (this *Client) {
 	this = new(Client)
 	this.Channels = make(map[string]int)
-	this.Authed = false
 	return
+}
+
+func (this *Client) SetClient() {
+	this.Type |= TYPE_CLIENT
+}
+
+func (this *Client) SetServer() {
+	this.Type |= TYPE_SERVER
+}
+
+func (this *Client) IsClient() bool {
+	return (this.Type & TYPE_CLIENT) != 0
+}
+
+func (this *Client) IsServer() bool {
+	return (this.Type & TYPE_SERVER) != 0
 }
 
 func (this *Client) Close() {

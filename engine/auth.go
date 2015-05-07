@@ -2,27 +2,32 @@ package engine
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/nicholaskh/golib/cache"
+	"github.com/nicholaskh/golib/str"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/db"
+	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 )
 
 var (
-	tokenPool  *cache.LruCache = cache.NewLruCache(200000) //token => 1
 	loginUsers *cache.LruCache = cache.NewLruCache(200000) //username => 1
 )
 
 //Auth for client
 func authClient(token string) (string, error) {
-	if _, exists := tokenPool.Get(token); exists {
-		tokenPool.Del(token)
-		return fmt.Sprintf("Auth succeed"), nil
-	} else {
+	var result interface{}
+	db.MgoSession().SetMode(mgo.Monotonic, true)
+	_, err := db.MgoSession().DB("pushd").C("token").Find(bson.M{"tk": token}).Apply(mgo.Change{Remove: true}, &result)
+	if err == mgo.ErrNotFound {
+		return "", errors.New("Client auth fail")
+	} else if err != nil {
+		log.Error("get token from db error: %s", err.Error())
 		return "", errors.New("Client auth fail")
 	}
+
+	return "Client auth succeed", nil
 }
 
 func authServer(appId, secretKey string) (string, error) {
@@ -36,8 +41,19 @@ func authServer(appId, secretKey string) (string, error) {
 
 	key := result.(bson.M)["secretKey"]
 	if key == secretKey {
-		return fmt.Sprintf("Auth succeed"), nil
+		return "Server auth succeed", nil
 	}
 
 	return "", errors.New("Server auth fail")
+}
+
+// TODO more secure token generator
+func getToken() (token string) {
+	token = str.Rand(32)
+	err := db.MgoSession().DB("pushd").C("token").Insert(bson.M{"tk": token})
+	if err != nil {
+		log.Error("generate token error: %s", err.Error())
+		return ""
+	}
+	return
 }

@@ -3,7 +3,9 @@ package storage
 import (
 	"errors"
 
+	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/db"
+	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 )
 
@@ -35,11 +37,10 @@ func (this *MongoStorage) fetchByChannelAndTs(channel string, ts int64) (result 
 	if channel == "" {
 		return nil, errors.New("No channel specified")
 	}
-	c := db.MgoSession().DB("pushd").C("msg_log")
-
-	noId := bson.M{"_id": 0}
-
-	err = c.Find(bson.M{"ts": bson.M{"$gte": ts}, "channel": channel}).Select(noId).All(&result)
+	err = db.MgoSession().DB("pushd").C("msg_log").Find(bson.M{"ts": bson.M{"$gte": ts}, "channel": channel}).Select(bson.M{"_id": 0}).All(&result)
+	if err != nil && err != mgo.ErrNotFound {
+		log.Error("fetch messages log from db error: %s", err.Error())
+	}
 
 	if len(result) == 0 {
 		return []interface{}{}, nil

@@ -21,11 +21,12 @@ func NewPushdClientProcessor(server *server.TcpServer, serverStats *ServerStats)
 	this := new(PushdClientProcessor)
 	this.server = server
 	this.serverStats = serverStats
+	this.enableAclCheck = true
 
 	return this
 }
 
-func (this *PushdClientProcessor) Run(c *server.Client) {
+func (this *PushdClientProcessor) OnAccept(c *server.Client) {
 	client := NewClient()
 	client.Client = c
 	client.OnClose = client.Close

@@ -80,7 +80,7 @@ func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *h
 		}
 	}
 
-	c := server.NewClient(conn, time.Now(), this.sessTimeout, server.CTYPE_LONG_POLLING)
+	c := server.NewClient(conn, time.Now(), this.sessTimeout, server.CONN_TYPE_LONG_POLLING)
 	client := NewClient()
 	client.Client = c
 	client.OnClose = client.Close

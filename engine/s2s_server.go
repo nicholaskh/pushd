@@ -19,7 +19,7 @@ func NewS2sClientProcessor(server *server.TcpServer) *S2sClientProcessor {
 	return &S2sClientProcessor{server: server}
 }
 
-func (this *S2sClientProcessor) Run(client *server.Client) {
+func (this *S2sClientProcessor) OnAccept(client *server.Client) {
 	if this.server.SessTimeout.Nanoseconds() > int64(0) {
 		go client.CheckTimeout()
 	}
