@@ -35,8 +35,10 @@ func authServer(appId, secretKey string) (string, error) {
 	c := db.MgoSession().DB("pushd").C("user")
 
 	var result interface{}
-	err := c.Find(bson.M{"appId": "test_app"}).One(&result)
-	if err != nil {
+	err := c.Find(bson.M{"appId": appId}).One(&result)
+	if err == mgo.ErrNotFound {
+		return "", errors.New("Server auth fail")
+	} else if err != nil {
 		log.Error("Error occured when query mongodb: %s", err.Error())
 	}
 
