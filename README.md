@@ -20,18 +20,18 @@ An open source distributed pubsub(publish/subscribe) server
 *	Should open port 2222(optional) and 2223 in firewall, we use that as the tcp server and s2s gateway
 
 *	Stand alone
-1.	Delete 'etc_servers' section or leave it empty
-2.	Run Server: bin/pushd.(linux|mac)
-3.	Run Client(eg. telnet): telnet localhost 2222
-	- sub channel1
-4.	Run another Client: telnet localhost 2222
-	- pub channel1 hello
+	- Delete 'etc_servers' section or leave it empty
+	- Run Server: bin/pushd.(linux|mac)
+	- Run Client(eg. telnet): telnet localhost 2222
+		+ sub channel1
+	- Run another Client: telnet localhost 2222
+		+ pub channel1 hello
 
 	Then Client 1 will receive the message "hello"
 	
 *	Distributed env config
-1.	Set the 'etc_servers' section to the zk server addr
-2.	For the config of every peer, set the 'tcp_listen_addr' to the corresponding address
+	- Set the 'etc_servers' section to the zk server addr
+	- For the config of every peer, set the 'tcp_listen_addr' to the corresponding address
 
 	Then the cluster will serve as one server
 	
