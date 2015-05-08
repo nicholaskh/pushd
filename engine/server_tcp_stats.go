@@ -16,12 +16,14 @@ import (
 )
 
 type ServerStats struct {
+	*server.HttpJsonServer
 	CallLatencies metrics.Histogram
 	CallPerSecond metrics.Meter
 }
 
 func NewServerStats() (this *ServerStats) {
 	this = new(ServerStats)
+	this.HttpJsonServer = server.NewHttpJsonServer()
 	this.CallLatencies = metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015))
 	metrics.Register("latency.call", this.CallLatencies)
 	this.CallPerSecond = metrics.NewMeter()
@@ -47,8 +49,8 @@ func (this *ServerStats) launchHttpServer() {
 		return
 	}
 
-	server.LaunchHttpServer(config.PushdConf.StatsListenAddr, config.PushdConf.ProfListenAddr)
-	server.RegisterHttpApi("/s/{cmd}",
+	this.LaunchHttpServer(config.PushdConf.StatsListenAddr, config.PushdConf.ProfListenAddr)
+	this.RegisterHttpApi("/s/{cmd}",
 		func(w http.ResponseWriter, req *http.Request,
 			params map[string]interface{}) (interface{}, error) {
 			return this.handleHttpQuery(w, req, params)
@@ -106,5 +108,5 @@ func (this *ServerStats) handleHttpQuery(w http.ResponseWriter, req *http.Reques
 
 func (this *ServerStats) stopHttpServer() {
 	log.Info("stats httpd stopped")
-	server.StopHttpServer()
+	this.StopHttpServer()
 }
