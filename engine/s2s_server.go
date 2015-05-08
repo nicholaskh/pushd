@@ -20,11 +20,10 @@ func NewS2sClientProcessor(server *server.TcpServer) *S2sClientProcessor {
 }
 
 func (this *S2sClientProcessor) OnAccept(client *server.Client) {
-	if this.server.SessTimeout.Nanoseconds() > int64(0) {
-		go client.CheckTimeout()
-	}
-
 	for {
+		if this.server.SessTimeout.Nanoseconds() > int64(0) {
+			client.SetReadDeadline(time.Now().Add(this.server.SessTimeout))
+		}
 		input := make([]byte, 1460)
 		n, err := client.Conn.Read(input)
 
@@ -34,22 +33,25 @@ func (this *S2sClientProcessor) OnAccept(client *server.Client) {
 			if err == io.EOF {
 				client.Close()
 				return
+			} else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+				log.Info("client[%s] read timeout", client.RemoteAddr())
+				client.Close()
+				return
 			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
-				log.Error(err)
+				client.Close()
+				return
+			} else {
+				log.Info("Unexpected error: %s", err.Error())
 				client.Close()
 				return
 			}
 		}
-
-		client.LastTime = time.Now()
 
 		strInput := string(input)
 		log.Debug("input: %s", strInput)
 
 		this.OnRead(client, strInput)
 	}
-
-	client.Done <- 0
 }
 
 func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {

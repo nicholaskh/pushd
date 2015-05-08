@@ -45,6 +45,7 @@ func (this *Client) Close() {
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
 	UnsubscribeAllChannels(this)
+	this.Client.Close()
 }
 
 func (this *Client) FormatMessageOutput(msg string) string {

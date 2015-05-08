@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"time"
 
 	"github.com/nicholaskh/golib/cache"
 	"github.com/nicholaskh/golib/str"
@@ -19,7 +20,7 @@ var (
 func authClient(token string) (string, error) {
 	var result interface{}
 	db.MgoSession().SetMode(mgo.Monotonic, true)
-	_, err := db.MgoSession().DB("pushd").C("token").Find(bson.M{"tk": token}).Apply(mgo.Change{Remove: true}, &result)
+	_, err := db.MgoSession().DB("pushd").C("token").Find(bson.M{"tk": token}).Select(bson.M{"_id": 0, "tk": 1}).Apply(mgo.Change{Remove: true}, &result)
 	if err == mgo.ErrNotFound {
 		return "", errors.New("Client auth fail")
 	} else if err != nil {
@@ -50,7 +51,7 @@ func authServer(appId, secretKey string) (string, error) {
 // TODO more secure token generator
 func getToken() (token string) {
 	token = str.Rand(32)
-	err := db.MgoSession().DB("pushd").C("token").Insert(bson.M{"tk": token})
+	err := db.MgoSession().DB("pushd").C("token").Insert(bson.M{"tk": token, "expire": time.Now()})
 	if err != nil {
 		log.Error("generate token error: %s", err.Error())
 		return ""

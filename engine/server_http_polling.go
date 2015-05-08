@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -80,28 +81,33 @@ func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *h
 		}
 	}
 
-	c := server.NewClient(conn, time.Now(), this.sessTimeout, server.CONN_TYPE_LONG_POLLING)
+	c := server.NewClient(conn, time.Now(), server.CONN_TYPE_LONG_POLLING)
 	client := NewClient()
 	client.Client = c
-	client.OnClose = client.Close
 
 	subscribe(client, channel)
 
-	if this.sessTimeout.Nanoseconds() > int64(0) {
-		go client.Client.CheckTimeout()
-	}
-
 	for {
+		if this.sessTimeout.Nanoseconds() > int64(0) {
+			client.SetReadDeadline(time.Now().Add(this.sessTimeout))
+		}
 		_, err := client.Conn.Read(make([]byte, 1460))
 
 		if err != nil {
 			if err == io.EOF {
 				log.Info("Client end polling: %s", client.Conn.RemoteAddr())
 				client.Close()
-				client.Client.Close()
+				return
+			} else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+				log.Info("client[%s] read timeout", client.RemoteAddr())
+				client.Close()
+				return
+			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
+				client.Close()
 				return
 			} else {
-				log.Info("Client polling read error: %s", client.Conn.RemoteAddr())
+				log.Info("Unexpected error: %s", err.Error())
+				client.Close()
 				return
 			}
 		}

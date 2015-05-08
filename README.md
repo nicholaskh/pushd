@@ -17,10 +17,10 @@ An open source distributed pubsub(publish/subscribe) server
 
 ### HowToUse
 
-*   Should open port 2222(optional) and 2223 in firewall, we use that as the tcp server and s2s gateway
+*	Should open port 2222(optional) and 2223 in firewall, we use that as the tcp server and s2s gateway
 
 *	Stand alone
-1.  Delete 'etc_servers' section or leave it empty
+1.	Delete 'etc_servers' section or leave it empty
 2.	Run Server: bin/pushd.(linux|mac)
 3.	Run Client(eg. telnet): telnet localhost 2222
 	- sub channel1
@@ -50,8 +50,8 @@ An open source distributed pubsub(publish/subscribe) server
 	- publish msg to one channel
 *	unsub [[channel]]
 	- unsubscribe one channel
-*   his [[channel]] [[timestamp]]
-    - fetch the history of the channel from timestamp
+*	his [[channel]] [[timestamp]]
+	- fetch the history of the channel from timestamp
 
 
 ### Terms
@@ -62,8 +62,8 @@ An open source distributed pubsub(publish/subscribe) server
 
 ### Highlights
 
-*   Support upto 100W connections/server
-*   Self manageable cluster
+*	Support upto 100W connections/server
+*	Self manageable cluster
 *	Use a distributed Client-Server architecture
 		
 		example.net <--------------> im.example.com
@@ -71,21 +71,23 @@ An open source distributed pubsub(publish/subscribe) server
 		     |                                |
 		     v                                v
 		   romeo                            juliet
-*   Highly usage of mem to improve latancy & throughput
-*   Full realtime internal stats export via http
-*   Smart metrics with low overhead
-*   Http system status report
-*   Use Mongodb as the message storage database
+*	Highly usage of mem to improve latancy & throughput
+*	Full realtime internal stats export via http
+*	Smart metrics with low overhead
+*	Http system status report
+*	Use Mongodb as the message storage database
 	
-### Contribs
+###	 Contribs
 
-*   https://github.com/phunt/zktop
-*   https://github.com/samuel/go-zookeeper
+*	https://github.com/phunt/zktop
+*	https://github.com/samuel/go-zookeeper
 
 ### TODO
 
-*   golang uses /proc/sys/net/core/somaxconn as listener backlog
-    - increase it if you need over 128(default) simultaneous outstanding connections
-*   hot reload config
-*   bloom filter for overmuch channels
+*	golang uses /proc/sys/net/core/somaxconn as listener backlog
+	- increase it if you need over 128(default) simultaneous outstanding connections
+*  	hot reload config
+*  	bloom filter for overmuch channels
 *	separate multiple applications
+*	for token stored in mongodb, add ttl index on expire column
+	- db.token.ensureIndex( { "expire": 1 }, { expireAfterSeconds: 600 } )

@@ -29,13 +29,11 @@ func NewPushdClientProcessor(server *server.TcpServer, serverStats *ServerStats)
 func (this *PushdClientProcessor) OnAccept(c *server.Client) {
 	client := NewClient()
 	client.Client = c
-	client.OnClose = client.Close
-
-	if this.server.SessTimeout.Nanoseconds() > int64(0) {
-		go client.Client.CheckTimeout()
-	}
 
 	for {
+		if this.server.SessTimeout.Nanoseconds() > int64(0) {
+			client.SetReadDeadline(time.Now().Add(this.server.SessTimeout))
+		}
 		input := make([]byte, 1460)
 		n, err := client.Conn.Read(input)
 
@@ -45,22 +43,25 @@ func (this *PushdClientProcessor) OnAccept(c *server.Client) {
 			if err == io.EOF {
 				client.Close()
 				return
+			} else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+				log.Info("client[%s] read timeout", client.RemoteAddr())
+				client.Close()
+				return
 			} else if nerr, ok := err.(net.Error); !ok || !nerr.Temporary() {
+				client.Close()
+				return
+			} else {
+				log.Info("Unexpected error: %s", err.Error())
 				client.Close()
 				return
 			}
 		}
-
-		client.LastTime = time.Now()
 
 		strInput := string(input)
 		log.Debug("input: %s", strInput)
 
 		this.OnRead(client, strInput)
 	}
-
-	client.Done <- 0
-
 }
 
 func (this *PushdClientProcessor) OnRead(client *Client, input string) {
