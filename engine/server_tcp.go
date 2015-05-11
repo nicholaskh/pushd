@@ -94,11 +94,10 @@ func (this *PushdClientProcessor) OnRead(client *Client, input string) {
 		}
 
 		go client.WriteMsg(fmt.Sprintf("%c%s\n%c", OUTPUT_COMMAND_PREFIX, ret, OUTPUT_DELIMITER))
-
-		elapsed = time.Since(t1)
-		this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
-		this.serverStats.CallPerSecond.Mark(1)
 	}
+	elapsed = time.Since(t1)
+	this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
+	this.serverStats.CallPerSecond.Mark(1)
 
 }
 
