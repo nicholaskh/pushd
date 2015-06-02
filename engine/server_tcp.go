@@ -15,6 +15,7 @@ type PushdClientProcessor struct {
 	enableAclCheck bool
 	server         *server.TcpServer
 	serverStats    *ServerStats
+	proto          *server.Protocol
 }
 
 func NewPushdClientProcessor(server *server.TcpServer, serverStats *ServerStats) *PushdClientProcessor {
@@ -34,10 +35,7 @@ func (this *PushdClientProcessor) OnAccept(c *server.Client) {
 		if this.server.SessTimeout.Nanoseconds() > int64(0) {
 			client.SetReadDeadline(time.Now().Add(this.server.SessTimeout))
 		}
-		input := make([]byte, 1460)
-		n, err := client.Conn.Read(input)
-
-		input = input[:n]
+		input, err := client.Proto.Read()
 
 		if err != nil {
 			if err == io.EOF {
@@ -57,10 +55,7 @@ func (this *PushdClientProcessor) OnAccept(c *server.Client) {
 			}
 		}
 
-		strInput := string(input)
-		log.Debug("input: %s", strInput)
-
-		this.OnRead(client, strInput)
+		this.OnRead(client, string(input))
 	}
 }
 
