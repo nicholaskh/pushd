@@ -26,13 +26,16 @@ func NewPushdClient(serverAddr string, proto *server.Protocol, connTimeout, read
 	return this
 }
 
-func (this *PushdClient) Connect() {
+func (this *PushdClient) Connect() error {
 	var err error
 	this.Conn, err = net.Dial("tcp", this.serverAddr)
-	this.proto.SetConn(this.Conn)
 	if err != nil {
 		log.Error("Connect server[%s] error: %s", this.serverAddr, err.Error())
+		this.Conn = nil
+		return err
 	}
+	this.proto.SetConn(this.Conn)
+	return nil
 }
 
 func (this *PushdClient) Write(msg []byte) (int, error) {
