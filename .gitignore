@@ -27,6 +27,8 @@ _testmain.go
 *.log
 daemon/pushd/pushd
 daemon/benchmark/benchmark
+cmd/pushd-cli/pushd-cli
+.pushd_history
 etc/pushd*.cf
 
 *.swp

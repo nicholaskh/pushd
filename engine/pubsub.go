@@ -103,9 +103,9 @@ func publish(channel, msg string, fromS2s bool) string {
 			cli.Mutex.Lock()
 			if cli.IsConnected() {
 				if !fromS2s {
-					go cli.WriteMsg(cli.FormatMessageOutput(fmt.Sprintf("%s %d", msg, ts)))
+					go cli.WriteMsg(fmt.Sprintf("%s %d", msg, ts))
 				} else {
-					go cli.WriteMsg(cli.FormatMessageOutput(msg))
+					go cli.WriteMsg(msg)
 				}
 			}
 			cli.Mutex.Unlock()

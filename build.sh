@@ -30,3 +30,15 @@ else
     #go build -race -v -ldflags "-X github.com/nicholaskh/golib/server.BuildID $ID -w"
     mv benchmark ../../bin/benchmark.linux
 fi
+
+cd ../../cmd/pushd-cli
+
+if [[ $1 = "-mac" ]]; then
+    #CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/nicholaskh/golib/server.VERSION $VER -X github.com/nicholaskh/golib/server.BuildID $ID -w"
+    #mv pushd-cli ../../bin/pushd-cli.mac
+    pass
+else
+    go build -ldflags "-X github.com/nicholaskh/golib/server.VERSION $VER -X github.com/nicholaskh/golib/server.BuildID $ID -w"
+    #go build -race -v -ldflags "-X github.com/nicholaskh/golib/server.BuildID $ID -w"
+    mv pushd-cli ../../bin/pushd-cli.linux
+fi

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nicholaskh/go-gnureadline"
 	"github.com/nicholaskh/golib/server"
 	client "github.com/nicholaskh/pushd/client/go"
-	"github.com/rocky/go-gnureadline"
 )
 
 const (
@@ -48,15 +48,19 @@ func (this *CommandLine) run() {
 			if res[len(res)-1] != '\n' {
 				res = append(res, '\n')
 			}
-			this.hint("\n")
 			this.hint(string(res))
+			this.rePrompt()
 		}
 	}()
+	prompt := COMMAND_PROMPT
 	for {
 		if this.done {
 			break
 		}
-		line, err := gnureadline.Readline(COMMAND_PROMPT)
+		line, err := gnureadline.Readline(prompt)
+		if prompt != "" {
+			prompt = ""
+		}
 		if err != nil {
 			this.hint("Read user input error: %s", err.Error())
 		}
@@ -70,6 +74,7 @@ func (this *CommandLine) processInput(line string) {
 	case "quit":
 		this.done = true
 	case "":
+		this.rePrompt()
 	default:
 		this.client.Write([]byte(line))
 		gnureadline.AddHistory(line)
@@ -78,6 +83,12 @@ func (this *CommandLine) processInput(line string) {
 
 func (this *CommandLine) hint(format string, params ...interface{}) {
 	fmt.Fprintf(os.Stdout, format, params...)
+}
+
+func (this *CommandLine) rePrompt() {
+	gnureadline.Rl_reset_line_state()
+	gnureadline.Rl_expand_prompt(COMMAND_PROMPT)
+	gnureadline.Rl_forced_update_display()
 }
 
 func main() {
