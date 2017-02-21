@@ -66,7 +66,6 @@ func (this *PushdClientProcessor) OnRead(client *Client, input string) {
 	)
 
 	t1 = time.Now()
-
 	for _, inputUnit := range strings.Split(input, "\n") {
 		cl := NewCmdline(inputUnit, client)
 		if cl.Cmd == "" {
