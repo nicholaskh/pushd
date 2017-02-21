@@ -111,7 +111,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 	case CMD_TOKEN:
-		if !this.Client.IsServer() {
+		if this.Client.IsServer() || this.Client.IsClient() {
 			return "", ErrNotPermit
 		}
 		ret = getToken()

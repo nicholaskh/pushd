@@ -81,7 +81,7 @@ func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *h
 		}
 	}
 
-	c := server.NewClient(conn, time.Now(), server.CONN_TYPE_LONG_POLLING, nil)
+	c := server.NewClient(conn, server.CONN_TYPE_LONG_POLLING, nil)
 	client := NewClient()
 	client.Client = c
 

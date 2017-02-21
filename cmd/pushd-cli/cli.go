@@ -25,7 +25,7 @@ type CommandLine struct {
 
 func newCommandLine() *CommandLine {
 	this := new(CommandLine)
-	this.client = client.NewPushdClient(options.addr, server.NewProtocol(), time.Second*2, time.Second*5)
+	this.client = client.NewPushdClient(options.addr, server.NewFixedLengthProtocol(), time.Second*2, time.Second*5)
 	gnureadline.ReadHistory(HISTORY_FILE)
 	gnureadline.StifleHistory(10)
 

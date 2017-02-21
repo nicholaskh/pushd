@@ -11,12 +11,12 @@ import (
 type PushdClient struct {
 	serverAddr string
 	net.Conn
-	proto       *server.Protocol
+	proto       server.Protocol
 	connTimeout time.Duration
 	readTimeout time.Duration
 }
 
-func NewPushdClient(serverAddr string, proto *server.Protocol, connTimeout, readTimeout time.Duration) *PushdClient {
+func NewPushdClient(serverAddr string, proto server.Protocol, connTimeout, readTimeout time.Duration) *PushdClient {
 	this := new(PushdClient)
 	this.serverAddr = serverAddr
 	this.proto = proto
