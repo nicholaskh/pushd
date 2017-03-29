@@ -134,15 +134,15 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 		}
 	case CMD_SET:
-		if len(this.Params) < 2 || this.Params[1] == "" {
+		if len(this.Params) < 2 || this.Params[0] == "" {
 			return "", errors.New("miss parameter\n")
 		}
-		if this.Params[2] == ""{
+		if this.Params[0] == ""{
 			return "", errors.New("value is null\n")
 		}
-		switch this.Params[1]{
+		switch this.Params[0]{
 		case "uuid":
-			this.Client.SetUUID(this.Params[2])
+			this.Client.SetUUID(this.Params[1])
 			ret = "uuid saved"
 			err = nil
 		default:
