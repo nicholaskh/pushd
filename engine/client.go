@@ -14,12 +14,17 @@ type Client struct {
 	Channels map[string]int
 	Type     uint8
 	*server.Client
+	UUID string
 }
 
 func NewClient() (this *Client) {
 	this = new(Client)
 	this.Channels = make(map[string]int)
 	return
+}
+
+func (this *Client) SetUUID(uuid string) {
+	this.UUID = uuid
 }
 
 func (this *Client) SetClient() {

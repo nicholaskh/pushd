@@ -17,6 +17,7 @@ type Cmdline struct {
 }
 
 const (
+	CMD_SET		= "set"
 	CMD_SUBSCRIBE   = "sub"
 	CMD_PUBLISH     = "pub"
 	CMD_UNSUBSCRIBE = "unsub"
@@ -131,6 +132,21 @@ func (this *Cmdline) Process() (ret string, err error) {
 			if err == nil {
 				this.Client.SetClient()
 			}
+		}
+	case CMD_SET:
+		if len(this.Params) < 2 || this.Params[1] == "" {
+			return "", errors.New("miss parameter\n")
+		}
+		if this.Params[2] == ""{
+			return "", errors.New("value is null\n")
+		}
+		switch this.Params[1]{
+		case "uuid":
+			this.Client.SetUUID(this.Params[2])
+			ret = "uuid saved"
+			err = nil
+		default:
+			return "", errors.New("Invalid attribute\n")
 		}
 
 	case CMD_PING:
