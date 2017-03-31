@@ -14,7 +14,7 @@ type Client struct {
 	Channels map[string]int
 	Type     uint8
 	*server.Client
-	UUID string
+	uuid string
 }
 
 func NewClient() (this *Client) {

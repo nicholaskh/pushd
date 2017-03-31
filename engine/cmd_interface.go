@@ -137,7 +137,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack uuid")
 		}
-		this.Client.UUID = this.Params[0]
+		this.Client.uuid = this.Params[0]
 		ret = "uuid saved"
 		err = nil
 
