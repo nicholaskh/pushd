@@ -37,9 +37,17 @@ const (
 
 func NewCmdline(input string, cli *Client) (this *Cmdline) {
 	this = new(Cmdline)
-	parts := strings.SplitN(trimCmdline(input), " ", 3)
-	this.Cmd = parts[0]
-	this.Params = parts[1:]
+	// when msg send by a client
+	if cli != nil{
+		parts := strings.SplitN(trimCmdline(input), " ", 3)
+		this.Cmd = parts[0]
+		this.Params = parts[1:]
+	}else {
+		parts := strings.SplitN(trimCmdline(input), " ", 5)
+		this.Cmd = parts[0]
+		this.Params = parts[1:]
+	}
+
 	this.Client = cli
 	return
 }
@@ -62,7 +70,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(this.Params) < 2 || this.Params[1] == "" {
 			return "", errors.New("Publish without msg\n")
 		} else {
-			ret = publish(this.Params[0], this.Params[1], false)
+			ret = publish(this.Params[0], this.Params[1], this.Client.uuid, false)
 		}
 
 	case CMD_UNSUBSCRIBE:

@@ -143,6 +143,6 @@ func (this *PushdLongPollingServer) ServePublish(w http.ResponseWriter, req *htt
 	channel := vars["channel"]
 	msg := vars["msg"]
 
-	ret := publish(channel, msg, false)
+	ret := publish(channel, msg, "", false)
 	io.WriteString(w, ret)
 }

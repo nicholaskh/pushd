@@ -74,7 +74,7 @@ func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {
 func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) error {
 	switch cl.Cmd {
 	case S2S_PUB_CMD:
-		publish(cl.Params[0], cl.Params[1], true)
+		publish(cl.Params[0], cl.Params[3], cl.Params[1], true)
 
 	case S2S_SUB_CMD:
 		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params[0])

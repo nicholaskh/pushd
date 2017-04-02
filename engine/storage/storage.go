@@ -11,6 +11,7 @@ type MsgTuple struct {
 	Channel string `json:"channel"`
 	Msg     string `json:"msg"`
 	Ts      int64  `json:"ts"`
+	Uuid	string `json:"uuid"`
 }
 
 type storageDriver interface {
@@ -88,8 +89,8 @@ func Serv() {
 	}
 }
 
-func EnqueueMsg(channel, msg string, ts int64) {
-	msgQueue <- &MsgTuple{channel, msg, ts}
+func EnqueueMsg(channel, msg , uuid string, ts int64) {
+	msgQueue <- &MsgTuple{channel, msg, ts, uuid}
 }
 
 func FetchHistory(channel string, ts int64) (result []interface{}, err error) {
