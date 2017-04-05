@@ -93,7 +93,7 @@ func UnsubscribeAllChannels(cli *Client) {
 	cli.Channels = nil
 }
 
-func publish(channel, msg string, fromS2s bool) string {
+func publish(channel, msg , uuid string, fromS2s bool) string {
 	clients, exists := PubsubChannels.Get(channel)
 	ts := time.Now().UnixNano()
 	if exists {
@@ -112,9 +112,9 @@ func publish(channel, msg string, fromS2s bool) string {
 		}
 	}
 
-	storage.MsgCache.Store(&storage.MsgTuple{Channel: channel, Msg: msg, Ts: ts})
+	storage.MsgCache.Store(&storage.MsgTuple{Channel: channel, Msg: msg, Ts: ts, Uuid: uuid})
 	if !fromS2s && config.PushdConf.EnableStorage() {
-		storage.EnqueueMsg(channel, msg, ts)
+		storage.EnqueueMsg(channel, msg, uuid, ts)
 	}
 
 	if !fromS2s {
@@ -124,7 +124,7 @@ func publish(channel, msg string, fromS2s bool) string {
 			peers, exists = Proxy.Router.LookupPeersByChannel(channel)
 			log.Debug("now peers %s", peers)
 			if exists {
-				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, ts)
+				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts)
 			}
 		}
 
