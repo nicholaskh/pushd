@@ -85,7 +85,7 @@ func (this *PushdLongPollingServer) ServeSubscribe(w http.ResponseWriter, req *h
 	client := NewClient()
 	client.Client = c
 
-	subscribe(client, channel)
+	subscribe(client, channel, 1)
 
 	for {
 		if this.sessTimeout.Nanoseconds() > int64(0) {
