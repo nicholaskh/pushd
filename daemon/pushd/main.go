@@ -35,6 +35,7 @@ func init() {
 	config.PushdConf.LoadConfig(conf)
 
 	engine.PubsubChannels = engine.NewPubsubChannels(config.PushdConf.PubsubChannelMaxItems)
+	engine.UuidToClient = engine.NewUuidClientMap()
 
 	signal.RegisterSignalHandler(syscall.SIGINT, func(sig os.Signal) {
 		shutdown()

@@ -44,5 +44,8 @@ func (this *Client) Close() {
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
 	UnsubscribeAllChannels(this)
+	if this.uuid != "" {
+		UuidToClient.Remove(this.uuid)
+	}
 	this.Client.Close()
 }

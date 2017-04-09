@@ -10,6 +10,7 @@ import (
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine/storage"
+	"strings"
 )
 
 var (
@@ -32,7 +33,7 @@ func (this *PubsubChans) Get(channel string) (clients cmap.ConcurrentMap, exists
 	return
 }
 
-func subscribe(cli *Client, channel string) string {
+func subscribe(cli *Client, channel string, subtype int) string {
 	log.Debug("%x", channel)
 	_, exists := cli.Channels[channel]
 	if exists {
@@ -48,7 +49,22 @@ func subscribe(cli *Client, channel string) string {
 
 			//s2s
 			if config.PushdConf.IsDistMode() {
-				Proxy.SubMsgChan <- channel
+				switch subtype {
+				case 1:
+					Proxy.SubMsgChan <- channel
+				case 2:
+					uuids := strings.Split(channel, "_")
+					var temp_channel string
+					ts := time.Now().UnixNano()
+					if strings.EqualFold(uuids[1], cli.uuid){
+						temp_channel = fmt.Sprintf("%s %s %d", uuids[2], uuids[1], ts)
+					} else {
+						temp_channel = fmt.Sprintf("%s %s %s", uuids[1], uuids[2], ts)
+					}
+					Proxy.SubMsgChan <- temp_channel
+				default:
+
+				}
 			}
 		}
 		PubsubChannels.Set(channel, clients)
@@ -88,6 +104,11 @@ func UnsubscribeAllChannels(cli *Client) {
 		clients.Remove(cli.RemoteAddr().String())
 		if clients.Count() == 0 {
 			PubsubChannels.Del(channel)
+
+			//s2s
+			if config.PushdConf.IsDistMode() {
+				Proxy.UnsubMsgChan <- channel
+			}
 		}
 	}
 	cli.Channels = nil
@@ -123,6 +144,7 @@ func publish(channel, msg , uuid string, fromS2s bool) string {
 			var peers set.Set
 			peers, exists = Proxy.Router.LookupPeersByChannel(channel)
 			log.Debug("now peers %s", peers)
+
 			if exists {
 				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts)
 			}
