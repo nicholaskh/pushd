@@ -146,6 +146,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("Lack uuid")
 		}
 		this.Client.uuid = this.Params[0]
+
+		_, exists := UuidToClient.GetClient(this.Params[0])
+		if !exists {
+			UuidToClient.AddClient(this.Params[0], this.Client)
+		}
+
 		ret = "uuid saved"
 		err = nil
 
