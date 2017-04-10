@@ -85,9 +85,9 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 			if exists {
 				var channel string
 				if bytes.Compare([]byte(cl.Params[0]), []byte(cl.Params[1])) > 0 {
-					channel = fmt.Sprintf("pri_%s_%s", cl.Params[0], cl.Params[1])
+					channel = fmt.Sprintf("priv_%s_%s", cl.Params[0], cl.Params[1])
 				} else {
-					channel = fmt.Sprintf("pri_%s_%s", cl.Params[1], cl.Params[0])
+					channel = fmt.Sprintf("priv_%s_%s", cl.Params[1], cl.Params[0])
 				}
 
 				_, exists := me.Channels[channel]

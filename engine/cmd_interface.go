@@ -89,9 +89,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		var channel string
 		if bytes.Compare([]byte(this.Client.uuid), []byte(this.Params[0])) > 0 {
-			channel = fmt.Sprintf("pri_%s_%s", this.Client.uuid, this.Params[0])
+			channel = fmt.Sprintf("priv_%s_%s", this.Client.uuid, this.Params[0])
 		} else {
-			channel = fmt.Sprintf("pri_%s_%s", this.Params[0], this.Client.uuid)
+			channel = fmt.Sprintf("priv_%s_%s", this.Params[0], this.Client.uuid)
 		}
 
 		_, exists := this.Client.Channels[channel]
