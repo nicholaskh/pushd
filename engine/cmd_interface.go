@@ -41,7 +41,7 @@ func NewCmdline(input string, cli *Client) (this *Cmdline) {
 	this = new(Cmdline)
 	// when msg send by a client
 	if cli != nil{
-		parts := strings.SplitN(trimCmdline(input), " ", 3)
+		parts := strings.SplitN(trimCmdline(input), " ", 4)
 		this.Cmd = parts[0]
 		this.Params = parts[1:]
 	}else {
@@ -63,7 +63,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack sub channel")
 		}
-		ret = subscribe(this.Client, this.Params[0], 1)
+		ret = subscribe(this.Client, this.Params[0])
 
 	case CMD_PUBLISH:
 		//		if !this.Client.IsClient() && !this.Client.IsServer() {
@@ -89,19 +89,19 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		var channel string
 		if bytes.Compare([]byte(this.Client.uuid), []byte(this.Params[0])) > 0 {
-			channel = fmt.Sprintf("pri_%s_%s", this.Client.uuid, this.Params[0])
+			channel = fmt.Sprintf("priv_%s_%s", this.Client.uuid, this.Params[0])
 		} else {
-			channel = fmt.Sprintf("pri_%s_%s", this.Params[0], this.Client.uuid)
+			channel = fmt.Sprintf("priv_%s_%s", this.Params[0], this.Client.uuid)
 		}
 
 		_, exists := this.Client.Channels[channel]
 		if !exists {
 			friend, exists := UuidToClient.GetClient(this.Params[0])
 			if !exists {
-				subscribe(this.Client, channel, 2)
+				subscribe(this.Client, channel)
 			}else{
-				subscribe(this.Client, channel, -1)
-				subscribe(friend, channel, -1)
+				subscribe(this.Client, channel)
+				subscribe(friend, channel)
 			}
 		}
 
