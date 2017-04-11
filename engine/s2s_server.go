@@ -9,7 +9,6 @@ import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
-	"bytes"
 	"fmt"
 )
 
@@ -79,49 +78,54 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 		publish(cl.Params[0], cl.Params[3], cl.Params[1], true)
 
 	case S2S_SUB_CMD:
-		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params[0])
-		if len(cl.Params) == 3{
+		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params[1])
+		if cl.Params[0] != ""{
 			me, exists := UuidToClient.GetClient(cl.Params[0])
 			if exists {
-				var channel string
-				if bytes.Compare([]byte(cl.Params[0]), []byte(cl.Params[1])) > 0 {
-					channel = fmt.Sprintf("priv_%s_%s", cl.Params[0], cl.Params[1])
-				} else {
-					channel = fmt.Sprintf("priv_%s_%s", cl.Params[1], cl.Params[0])
-				}
-
-				_, exists := me.Channels[channel]
+				_, exists := me.Channels[cl.Params[2]]
 				if exists {
-					_, exists := Proxy.Router.LookupPeersByChannel(channel)
+					_, exists := Proxy.Router.LookupPeersByChannel(cl.Params[2])
 					if !exists {
 						peerAddr := config.GetS2sAddr(client.RemoteAddr().String())
-						Proxy.Router.AddPeerToChannel(peerAddr, channel)
+						Proxy.Router.AddPeerToChannel(peerAddr, cl.Params[2])
+						peer := Proxy.Router.Peers[peerAddr]
 
-						// notify friend of the news that I am in here
-						peer, _ := Proxy.Router.Peers[peerAddr]
-						go peer.writeMsg(fmt.Sprintf("sub %s", channel))
+						// say I am here
+						go peer.writeMsg(fmt.Sprintf("%s   %s\n", S2S_SUB_CMD, cl.Params[2]))
 
-						msg := fmt.Sprintf("%s %s", cl.Params[1], cl.Params[2])
-						go me.WriteMsg(msg)
+						go me.WriteMsg(fmt.Sprintf("%s %s", cl.Params[1], cl.Params[2]))
+					} else {
+						remoteAddr := config.GetS2sAddr(client.RemoteAddr().String())
+						isNeedClean := true
+						peers,_ := Proxy.Router.LookupPeersByChannel(remoteAddr)
+						for p := range peers.Iter() {
+							peer := p.(*Peer)
+							if peer.addr == remoteAddr {
+								isNeedClean = false
+								break
+							}
+							go peer.writeMsg(fmt.Sprintf("%s %s\n", S2S_UNSUB_CMD, cl.Params[2]))
+						}
+
+						// this case happen when one client crashed then connect to another server
+						if isNeedClean {
+							peers.Clear()
+							Proxy.Router.AddPeerToChannel(remoteAddr, cl.Params[2])
+
+							go me.WriteMsg(fmt.Sprintf("%s %s", cl.Params[1], cl.Params[2]))
+						}
 					}
-
 				} else {
-					subscribe(me, channel, -1)
+					subscribe(me, cl.Params[2])
 
 					peerAddr := config.GetS2sAddr(client.RemoteAddr().String())
-					Proxy.Router.AddPeerToChannel(peerAddr, channel)
+					Proxy.Router.AddPeerToChannel(peerAddr, cl.Params[2])
 
-					peer, _ := Proxy.Router.Peers[peerAddr]
-					go peer.writeMsg(fmt.Sprintf("sub %s", channel))
-
-					msg := fmt.Sprintf("%s %s", cl.Params[1], cl.Params[2])
-					go me.WriteMsg(msg)
+					go me.WriteMsg(fmt.Sprintf("%s %s", cl.Params[1], cl.Params[2]))
 				}
-
 			}
-
 		} else {
-			Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
+			Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[2])
 		}
 
 

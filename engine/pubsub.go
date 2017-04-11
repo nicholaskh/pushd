@@ -64,7 +64,7 @@ func (this *UuidClientMap) Remove(uuid string) {
 	this.uuidToClient.Remove(uuid)
 }
 
-func subscribe(cli *Client, channel string, subtype int) string {
+func subscribe(cli *Client, channel string) string {
 	log.Debug("%x", channel)
 	_, exists := cli.Channels[channel]
 	if exists {
@@ -80,22 +80,25 @@ func subscribe(cli *Client, channel string, subtype int) string {
 
 			//s2s
 			if config.PushdConf.IsDistMode() {
-				switch subtype {
-				case 1:
-					Proxy.SubMsgChan <- channel
-				case 2:
-					uuids := strings.Split(channel, "_")
-					var temp_channel string
+				if strings.HasPrefix(channel, "priv_"){
 					ts := time.Now().UnixNano()
-					if strings.EqualFold(uuids[1], cli.uuid){
-						temp_channel = fmt.Sprintf("%s %s %d", uuids[2], uuids[1], ts)
-					} else {
-						temp_channel = fmt.Sprintf("%s %s %s", uuids[1], uuids[2], ts)
-					}
-					Proxy.SubMsgChan <- temp_channel
-				default:
+					uuids := strings.Split(channel, "_")
+					var friendUuid string
 
+					if strings.EqualFold(uuids[1], cli.uuid){
+						friendUuid = uuids[2]
+					} else {
+						friendUuid = uuids[1]
+					}
+					_, exists := UuidToClient.GetClient(friendUuid)
+					if !exists {
+						Proxy.SubMsgChan <- fmt.Sprintf("%s %d %s", friendUuid, ts, channel)
+					}
+
+				} else {
+					Proxy.SubMsgChan <- fmt.Sprintf("  %s", channel)
 				}
+
 			}
 		}
 		PubsubChannels.Set(channel, clients)

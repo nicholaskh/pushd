@@ -41,7 +41,7 @@ func NewCmdline(input string, cli *Client) (this *Cmdline) {
 	this = new(Cmdline)
 	// when msg send by a client
 	if cli != nil{
-		parts := strings.SplitN(trimCmdline(input), " ", 3)
+		parts := strings.SplitN(trimCmdline(input), " ", 4)
 		this.Cmd = parts[0]
 		this.Params = parts[1:]
 	}else {
@@ -63,7 +63,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack sub channel")
 		}
-		ret = subscribe(this.Client, this.Params[0], 1)
+		ret = subscribe(this.Client, this.Params[0])
 
 	case CMD_PUBLISH:
 		//		if !this.Client.IsClient() && !this.Client.IsServer() {
@@ -98,10 +98,10 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if !exists {
 			friend, exists := UuidToClient.GetClient(this.Params[0])
 			if !exists {
-				subscribe(this.Client, channel, 2)
+				subscribe(this.Client, channel)
 			}else{
-				subscribe(this.Client, channel, -1)
-				subscribe(friend, channel, -1)
+				subscribe(this.Client, channel)
+				subscribe(friend, channel)
 			}
 		}
 
