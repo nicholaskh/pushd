@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	log "github.com/nicholaskh/log4go"
-	"bytes"
 )
 
 type Cmdline struct {
@@ -18,7 +17,6 @@ type Cmdline struct {
 }
 
 const (
-	CMD_SENDMSG	= "sendmsg"
 	CMD_SETUUID	= "setuuid"
 	CMD_SUBSCRIBE   = "sub"
 	CMD_PUBLISH     = "pub"
@@ -63,7 +61,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack sub channel")
 		}
-		ret = Subscribe(this.Client, this.Params[0], 1)
+		ret = Subscribe(this.Client, this.Params[0])
 
 	case CMD_PUBLISH:
 		//		if !this.Client.IsClient() && !this.Client.IsServer() {
@@ -74,38 +72,6 @@ func (this *Cmdline) Process() (ret string, err error) {
 		} else {
 			ret = Publish(this.Params[0], this.Params[1], this.Client.uuid, false)
 		}
-
-
-	case CMD_SENDMSG:
-
-		if len(this.Params) < 2 || this.Params[1] == "" {
-			return "", errors.New("send no msg\n")
-		} else if this.Client.uuid == "" {
-			return "", errors.New("client is not set uuid\n")
-		} else if bytes.Compare([]byte(this.Params[0]), []byte(this.Client.uuid)) == 0 {
-
-			return "", errors.New("target is yourself")
-		}
-
-		var channel string
-		if bytes.Compare([]byte(this.Client.uuid), []byte(this.Params[0])) > 0 {
-			channel = fmt.Sprintf("pri_%s_%s", this.Client.uuid, this.Params[0])
-		} else {
-			channel = fmt.Sprintf("pri_%s_%s", this.Params[0], this.Client.uuid)
-		}
-
-		_, exists := this.Client.Channels[channel]
-		if !exists {
-			friend, exists := UuidToClient.GetClient(this.Params[0])
-			if !exists {
-				Subscribe(this.Client, channel, 2)
-			}else{
-				Subscribe(this.Client, channel, -1)
-				Subscribe(friend, channel, -1)
-			}
-		}
-
-		ret = Publish(channel, this.Params[1], this.Client.uuid, false)
 
 	case CMD_UNSUBSCRIBE:
 		//		if !this.Client.IsClient() {
@@ -175,6 +141,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 				this.Client.SetClient()
 			}
 		}
+
 	case CMD_SETUUID:
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack uuid")

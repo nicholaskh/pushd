@@ -10,7 +10,6 @@ import (
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine/storage"
-	"strings"
 )
 
 var (
@@ -64,7 +63,7 @@ func (this *UuidClientMap) Remove(uuid string) {
 	this.uuidToClient.Remove(uuid)
 }
 
-func Subscribe(cli *Client, channel string, subtype int) string {
+func Subscribe(cli *Client, channel string) string {
 	log.Debug("%x", channel)
 	_, exists := cli.Channels[channel]
 	if exists {
@@ -77,28 +76,12 @@ func Subscribe(cli *Client, channel string, subtype int) string {
 		} else {
 			clients = cmap.New()
 			clients.Set(cli.RemoteAddr().String(), cli)
-
 			//s2s
 			if config.PushdConf.IsDistMode() {
-				switch subtype {
-				case 1:
-					Proxy.SubMsgChan <- channel
-				case 2:
-					uuids := strings.Split(channel, "_")
-					var temp_channel string
-					ts := time.Now().UnixNano()
-					if strings.EqualFold(uuids[1], cli.uuid){
-						temp_channel = fmt.Sprintf("%s %s %d", uuids[2], uuids[1], ts)
-					} else {
-						temp_channel = fmt.Sprintf("%s %s %s", uuids[1], uuids[2], ts)
-					}
-					Proxy.SubMsgChan <- temp_channel
-				default:
-
-				}
+				Proxy.SubMsgChan <- channel
 			}
+			PubsubChannels.Set(channel, clients)
 		}
-		PubsubChannels.Set(channel, clients)
 
 		return fmt.Sprintf("%s %s", OUTPUT_SUBSCRIBED, channel)
 	}

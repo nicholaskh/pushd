@@ -9,8 +9,6 @@ import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
-	"bytes"
-	"fmt"
 )
 
 type S2sClientProcessor struct {
@@ -80,50 +78,7 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 
 	case S2S_SUB_CMD:
 		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params[0])
-		if len(cl.Params) == 3{
-			me, exists := UuidToClient.GetClient(cl.Params[0])
-			if exists {
-				var channel string
-				if bytes.Compare([]byte(cl.Params[0]), []byte(cl.Params[1])) > 0 {
-					channel = fmt.Sprintf("pri_%s_%s", cl.Params[0], cl.Params[1])
-				} else {
-					channel = fmt.Sprintf("pri_%s_%s", cl.Params[1], cl.Params[0])
-				}
-
-				_, exists := me.Channels[channel]
-				if exists {
-					_, exists := Proxy.Router.LookupPeersByChannel(channel)
-					if !exists {
-						peerAddr := config.GetS2sAddr(client.RemoteAddr().String())
-						Proxy.Router.AddPeerToChannel(peerAddr, channel)
-
-						// notify friend of the news that I am in here
-						peer, _ := Proxy.Router.Peers[peerAddr]
-						go peer.writeMsg(fmt.Sprintf("sub %s", channel))
-
-						msg := fmt.Sprintf("%s %s", cl.Params[1], cl.Params[2])
-						go me.WriteMsg(msg)
-					}
-
-				} else {
-					Subscribe(me, channel, -1)
-
-					peerAddr := config.GetS2sAddr(client.RemoteAddr().String())
-					Proxy.Router.AddPeerToChannel(peerAddr, channel)
-
-					peer, _ := Proxy.Router.Peers[peerAddr]
-					go peer.writeMsg(fmt.Sprintf("sub %s", channel))
-
-					msg := fmt.Sprintf("%s %s", cl.Params[1], cl.Params[2])
-					go me.WriteMsg(msg)
-				}
-
-			}
-
-		} else {
-			Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
-		}
-
+		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
 
 	case S2S_UNSUB_CMD:
 		log.Debug("Remote addr %s unsub: %s", client.RemoteAddr(), cl.Params[0])
