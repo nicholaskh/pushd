@@ -64,7 +64,7 @@ func (this *UuidClientMap) Remove(uuid string) {
 	this.uuidToClient.Remove(uuid)
 }
 
-func subscribe(cli *Client, channel string, subtype int) string {
+func Subscribe(cli *Client, channel string, subtype int) string {
 	log.Debug("%x", channel)
 	_, exists := cli.Channels[channel]
 	if exists {
@@ -105,7 +105,7 @@ func subscribe(cli *Client, channel string, subtype int) string {
 
 }
 
-func unsubscribe(cli *Client, channel string) string {
+func Unsubscribe(cli *Client, channel string) string {
 	_, exists := cli.Channels[channel]
 	if exists {
 		delete(cli.Channels, channel)
@@ -145,7 +145,7 @@ func UnsubscribeAllChannels(cli *Client) {
 	cli.Channels = nil
 }
 
-func publish(channel, msg , uuid string, fromS2s bool) string {
+func Publish(channel, msg , uuid string, fromS2s bool) string {
 	clients, exists := PubsubChannels.Get(channel)
 	ts := time.Now().UnixNano()
 	if exists {

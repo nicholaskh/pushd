@@ -76,7 +76,7 @@ func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {
 func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) error {
 	switch cl.Cmd {
 	case S2S_PUB_CMD:
-		publish(cl.Params[0], cl.Params[3], cl.Params[1], true)
+		Publish(cl.Params[0], cl.Params[3], cl.Params[1], true)
 
 	case S2S_SUB_CMD:
 		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params[0])
@@ -106,7 +106,7 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 					}
 
 				} else {
-					subscribe(me, channel, -1)
+					Subscribe(me, channel, -1)
 
 					peerAddr := config.GetS2sAddr(client.RemoteAddr().String())
 					Proxy.Router.AddPeerToChannel(peerAddr, channel)

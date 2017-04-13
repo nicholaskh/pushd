@@ -63,7 +63,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack sub channel")
 		}
-		ret = subscribe(this.Client, this.Params[0], 1)
+		ret = Subscribe(this.Client, this.Params[0], 1)
 
 	case CMD_PUBLISH:
 		//		if !this.Client.IsClient() && !this.Client.IsServer() {
@@ -72,7 +72,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(this.Params) < 2 || this.Params[1] == "" {
 			return "", errors.New("Publish without msg\n")
 		} else {
-			ret = publish(this.Params[0], this.Params[1], this.Client.uuid, false)
+			ret = Publish(this.Params[0], this.Params[1], this.Client.uuid, false)
 		}
 
 
@@ -98,14 +98,14 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if !exists {
 			friend, exists := UuidToClient.GetClient(this.Params[0])
 			if !exists {
-				subscribe(this.Client, channel, 2)
+				Subscribe(this.Client, channel, 2)
 			}else{
-				subscribe(this.Client, channel, -1)
-				subscribe(friend, channel, -1)
+				Subscribe(this.Client, channel, -1)
+				Subscribe(friend, channel, -1)
 			}
 		}
 
-		ret = publish(channel, this.Params[1], this.Client.uuid, false)
+		ret = Publish(channel, this.Params[1], this.Client.uuid, false)
 
 	case CMD_UNSUBSCRIBE:
 		//		if !this.Client.IsClient() {
@@ -114,7 +114,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack unsub channel")
 		}
-		ret = unsubscribe(this.Client, this.Params[0])
+		ret = Unsubscribe(this.Client, this.Params[0])
 
 	case CMD_HISTORY:
 		//		if !this.Client.IsClient() {
