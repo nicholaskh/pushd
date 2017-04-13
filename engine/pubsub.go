@@ -15,6 +15,7 @@ import (
 
 var (
 	PubsubChannels *PubsubChans
+	UuidToClient *UuidClientMap
 )
 
 type PubsubChans struct {
@@ -31,6 +32,36 @@ func (this *PubsubChans) Get(channel string) (clients cmap.ConcurrentMap, exists
 	clientsInterface, exists := PubsubChannels.LruCache.Get(channel)
 	clients, _ = clientsInterface.(cmap.ConcurrentMap)
 	return
+}
+
+type UuidClientMap struct {
+	uuidToClient cmap.ConcurrentMap
+}
+
+func NewUuidClientMap() (this *UuidClientMap) {
+	this = new(UuidClientMap)
+	this.uuidToClient = cmap.New()
+	return
+}
+
+func (this *UuidClientMap) AddClient(uuid string, client *Client) {
+	_, exists := this.uuidToClient.Get(uuid)
+	if exists {
+		return
+	}
+	this.uuidToClient.Set(uuid, client)
+}
+
+func (this *UuidClientMap) GetClient(uuid string) (client *Client, exists bool) {
+	temp, exists := this.uuidToClient.Get(uuid)
+	if exists {
+		client = temp.(*Client)
+	}
+	return
+}
+
+func (this *UuidClientMap) Remove(uuid string) {
+	this.uuidToClient.Remove(uuid)
 }
 
 func subscribe(cli *Client, channel string, subtype int) string {
