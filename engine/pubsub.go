@@ -186,3 +186,7 @@ func Publish(channel, msg , uuid string, fromS2s bool) string {
 		return ""
 	}
 }
+
+func Broadcast(peers set.Set, msg string) {
+	Proxy.BoardcastMsgChan <- NewBoardcastTuple(peers, msg)
+}
