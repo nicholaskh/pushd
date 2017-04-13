@@ -9,6 +9,7 @@ import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
+	"strconv"
 )
 
 type S2sClientProcessor struct {
@@ -74,7 +75,8 @@ func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {
 func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) error {
 	switch cl.Cmd {
 	case S2S_PUB_CMD:
-		Publish(cl.Params[0], cl.Params[3], cl.Params[1], true)
+		params := strings.SplitN(cl.Params[1], " ", 3)
+		Publish(cl.Params[0], params[2], params[0], true)
 
 	case S2S_SUB_CMD:
 		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params[0])
@@ -83,6 +85,16 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 	case S2S_UNSUB_CMD:
 		log.Debug("Remote addr %s unsub: %s", client.RemoteAddr(), cl.Params[0])
 		Proxy.Router.RemovePeerFromChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
+
+	case S2S_BOARDCAST_CMD:
+		boardcastType,_ := strconv.Atoi(cl.Params[0])
+		if boardcastType == BOARDCAST_JOIN {
+			params := strings.SplitN(cl.Params[1], " ", 2)
+			target, exists := UuidToClient.GetClient(params[0])
+			if exists {
+				Subscribe(target, params[1])
+			}
+		}
 	}
 
 	return nil

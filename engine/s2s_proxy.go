@@ -18,6 +18,10 @@ const (
 	S2S_BOARDCAST_CMD = "boardcast"
 )
 
+const (
+	BOARDCAST_JOIN = 1
+)
+
 var (
 	Proxy *S2sProxy
 )

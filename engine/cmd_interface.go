@@ -37,16 +37,9 @@ const (
 
 func NewCmdline(input string, cli *Client) (this *Cmdline) {
 	this = new(Cmdline)
-	// when msg send by a client
-	if cli != nil{
-		parts := strings.SplitN(trimCmdline(input), " ", 3)
-		this.Cmd = parts[0]
-		this.Params = parts[1:]
-	}else {
-		parts := strings.SplitN(trimCmdline(input), " ", 5)
-		this.Cmd = parts[0]
-		this.Params = parts[1:]
-	}
+	parts := strings.SplitN(trimCmdline(input), " ", 3)
+	this.Cmd = parts[0]
+	this.Params = parts[1:]
 
 	this.Client = cli
 	return
@@ -81,6 +74,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("Lack unsub channel")
 		}
 		ret = Unsubscribe(this.Client, this.Params[0])
+
+	case CMD_CREATEROOM, CMD_JOINROOM, CMD_LEAVEROOM:
+		return ProcessImCmd(this)
 
 	case CMD_HISTORY:
 		//		if !this.Client.IsClient() {
