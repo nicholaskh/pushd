@@ -9,8 +9,7 @@ import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
-	"bytes"
-	"fmt"
+	"strconv"
 )
 
 type S2sClientProcessor struct {
@@ -76,58 +75,26 @@ func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {
 func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) error {
 	switch cl.Cmd {
 	case S2S_PUB_CMD:
-		publish(cl.Params[0], cl.Params[3], cl.Params[1], true)
+		params := strings.SplitN(cl.Params[1], " ", 3)
+		Publish(cl.Params[0], params[2], params[0], true)
 
 	case S2S_SUB_CMD:
 		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params[0])
-		if len(cl.Params) == 3{
-			me, exists := UuidToClient.GetClient(cl.Params[0])
-			if exists {
-				var channel string
-				if bytes.Compare([]byte(cl.Params[0]), []byte(cl.Params[1])) > 0 {
-					channel = fmt.Sprintf("pri_%s_%s", cl.Params[0], cl.Params[1])
-				} else {
-					channel = fmt.Sprintf("pri_%s_%s", cl.Params[1], cl.Params[0])
-				}
-
-				_, exists := me.Channels[channel]
-				if exists {
-					_, exists := Proxy.Router.LookupPeersByChannel(channel)
-					if !exists {
-						peerAddr := config.GetS2sAddr(client.RemoteAddr().String())
-						Proxy.Router.AddPeerToChannel(peerAddr, channel)
-
-						// notify friend of the news that I am in here
-						peer, _ := Proxy.Router.Peers[peerAddr]
-						go peer.writeMsg(fmt.Sprintf("sub %s", channel))
-
-						msg := fmt.Sprintf("%s %s", cl.Params[1], cl.Params[2])
-						go me.WriteMsg(msg)
-					}
-
-				} else {
-					subscribe(me, channel, -1)
-
-					peerAddr := config.GetS2sAddr(client.RemoteAddr().String())
-					Proxy.Router.AddPeerToChannel(peerAddr, channel)
-
-					peer, _ := Proxy.Router.Peers[peerAddr]
-					go peer.writeMsg(fmt.Sprintf("sub %s", channel))
-
-					msg := fmt.Sprintf("%s %s", cl.Params[1], cl.Params[2])
-					go me.WriteMsg(msg)
-				}
-
-			}
-
-		} else {
-			Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
-		}
-
+		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
 
 	case S2S_UNSUB_CMD:
 		log.Debug("Remote addr %s unsub: %s", client.RemoteAddr(), cl.Params[0])
 		Proxy.Router.RemovePeerFromChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
+
+	case S2S_BOARDCAST_CMD:
+		boardcastType,_ := strconv.Atoi(cl.Params[0])
+		if boardcastType == BOARDCAST_JOIN {
+			params := strings.SplitN(cl.Params[1], " ", 2)
+			target, exists := UuidToClient.GetClient(params[0])
+			if exists {
+				Subscribe(target, params[1])
+			}
+		}
 	}
 
 	return nil
