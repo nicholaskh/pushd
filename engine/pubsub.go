@@ -10,11 +10,11 @@ import (
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine/storage"
-	"strings"
 )
 
 var (
 	PubsubChannels *PubsubChans
+	UuidToClient *UuidClientMap
 )
 
 type PubsubChans struct {
@@ -33,7 +33,37 @@ func (this *PubsubChans) Get(channel string) (clients cmap.ConcurrentMap, exists
 	return
 }
 
-func subscribe(cli *Client, channel string, subtype int) string {
+type UuidClientMap struct {
+	uuidToClient cmap.ConcurrentMap
+}
+
+func NewUuidClientMap() (this *UuidClientMap) {
+	this = new(UuidClientMap)
+	this.uuidToClient = cmap.New()
+	return
+}
+
+func (this *UuidClientMap) AddClient(uuid string, client *Client) {
+	_, exists := this.uuidToClient.Get(uuid)
+	if exists {
+		return
+	}
+	this.uuidToClient.Set(uuid, client)
+}
+
+func (this *UuidClientMap) GetClient(uuid string) (client *Client, exists bool) {
+	temp, exists := this.uuidToClient.Get(uuid)
+	if exists {
+		client = temp.(*Client)
+	}
+	return
+}
+
+func (this *UuidClientMap) Remove(uuid string) {
+	this.uuidToClient.Remove(uuid)
+}
+
+func Subscribe(cli *Client, channel string) string {
 	log.Debug("%x", channel)
 	_, exists := cli.Channels[channel]
 	if exists {
@@ -46,35 +76,19 @@ func subscribe(cli *Client, channel string, subtype int) string {
 		} else {
 			clients = cmap.New()
 			clients.Set(cli.RemoteAddr().String(), cli)
-
 			//s2s
 			if config.PushdConf.IsDistMode() {
-				switch subtype {
-				case 1:
-					Proxy.SubMsgChan <- channel
-				case 2:
-					uuids := strings.Split(channel, "_")
-					var temp_channel string
-					ts := time.Now().UnixNano()
-					if strings.EqualFold(uuids[1], cli.uuid){
-						temp_channel = fmt.Sprintf("%s %s %d", uuids[2], uuids[1], ts)
-					} else {
-						temp_channel = fmt.Sprintf("%s %s %s", uuids[1], uuids[2], ts)
-					}
-					Proxy.SubMsgChan <- temp_channel
-				default:
-
-				}
+				Proxy.SubMsgChan <- channel
 			}
+			PubsubChannels.Set(channel, clients)
 		}
-		PubsubChannels.Set(channel, clients)
 
 		return fmt.Sprintf("%s %s", OUTPUT_SUBSCRIBED, channel)
 	}
 
 }
 
-func unsubscribe(cli *Client, channel string) string {
+func Unsubscribe(cli *Client, channel string) string {
 	_, exists := cli.Channels[channel]
 	if exists {
 		delete(cli.Channels, channel)
@@ -114,7 +128,7 @@ func UnsubscribeAllChannels(cli *Client) {
 	cli.Channels = nil
 }
 
-func publish(channel, msg , uuid string, fromS2s bool) string {
+func Publish(channel, msg , uuid string, fromS2s bool) string {
 	clients, exists := PubsubChannels.Get(channel)
 	ts := time.Now().UnixNano()
 	if exists {
