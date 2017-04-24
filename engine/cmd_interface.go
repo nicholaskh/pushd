@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	log "github.com/nicholaskh/log4go"
+	"github.com/nicholaskh/pushd/engine/storage"
 )
 
 type Cmdline struct {
@@ -17,6 +18,7 @@ type Cmdline struct {
 }
 
 const (
+	CMD_SENDMSG   = "sendmsg"
 	CMD_SETUUID	= "setuuid"
 	CMD_SUBSCRIBE   = "sub"
 	CMD_PUBLISH     = "pub"
@@ -54,6 +56,12 @@ func NewCmdline(input string, cli *Client) (this *Cmdline) {
 
 func (this *Cmdline) Process() (ret string, err error) {
 	switch this.Cmd {
+	case CMD_SENDMSG:
+		if len(this.Params) < 2 || this.Params[1] == "" {
+			return "", errors.New("Lack msg\n")
+		}
+		ret = Publish(this.Params[0], this.Params[1], this.Client.uuid, false)
+
 	case CMD_SUBSCRIBE:
 		//		if !this.Client.IsClient() {
 		//			return "", ErrNotPermit
@@ -97,6 +105,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 			joinRoom(roomid, uuid)
 		}
 
+		channel := roomid2Channelid(roomid)
+		storage.EnqueueChanUuids(channel, false, this.Params)
+
 	case CMD_JOINROOM:
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack roomid")
@@ -108,11 +119,17 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		ret = joinRoom(this.Params[0], this.Client.uuid)
 
+		channel := roomid2Channelid(this.Params[0])
+		uuids := []string{this.Client.uuid}
+		storage.EnqueueChanUuids(channel, false, uuids)
+
+
 	case CMD_LEAVEROOM:
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack roomid")
 		}
 		ret = leaveRoom(this.Client, this.Params[0])
+
 
 	case CMD_HISTORY:
 		//		if !this.Client.IsClient() {

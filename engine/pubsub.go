@@ -106,6 +106,7 @@ func Unsubscribe(cli *Client, channel string) string {
 				Proxy.UnsubMsgChan <- channel
 			}
 		}
+
 		return fmt.Sprintf("%s %s", OUTPUT_UNSUBSCRIBED, channel)
 	} else {
 		return fmt.Sprintf("%s %s", OUTPUT_NOT_SUBSCRIBED, channel)

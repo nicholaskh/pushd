@@ -4,10 +4,16 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"github.com/nicholaskh/pushd/engine/storage"
 )
 
 func createRoom(client *Client, roomid string) string {
+	channel := roomid2Channelid(roomid)
 	Subscribe(client, roomid2Channelid(roomid))
+
+	uuids := []string{client.uuid}
+	storage.EnqueueChanUuids(channel, false, uuids)
+
 	return fmt.Sprintf("%s %s", OUTPUT_CREATEROOM, roomid)
 }
 
@@ -21,6 +27,11 @@ func joinRoom(roomid, uuid string) string {
 
 func leaveRoom(client *Client, roomid string) string {
 	Unsubscribe(client, roomid)
+
+	channel := roomid2Channelid(roomid)
+	uuids := []string{client.uuid}
+	storage.EnqueueChanUuids(channel, true, uuids)
+
 	return fmt.Sprintf("%s %s", OUTPUT_LEAVEROOM, roomid2Channelid(roomid))
 }
 

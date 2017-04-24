@@ -48,3 +48,28 @@ func (this *MongoStorage) fetchByChannelAndTs(channel string, ts int64) (result 
 
 	return
 }
+
+func (this *MongoStorage) bindUuidToChannel(channel string, uuids ...string) error {
+	if channel == "" {
+		return errors.New("channel is empty")
+	}
+	if len(uuids) == 0 {
+		return errors.New("uuids are empty")
+	}
+
+	_, err := db.MgoSession().DB("pushd").C("channel_uuids").
+		Upsert(bson.M{"channel": channel}, bson.M{"$addToSet": bson.M{"uuids": bson.M{"$each": uuids}}})
+
+	return err
+}
+
+func (this *MongoStorage) rmUuidFromChannel(channel string, uuids ...string) error {
+	if channel == "" {
+		return errors.New("channel is empty")
+	}
+	if len(uuids) == 0 {
+		return errors.New("uuids is empty")
+	}
+
+	return db.MgoSession().DB("pushd").C("channel_uuids").Update(bson.M{"channel": channel}, bson.M{"$pullAll": bson.M{"uuids": uuids}})
+}
