@@ -14,20 +14,30 @@ type MsgTuple struct {
 	Uuid	string `json:"uuid"`
 }
 
+type ChanUuidsTuple struct {
+	Channel string
+	Uuids []string
+	IsDel bool
+}
+
 type storageDriver interface {
 	store(*MsgTuple) error
 	storeMulti([]*MsgTuple) error
 	fetchByChannelAndTs(channel string, ts int64) (result []interface{}, err error)
+	bindUuidToChannel(channel string, uuids ...string) error
+	rmUuidFromChannel(channel string, uuids ...string) error
 }
 
 var (
 	msgQueue    chan *MsgTuple
 	driver      storageDriver
 	writeBuffer chan *MsgTuple
+	chanUuidsQueue chan *ChanUuidsTuple
 )
 
 func Init() {
 	msgQueue = make(chan *MsgTuple, config.PushdConf.MaxStorageOutstandingMsg)
+	chanUuidsQueue = make(chan *ChanUuidsTuple)
 	driver = factory(config.PushdConf.MsgStorage)
 	MsgCache = NewCache(config.PushdConf.MaxCacheMsgsEveryChannel)
 	if config.PushdConf.MsgFlushPolicy != config.MSG_FLUSH_EVERY_TRX {
@@ -74,6 +84,19 @@ func Serv() {
 		}()
 	}
 
+	go func() {
+		for {
+			select {
+			case cu := <-chanUuidsQueue:
+				if cu.IsDel {
+					driver.rmUuidFromChannel(cu.Channel, cu.Uuids...)
+				} else {
+					driver.bindUuidToChannel(cu.Channel, cu.Uuids...)
+				}
+			}
+		}
+	}()
+
 	for {
 		select {
 		case mt := <-msgQueue:
@@ -95,4 +118,8 @@ func EnqueueMsg(channel, msg , uuid string, ts int64) {
 
 func FetchHistory(channel string, ts int64) (result []interface{}, err error) {
 	return driver.fetchByChannelAndTs(channel, ts)
+}
+
+func EnqueueChanUuids(channel string, isDel bool, uuids []string) {
+	chanUuidsQueue <- &ChanUuidsTuple{channel, uuids, isDel}
 }
