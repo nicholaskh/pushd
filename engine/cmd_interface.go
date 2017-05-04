@@ -18,6 +18,8 @@ type Cmdline struct {
 }
 
 const (
+	CMD_SUBS	= "subs"
+	CMD_APPKEY    = "getappkey"
 	CMD_SENDMSG   = "sendmsg"
 	CMD_SETUUID	= "setuuid"
 	CMD_SUBSCRIBE   = "sub"
@@ -33,6 +35,10 @@ const (
 	CMD_LEAVEROOM = "leave_room"
 
 
+	OUTPUT_SUBS		    = "SUBS"
+	OUTPUT_AUTH_SERVER        = "AUTHSERVER"
+	OUTPUT_RCIV	            = "RCIV"
+	OUTPUT_APPKEY             = "APPKEY"
 	OUTPUT_SUBSCRIBED         = "SUBSCRIBED"
 	OUTPUT_ALREADY_SUBSCRIBED = "ALREADY SUBSCRIBED"
 	OUTPUT_PUBLISHED          = "PUBLISHED"
@@ -99,14 +105,14 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		roomid := generateRoomIdByUuidList(append(this.Params, this.Client.uuid)...)
-		ret = createRoom(this.Client, roomid)
+		channelId := roomid2Channelid(roomid)
+		ret = createRoom(this.Client.uuid, channelId, channelId)
 
 		for _, uuid := range this.Params {
-			joinRoom(roomid, uuid)
+			joinRoom(channelId, uuid)
 		}
 
-		channel := roomid2Channelid(roomid)
-		storage.EnqueueChanUuids(channel, false, this.Params)
+		storage.EnqueueChanUuids("", channelId, false, this.Params)
 
 	case CMD_JOINROOM:
 		if len(this.Params) < 1 || this.Params[0] == "" {
@@ -117,19 +123,34 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("client must setuuid first")
 		}
 
-		ret = joinRoom(this.Params[0], this.Client.uuid)
+		channelId := roomid2Channelid(this.Params[0])
+		ret = joinRoom(channelId, this.Client.uuid)
 
-		channel := roomid2Channelid(this.Params[0])
 		uuids := []string{this.Client.uuid}
-		storage.EnqueueChanUuids(channel, false, uuids)
+		storage.EnqueueChanUuids("", channelId, false, uuids)
 
 
 	case CMD_LEAVEROOM:
 		if len(this.Params) < 1 || this.Params[0] == "" {
 			return "", errors.New("Lack roomid")
 		}
-		ret = leaveRoom(this.Client, this.Params[0])
+		ret = leaveRoom(this.Client.uuid, roomid2Channelid(this.Params[0]))
 
+	case CMD_SUBS:
+		if len(this.Params) < 3 {
+			return "", errors.New("param wrong")
+		}
+
+		createRoom(this.Params[2], this.Params[1], this.Params[0])
+
+		for _, uuid := range this.Params[3:] {
+			joinRoom(this.Params[1], uuid)
+		}
+		if len(this.Params[3:]) > 0{
+			storage.EnqueueChanUuids("", this.Params[1], false, this.Params[3:])
+		}
+
+		ret = fmt.Sprintf("%s success", OUTPUT_SUBS)
 
 	case CMD_HISTORY:
 		//		if !this.Client.IsClient() {
@@ -155,16 +176,17 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 	//use one appId/secretKey pair
 	case CMD_AUTH_SERVER:
-		if len(this.Params) < 2 {
+		if len(this.Params) < 1 {
 			return "", errors.New("Invalid Params for auth_server")
 		}
 		if this.Client.IsServer() {
 			ret = "Already authed server"
 			err = nil
 		} else {
-			ret, err = authServer(this.Params[0], this.Params[1])
+			ret, err = authServer(this.Params[0])
 			if err == nil {
 				this.Client.SetServer()
+				ret = fmt.Sprintf("%s success", OUTPUT_AUTH_SERVER)
 			}
 		}
 
@@ -176,6 +198,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if ret == "" {
 			return "", errors.New("gettoken error")
 		}
+
+	case CMD_APPKEY:
+		ret = fmt.Sprintf("%s %s", OUTPUT_APPKEY, getAppKey())
 
 	case CMD_AUTH_CLIENT:
 		if len(this.Params) < 1 {

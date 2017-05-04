@@ -7,32 +7,31 @@ import (
 	"github.com/nicholaskh/pushd/engine/storage"
 )
 
-func createRoom(client *Client, roomid string) string {
-	channel := roomid2Channelid(roomid)
-	Subscribe(client, roomid2Channelid(roomid))
+func createRoom(uuid, channelId, channelName string) string {
+	uuids := []string{uuid}
+	storage.EnqueueChanUuids(channelName, channelId, false, uuids)
 
-	uuids := []string{client.uuid}
-	storage.EnqueueChanUuids(channel, false, uuids)
-
-	return fmt.Sprintf("%s %s", OUTPUT_CREATEROOM, roomid)
+	return fmt.Sprintf("%s %s", OUTPUT_CREATEROOM, channelId)
 }
 
-func joinRoom(roomid, uuid string) string {
+func joinRoom(channelId, uuid string) string {
 	client, exists := UuidToClient.GetClient(uuid)
 	if exists{
-		Subscribe(client, roomid2Channelid(roomid))
+		Subscribe(client, channelId)
 	}
-	return fmt.Sprintf("%s %s", OUTPUT_JOINROOM, roomid)
+	return fmt.Sprintf("%s %s", OUTPUT_JOINROOM, channelId)
 }
 
-func leaveRoom(client *Client, roomid string) string {
-	Unsubscribe(client, roomid)
+func leaveRoom(uuid, channelId string) string {
+	client, exists := UuidToClient.GetClient(uuid)
+	if exists {
+		Unsubscribe(client, channelId)
+	}
 
-	channel := roomid2Channelid(roomid)
-	uuids := []string{client.uuid}
-	storage.EnqueueChanUuids(channel, true, uuids)
+	uuids := []string{uuid}
+	storage.EnqueueChanUuids("", channelId, true, uuids)
 
-	return fmt.Sprintf("%s %s", OUTPUT_LEAVEROOM, roomid2Channelid(roomid))
+	return fmt.Sprintf("%s %s", OUTPUT_LEAVEROOM, channelId)
 }
 
 func roomid2Channelid(roomid string) string {

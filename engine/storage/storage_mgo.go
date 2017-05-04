@@ -49,27 +49,32 @@ func (this *MongoStorage) fetchByChannelAndTs(channel string, ts int64) (result 
 	return
 }
 
-func (this *MongoStorage) bindUuidToChannel(channel string, uuids ...string) error {
-	if channel == "" {
-		return errors.New("channel is empty")
+func (this *MongoStorage) bindUuidToChannel(channelName, channelId string, uuids ...string) error {
+	if channelId == "" {
+		return errors.New("channelId is empty")
 	}
 	if len(uuids) == 0 {
 		return errors.New("uuids are empty")
 	}
 
-	_, err := db.MgoSession().DB("pushd").C("channel_uuids").
-		Upsert(bson.M{"channel": channel}, bson.M{"$addToSet": bson.M{"uuids": bson.M{"$each": uuids}}})
-
+	var err error
+	if channelName == "" {
+		err = db.MgoSession().DB("pushd").C("channel_uuids").
+			Update(bson.M{"_id": channelId}, bson.M{"$addToSet": bson.M{"uuids": bson.M{"$each": uuids}}})
+	} else {
+		err = db.MgoSession().DB("pushd").C("channel_uuids").
+			Insert(bson.M{"_id": channelId, "channel": channelName, "uuids": uuids})
+	}
 	return err
 }
 
-func (this *MongoStorage) rmUuidFromChannel(channel string, uuids ...string) error {
-	if channel == "" {
+func (this *MongoStorage) rmUuidFromChannel(channelId string, uuids ...string) error {
+	if channelId == "" {
 		return errors.New("channel is empty")
 	}
 	if len(uuids) == 0 {
 		return errors.New("uuids is empty")
 	}
 
-	return db.MgoSession().DB("pushd").C("channel_uuids").Update(bson.M{"channel": channel}, bson.M{"$pullAll": bson.M{"uuids": uuids}})
+	return db.MgoSession().DB("pushd").C("channel_uuids").Update(bson.M{"_id": channelId}, bson.M{"$pullAll": bson.M{"uuids": uuids}})
 }
