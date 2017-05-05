@@ -10,6 +10,8 @@ import (
 	"github.com/nicholaskh/pushd/db"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
+	"crypto/sha256"
+	"encoding/hex"
 )
 
 var (
@@ -31,19 +33,19 @@ func authClient(token string) (string, error) {
 	return "Client auth succeed", nil
 }
 
-func authServer(appId, secretKey string) (string, error) {
-	c := db.MgoSession().DB("pushd").C("user")
+func authServer(appkey string) (string, error) {
+	c := db.MgoSession().DB("pushd").C("appkey")
 
 	var result interface{}
-	err := c.Find(bson.M{"appId": appId}).One(&result)
+	err := c.Find(bson.M{"appkey": appkey}).One(&result)
 	if err == mgo.ErrNotFound {
 		return "", errors.New("Server auth fail")
 	} else if err != nil {
 		log.Error("Error occured when query mongodb: %s", err.Error())
 	}
 
-	key := result.(bson.M)["secretKey"]
-	if key == secretKey {
+	key := result.(bson.M)["appkey"]
+	if key == appkey {
 		return "Server auth succeed", nil
 	}
 
@@ -53,10 +55,22 @@ func authServer(appId, secretKey string) (string, error) {
 // TODO more secure token generator
 func getToken() (token string) {
 	token = str.Rand(32)
+
 	err := db.MgoSession().DB("pushd").C("token").Insert(bson.M{"tk": token, "expire": time.Now()})
 	if err != nil {
 		log.Error("generate token error: %s", err.Error())
 		return ""
 	}
 	return
+}
+
+func getAppKey() string {
+	hash := sha256.New()
+	hash.Write([]byte(str.Rand(32)))
+	appkey := hex.EncodeToString(hash.Sum(nil))
+	err := db.MgoSession().DB("pushd").C("appkey").Insert(bson.M{"appkey": appkey, "creat_time": time.Now()})
+	if err != nil {
+		return ""
+	}
+	return appkey
 }

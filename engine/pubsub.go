@@ -137,9 +137,13 @@ func Publish(channel, msg , uuid string, fromS2s bool) string {
 		for ele := range clients.Iter() {
 			cli := ele.Val.(*Client)
 			cli.Mutex.Lock()
+			if cli.uuid == uuid {
+				cli.Mutex.Unlock()
+				continue
+			}
 			if cli.IsConnected() {
 				if !fromS2s {
-					go cli.WriteMsg(fmt.Sprintf("%s %d", msg, ts))
+					go cli.WriteMsg(fmt.Sprintf("%s %s %d %s",OUTPUT_RCIV, channel, ts, msg))
 				} else {
 					go cli.WriteMsg(msg)
 				}

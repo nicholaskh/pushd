@@ -52,6 +52,7 @@ func main() {
 	}()
 
 	pushdServer = server.NewTcpServer("pushd")
+	pushdServer.SetProtoType(1)
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
 
 	servStats := engine.NewServerStats()
