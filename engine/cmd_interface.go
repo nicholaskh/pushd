@@ -9,6 +9,8 @@ import (
 
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/engine/storage"
+	"github.com/nicholaskh/pushd/db"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type Cmdline struct {
@@ -66,6 +68,29 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(this.Params) < 2 || this.Params[1] == "" {
 			return "", errors.New("Lack msg\n")
 		}
+		_, exists := this.Client.Channels[this.Params[0]]
+		if !exists {
+			Subscribe(this.Client, this.Params[0])
+
+			// force other related online clients to join in this channel
+			var result interface{}
+			err := db.MgoSession().DB("pushd").C("channel_uuids").
+				Find(bson.M{"channel": this.Params[0]}).
+				Select(bson.M{"uuids":1, "_id":0}).
+				One(&result)
+
+			if err != nil {
+				uuids := result.(bson.M)["uuids"].([]interface{})
+				for _, uuid := range uuids {
+					tclient, exists := UuidToClient.GetClient(uuid.(string))
+					if exists {
+						Subscribe(tclient, this.Params[0])
+					}
+				}
+			}
+
+		}
+
 		ret = Publish(this.Params[0], this.Params[1], this.Client.uuid, false)
 
 	case CMD_SUBSCRIBE:
@@ -225,6 +250,30 @@ func (this *Cmdline) Process() (ret string, err error) {
 		_, exists := UuidToClient.GetClient(this.Params[0])
 		if !exists {
 			UuidToClient.AddClient(this.Params[0], this.Client)
+
+			// check and force client to subscribe related and active channels
+			var result interface{}
+			err := db.MgoSession().DB("pushd").C("uuid_channels").
+				Find(bson.M{"_id": this.Params[0]}).
+				Select(bson.M{"_id": 0, "channels": 1}).
+				One(&result)
+
+			if err != nil {
+				channels := result.(bson.M)["channels"].([]interface{})
+				for _, value := range channels {
+					channel := value.(string)
+					// check native
+					_, exist := PubsubChannels.Get(channel)
+					if !exist {
+						// check other nodes
+						_, exists = Proxy.Router.LookupPeersByChannel(channel)
+					}
+
+					if exists {
+						Subscribe(this.Client, channel)
+					}
+				}
+			}
 		}
 
 		ret = "uuid saved"

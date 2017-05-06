@@ -8,8 +8,8 @@ import (
 	"github.com/nicholaskh/golib/str"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/db"
-	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/bson"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 	"crypto/sha256"
 	"encoding/hex"
 )
