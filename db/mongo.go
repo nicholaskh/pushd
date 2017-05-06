@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 	"github.com/nicholaskh/pushd/config"
-	"labix.org/v2/mgo"
+	"gopkg.in/mgo.v2"
 )
 
 var (
@@ -18,5 +18,6 @@ func MgoSession() *mgo.Session {
 			panic(fmt.Sprintf("Connect to mongo error: %s", err.Error()))
 		}
 	}
+
 	return mgoSession
 }
