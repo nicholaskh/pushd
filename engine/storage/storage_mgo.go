@@ -5,8 +5,8 @@ import (
 
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/db"
-	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/bson"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type MongoStorage struct {
@@ -65,6 +65,18 @@ func (this *MongoStorage) bindUuidToChannel(channelName, channelId string, uuids
 		err = db.MgoSession().DB("pushd").C("channel_uuids").
 			Insert(bson.M{"_id": channelId, "channel": channelName, "uuids": uuids})
 	}
+
+	// bind channelId to uuid too
+	if err == nil {
+		bulk := db.MgoSession().DB("pushd").C("uuid_channels").Bulk()
+		var documents []interface{}
+		for _, v := range uuids {
+			documents = append(documents, bson.M{"_id": v})
+			documents = append(documents, bson.M{"$addToSet": bson.M{"channels": channelId}})
+		}
+		bulk.Upsert(documents...)
+		_, err = bulk.Run()
+	}
 	return err
 }
 
@@ -76,5 +88,20 @@ func (this *MongoStorage) rmUuidFromChannel(channelId string, uuids ...string) e
 		return errors.New("uuids is empty")
 	}
 
-	return db.MgoSession().DB("pushd").C("channel_uuids").Update(bson.M{"_id": channelId}, bson.M{"$pullAll": bson.M{"uuids": uuids}})
+	err := db.MgoSession().DB("pushd").C("channel_uuids").
+		Update(bson.M{"_id": channelId}, bson.M{"$pullAll": bson.M{"uuids": uuids}})
+
+	// rm channelId from uuid too
+	if err == nil {
+		bulk := db.MgoSession().DB("pushd").C("uuid_channels").Bulk()
+		var documents []interface{}
+		for _, v := range uuids {
+			documents = append(documents, bson.M{"_id": v})
+			documents = append(documents, bson.M{"$pull": bson.M{"channels": channelId}})
+		}
+		bulk.Update(documents...)
+		_, err = bulk.Run()
+	}
+
+	return err
 }
