@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
-	"labix.org/v2/mgo/bson"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type PushdLongPollingServer struct {
