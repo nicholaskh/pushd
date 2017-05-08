@@ -39,6 +39,10 @@ func (this *Client) IsServer() bool {
 	return (this.Type & TYPE_SERVER) != 0
 }
 
+func (this *Client) ClearIdentity() {
+	this.Type &= 0
+}
+
 func (this *Client) Close() {
 	log.Debug("client channels: %s", this.Channels)
 	log.Debug("pubsub channels: %s", PubsubChannels)
