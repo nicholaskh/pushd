@@ -15,6 +15,8 @@ type Client struct {
 	Type     uint8
 	*server.Client
 	uuid string
+	token string
+	lastTimestamp int64
 }
 
 func NewClient() (this *Client) {
@@ -37,6 +39,10 @@ func (this *Client) IsClient() bool {
 
 func (this *Client) IsServer() bool {
 	return (this.Type & TYPE_SERVER) != 0
+}
+
+func (this *Client) ClearIdentity() {
+	this.Type &= 0
 }
 
 func (this *Client) Close() {
