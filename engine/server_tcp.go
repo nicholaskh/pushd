@@ -78,6 +78,12 @@ func (this *PushdClientProcessor) OnRead(client *Client, input string) {
 				go client.WriteMsg(fmt.Sprintf("%s", err.Error()))
 				continue
 			}
+
+			err = TokenCheck(cl)
+			if err != nil {
+				go client.WriteMsg(fmt.Sprintf("%s", err.Error()))
+				continue
+			}
 		}
 
 		ret, err := cl.Process()
