@@ -13,6 +13,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"github.com/nicholaskh/pushd/config"
 	"time"
+	"bytes"
+	"encoding/binary"
 )
 
 type Cmdline struct {
@@ -55,12 +57,44 @@ const (
 	OUTPUT_LEAVEROOM = "LEAVEROOM"
 )
 
-func NewCmdline(input string, cli *Client) (this *Cmdline) {
+func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
+
+	var headerLen int32
+	if len(input) < 4 {
+		this = nil
+		err = errors.New("message has damaged")
+		return
+	}
+
+	b_buf := bytes.NewBuffer(input[:4])
+	binary.Read(b_buf, binary.BigEndian, &headerLen)
+	headL := int(headerLen)
+
+	if headL <= 0 {
+		this = nil
+		err = errors.New("skip")
+		return
+	}
+
+	if len(input) < headL+4 {
+		this = nil
+		err = errors.New("message has damaged")
+		return
+	}
+
 	this = new(Cmdline)
-	parts := strings.SplitN(trimCmdline(input), " ", 2)
-	this.Cmd = parts[0]
-	if len(parts) == 2 {
-		this.Params = parts[1]
+	this.Cmd = string(input[4: headL+4])
+
+	if len(input) > headL + 4 + 4 {
+		b_buf = bytes.NewBuffer(input[headL+4: headL+4+4])
+		binary.Read(b_buf, binary.BigEndian, &headerLen)
+		bodyL := int(headerLen)
+		if len(input) < headL + 4 + 4 + bodyL {
+			this = nil
+			err = errors.New("message has damaged")
+			return
+		}
+		this.Params = string(input[headL+4+4: headL+4+4+bodyL])
 	}
 
 	this.Client = cli

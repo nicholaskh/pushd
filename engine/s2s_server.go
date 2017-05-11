@@ -47,27 +47,21 @@ func (this *S2sClientProcessor) OnAccept(client *server.Client) {
 			}
 		}
 
-		strInput := string(input)
-		log.Debug("input: %s", strInput)
-
-		this.OnRead(client, strInput)
+		this.OnRead(client, input)
 	}
 }
 
-func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {
-	for _, inputUnit := range strings.Split(input, "\n") {
-		cl := NewCmdline(inputUnit, nil)
-		if cl.Cmd == "" {
-			continue
-		}
+func (this *S2sClientProcessor) OnRead(client *server.Client, input []byte) {
+	cl, err := NewCmdline(input, nil)
+	if err != nil {
+		return
+	}
 
-		err := this.processCmd(cl, client)
+	err = this.processCmd(cl, client)
 
-		if err != nil {
-			log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-			go client.WriteMsg(err.Error())
-			continue
-		}
+	if err != nil {
+		log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
+		go client.WriteMsg(err.Error())
 	}
 }
 
