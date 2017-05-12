@@ -264,15 +264,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 				for _, value := range channels {
 					channel := value.(string)
 					// check native
-					_, exists = PubsubChannels.Get(channel)
-					if !exists {
+					if _, exists = PubsubChannels.Get(channel); !exists {
 						// check other nodes
 						if config.PushdConf.IsDistMode() {
 							_, exists = Proxy.Router.LookupPeersByChannel(channel)
 						}
-					}
-
-					if exists {
+					} else {
 						Subscribe(this.Client, channel)
 					}
 				}
