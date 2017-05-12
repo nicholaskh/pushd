@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/nicholaskh/golib/server"
@@ -55,40 +54,46 @@ func (this *PushdClientProcessor) OnAccept(c *server.Client) {
 			}
 		}
 
-		this.OnRead(client, string(input))
+		this.OnRead(client, input)
 	}
 }
 
-func (this *PushdClientProcessor) OnRead(client *Client, input string) {
+func (this *PushdClientProcessor) OnRead(client *Client, input []byte) {
 	var (
 		t1      time.Time
 		elapsed time.Duration
 	)
 
 	t1 = time.Now()
-	for _, inputUnit := range strings.Split(input, "\n") {
-		cl := NewCmdline(inputUnit, client)
-		if cl.Cmd == "" {
-			continue
-		}
 
-		if this.enableAclCheck {
-			err := AclCheck(client, cl.Cmd)
-			if err != nil {
-				go client.WriteMsg(fmt.Sprintf("%s", err.Error()))
-				continue
-			}
-		}
-
-		ret, err := cl.Process()
-		if err != nil {
-			log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-			go client.WriteMsg(fmt.Sprintf("%s\n", err.Error()))
-			continue
-		}
-
-		go client.WriteMsg(ret)
+	cl, err := NewCmdline(input, client)
+	if err != nil {
+		return
 	}
+
+	if this.enableAclCheck {
+		err := AclCheck(client, cl.Cmd)
+		if err != nil {
+			go client.WriteMsg(fmt.Sprintf("%s", err.Error()))
+			return
+		}
+
+		err = TokenCheck(cl)
+		if err != nil {
+			go client.WriteMsg(fmt.Sprintf("%s", err.Error()))
+			return
+		}
+	}
+
+	ret, err := cl.Process()
+	if err != nil {
+		log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
+		go client.WriteMsg(fmt.Sprintf("%s\n", err.Error()))
+		return
+	}
+
+	go client.WriteMsg(ret)
+
 	elapsed = time.Since(t1)
 	this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
 	this.serverStats.CallPerSecond.Mark(1)

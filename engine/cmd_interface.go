@@ -12,11 +12,14 @@ import (
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
 	"github.com/nicholaskh/pushd/config"
+	"time"
+	"bytes"
+	"encoding/binary"
 )
 
 type Cmdline struct {
 	Cmd    string
-	Params []string
+	Params string
 	*Client
 }
 
@@ -38,6 +41,7 @@ const (
 	CMD_LEAVEROOM = "leave_room"
 
 
+	OUTPUT_TOKEN 	           = "TOKEN"
 	OUTPUT_SUBS		    = "SUBS"
 	OUTPUT_AUTH_SERVER        = "AUTHSERVER"
 	OUTPUT_RCIV	            = "RCIV"
@@ -53,11 +57,45 @@ const (
 	OUTPUT_LEAVEROOM = "LEAVEROOM"
 )
 
-func NewCmdline(input string, cli *Client) (this *Cmdline) {
+func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
+
+	var headerLen int32
+	if len(input) < 4 {
+		this = nil
+		err = errors.New("message has damaged")
+		return
+	}
+
+	b_buf := bytes.NewBuffer(input[:4])
+	binary.Read(b_buf, binary.BigEndian, &headerLen)
+	headL := int(headerLen)
+
+	if headL <= 0 {
+		this = nil
+		err = errors.New("skip")
+		return
+	}
+
+	if len(input) < headL+4 {
+		this = nil
+		err = errors.New("message has damaged")
+		return
+	}
+
 	this = new(Cmdline)
-	parts := strings.Split(trimCmdline(input), " ")
-	this.Cmd = parts[0]
-	this.Params = parts[1:]
+	this.Cmd = string(input[4: headL+4])
+
+	if len(input) > headL + 4 + 4 {
+		b_buf = bytes.NewBuffer(input[headL+4: headL+4+4])
+		binary.Read(b_buf, binary.BigEndian, &headerLen)
+		bodyL := int(headerLen)
+		if len(input) < headL + 4 + 4 + bodyL {
+			this = nil
+			err = errors.New("message has damaged")
+			return
+		}
+		this.Params = string(input[headL+4+4: headL+4+4+bodyL])
+	}
 
 	this.Client = cli
 	return
@@ -66,17 +104,19 @@ func NewCmdline(input string, cli *Client) (this *Cmdline) {
 func (this *Cmdline) Process() (ret string, err error) {
 	switch this.Cmd {
 	case CMD_SENDMSG:
-		if len(this.Params) < 2 || this.Params[1] == "" {
+		params := strings.SplitN(this.Params, " ", 2)
+		if len(params) < 2 || params[1] == "" {
 			return "", errors.New("Lack msg\n")
 		}
-		_, exists := this.Client.Channels[this.Params[0]]
+
+		_, exists := this.Client.Channels[params[0]]
 		if !exists {
-			Subscribe(this.Client, this.Params[0])
+			Subscribe(this.Client, params[0])
 
 			// force other related online clients to join in this channel
 			var result interface{}
 			err := db.MgoSession().DB("pushd").C("channel_uuids").
-				Find(bson.M{"_id": this.Params[0]}).
+				Find(bson.M{"_id": params[0]}).
 				Select(bson.M{"uuids":1, "_id":0}).
 				One(&result)
 
@@ -85,63 +125,67 @@ func (this *Cmdline) Process() (ret string, err error) {
 				for _, uuid := range uuids {
 					tclient, exists := UuidToClient.GetClient(uuid.(string))
 					if exists {
-						Subscribe(tclient, this.Params[0])
+						Subscribe(tclient, params[0])
 					}
 				}
 			}
 
 		}
 
-		ret = Publish(this.Params[0], this.Params[1], this.Client.uuid, false)
+		ret = Publish(params[0], params[1], this.Client.uuid, false)
 
 	case CMD_SUBSCRIBE:
 		//		if !this.Client.IsClient() {
 		//			return "", ErrNotPermit
 		//		}
-		if len(this.Params) < 1 || this.Params[0] == "" {
+		if this.Params == "" {
 			return "", errors.New("Lack sub channel")
 		}
-		ret = Subscribe(this.Client, this.Params[0])
+		ret = Subscribe(this.Client, this.Params)
 
 	case CMD_PUBLISH:
 		//		if !this.Client.IsClient() && !this.Client.IsServer() {
 		//			return "", ErrNotPermit
 		//		}
-		if len(this.Params) < 2 || this.Params[1] == "" {
+		params := strings.SplitN(this.Params, " ", 2)
+		if len(params) < 2 || params[1] == "" {
 			return "", errors.New("Publish without msg\n")
 		} else {
-			ret = Publish(this.Params[0], this.Params[1], this.Client.uuid, false)
+			ret = Publish(params[0], params[1], this.Client.uuid, false)
 		}
 
 	case CMD_UNSUBSCRIBE:
 		//		if !this.Client.IsClient() {
 		//			return "", ErrNotPermit
 		//		}
-		if len(this.Params) < 1 || this.Params[0] == "" {
+		params := strings.SplitN(this.Params, " ", 2)
+		if len(params) < 1 || params[0] == "" {
 			return "", errors.New("Lack unsub channel")
 		}
-		ret = Unsubscribe(this.Client, this.Params[0])
+		ret = Unsubscribe(this.Client, params[0])
 
 	case CMD_CREATEROOM:
-		if len(this.Params) < 1 {
+		params := strings.Split(this.Params, " ")
+		if len(params) < 1 {
 			return "", errors.New("Lack uuid")
 		}
 		if this.Client.uuid == "" {
 			return "", errors.New("client has no uuid")
 		}
 
-		roomid := generateRoomIdByUuidList(append(this.Params, this.Client.uuid)...)
+		roomid := generateRoomIdByUuidList(append(params, this.Client.uuid)...)
 		channelId := roomid2Channelid(roomid)
 		ret = createRoom(this.Client.uuid, channelId, channelId)
 
-		for _, uuid := range this.Params {
+		for _, uuid := range params {
 			joinRoom(channelId, uuid)
 		}
 
-		storage.EnqueueChanUuids("", channelId, false, this.Params)
+		storage.EnqueueChanUuids("", channelId, false, params)
 
 	case CMD_JOINROOM:
-		if len(this.Params) < 1 || this.Params[0] == "" {
+		params := strings.Split(this.Params, " ")
+		if len(params) < 1 || params[0] == "" {
 			return "", errors.New("Lack roomid")
 		}
 
@@ -149,31 +193,32 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("client must setuuid first")
 		}
 
-		channelId := roomid2Channelid(this.Params[0])
+		channelId := roomid2Channelid(params[0])
 		ret = joinRoom(channelId, this.Client.uuid)
 
 		uuids := []string{this.Client.uuid}
 		storage.EnqueueChanUuids("", channelId, false, uuids)
 
-
 	case CMD_LEAVEROOM:
-		if len(this.Params) < 1 || this.Params[0] == "" {
+		params := strings.Split(this.Params, " ")
+		if len(params) < 1 || params[0] == "" {
 			return "", errors.New("Lack roomid")
 		}
-		ret = leaveRoom(this.Client.uuid, roomid2Channelid(this.Params[0]))
+		ret = leaveRoom(this.Client.uuid, roomid2Channelid(params[0]))
 
 	case CMD_SUBS:
-		if len(this.Params) < 3 {
+		params := strings.Split(this.Params, " ")
+		if len(params) < 3 {
 			return "", errors.New("param wrong")
 		}
 
-		createRoom(this.Params[2], this.Params[1], this.Params[0])
+		createRoom(params[2], params[1], params[0])
 
-		for _, uuid := range this.Params[3:] {
-			joinRoom(this.Params[1], uuid)
+		for _, uuid := range params[3:] {
+			joinRoom(params[1], uuid)
 		}
-		if len(this.Params[3:]) > 0{
-			storage.EnqueueChanUuids("", this.Params[1], false, this.Params[3:])
+		if len(params[3:]) > 0{
+			storage.EnqueueChanUuids("", params[1], false, params[3:])
 		}
 
 		ret = fmt.Sprintf("%s success", OUTPUT_SUBS)
@@ -182,14 +227,15 @@ func (this *Cmdline) Process() (ret string, err error) {
 		//		if !this.Client.IsClient() {
 		//			return "", ErrNotPermit
 		//		}
-		if len(this.Params) < 2 {
+		params := strings.Split(this.Params, " ")
+		if len(params) < 2 {
 			return "", errors.New("Invalid Params for history")
 		}
-		ts, err := strconv.ParseInt(this.Params[1], 10, 64)
+		ts, err := strconv.ParseInt(params[1], 10, 64)
 		if err != nil {
 			return "", err
 		}
-		channel := this.Params[0]
+		channel := params[0]
 		hisRet, err := fullHistory(channel, ts)
 		if err != nil {
 			log.Error(err)
@@ -200,62 +246,68 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		ret = string(retBytes)
 
-	//use one appId/secretKey pair
 	case CMD_AUTH_SERVER:
-		if len(this.Params) < 1 {
+		if this.Params == "" {
 			return "", errors.New("Invalid Params for auth_server")
 		}
 		if this.Client.IsServer() {
 			ret = "Already authed server"
 			err = nil
 		} else {
-			ret, err = authServer(this.Params[0])
+			ret, err = authServer(this.Params)
 			if err == nil {
 				this.Client.SetServer()
-				ret = fmt.Sprintf("%s success", OUTPUT_AUTH_SERVER)
+				ret = fmt.Sprintf("%s %s", OUTPUT_AUTH_SERVER, ret)
 			}
+			return ret, err
 		}
 
 	case CMD_TOKEN:
 		//if !this.Client.IsServer() {
 		//	return "", ErrNotPermit
 		//}
-		ret = getToken()
-		if ret == "" {
+		token := getClientToken()
+		if token == "" {
 			return "", errors.New("gettoken error")
 		}
+
+		ret = fmt.Sprintf("%s %s", OUTPUT_TOKEN, token)
 
 	case CMD_APPKEY:
 		ret = fmt.Sprintf("%s %s", OUTPUT_APPKEY, getAppKey())
 
 	case CMD_AUTH_CLIENT:
-		if len(this.Params) < 1 {
+		params := strings.Split(this.Params, " ")
+		if len(params) < 1 {
 			return "", errors.New("Invalid Params for auth_client")
 		}
 		if this.Client.IsClient() {
 			ret = "Already authed client"
 			err = nil
 		} else {
-			ret, err = authClient(this.Params[0])
+			ret, err = authClient(params[0])
 			if err == nil {
 				this.Client.SetClient()
 			}
 		}
 
 	case CMD_SETUUID:
-		if len(this.Params) < 1 || this.Params[0] == "" {
+		params := strings.Split(this.Params, " ")
+		if len(params) < 2 || params[1] == "" {
 			return "", errors.New("Lack uuid")
 		}
-		this.Client.uuid = this.Params[0]
+		this.Client.uuid = params[1]
 
-		_, exists := UuidToClient.GetClient(this.Params[0])
+		uuidTokenMap.setTokenInfo(params[1], params[0], time.Now().Unix())
+
+		_, exists := UuidToClient.GetClient(params[1])
 		if !exists {
-			UuidToClient.AddClient(this.Params[0], this.Client)
+			UuidToClient.AddClient(params[1], this.Client)
 
 			// check and force client to subscribe related and active channels
 			var result interface{}
 			err := db.MgoSession().DB("pushd").C("uuid_channels").
-				Find(bson.M{"_id": this.Params[0]}).
+				Find(bson.M{"_id": params[1]}).
 				Select(bson.M{"_id": 0, "channels": 1}).
 				One(&result)
 

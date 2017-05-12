@@ -36,7 +36,7 @@ func init() {
 
 	engine.PubsubChannels = engine.NewPubsubChannels(config.PushdConf.PubsubChannelMaxItems)
 	engine.UuidToClient = engine.NewUuidClientMap()
-
+	engine.InitAuth()
 	signal.RegisterSignalHandler(syscall.SIGINT, func(sig os.Signal) {
 		shutdown()
 	})
@@ -52,7 +52,6 @@ func main() {
 	}()
 
 	pushdServer = server.NewTcpServer("pushd")
-	pushdServer.SetProtoType(1)
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
 
 	servStats := engine.NewServerStats()

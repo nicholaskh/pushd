@@ -47,42 +47,37 @@ func (this *S2sClientProcessor) OnAccept(client *server.Client) {
 			}
 		}
 
-		strInput := string(input)
-		log.Debug("input: %s", strInput)
-
-		this.OnRead(client, strInput)
+		this.OnRead(client, input)
 	}
 }
 
-func (this *S2sClientProcessor) OnRead(client *server.Client, input string) {
-	for _, inputUnit := range strings.Split(input, "\n") {
-		cl := NewCmdline(inputUnit, nil)
-		if cl.Cmd == "" {
-			continue
-		}
+func (this *S2sClientProcessor) OnRead(client *server.Client, input []byte) {
+	cl, err := NewCmdline(input, nil)
+	if err != nil {
+		return
+	}
 
-		err := this.processCmd(cl, client)
+	err = this.processCmd(cl, client)
 
-		if err != nil {
-			log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-			go client.WriteMsg(err.Error())
-			continue
-		}
+	if err != nil {
+		log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
+		go client.WriteMsg(err.Error())
 	}
 }
 
 func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) error {
 	switch cl.Cmd {
 	case S2S_PUB_CMD:
-		Publish(cl.Params[0], cl.Params[3], cl.Params[1], true)
+		params := strings.SplitN(cl.Params, " ", 3)
+		Publish(params[0], params[3], params[1], true)
 
 	case S2S_SUB_CMD:
-		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params[0])
-		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
+		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params)
+		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params)
 
 	case S2S_UNSUB_CMD:
-		log.Debug("Remote addr %s unsub: %s", client.RemoteAddr(), cl.Params[0])
-		Proxy.Router.RemovePeerFromChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params[0])
+		log.Debug("Remote addr %s unsub: %s", client.RemoteAddr(), cl.Params)
+		Proxy.Router.RemovePeerFromChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params)
 	}
 
 	return nil
