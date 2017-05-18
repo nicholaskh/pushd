@@ -9,6 +9,7 @@ import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
+	"strconv"
 )
 
 type S2sClientProcessor struct {
@@ -68,8 +69,12 @@ func (this *S2sClientProcessor) OnRead(client *server.Client, input []byte) {
 func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) error {
 	switch cl.Cmd {
 	case S2S_PUB_CMD:
-		params := strings.SplitN(cl.Params, " ", 3)
-		Publish(params[0], params[3], params[1], true)
+		params := strings.SplitN(cl.Params, " ", 5)
+		msgId, err := strconv.ParseInt(params[3], 10, 64)
+		if err != nil {
+			return err
+		}
+		Publish(params[0], params[4], params[1], msgId, true)
 
 	case S2S_SUB_CMD:
 		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params)

@@ -104,7 +104,7 @@ func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
 func (this *Cmdline) Process() (ret string, err error) {
 	switch this.Cmd {
 	case CMD_SENDMSG:
-		params := strings.SplitN(this.Params, " ", 2)
+		params := strings.SplitN(this.Params, " ", 3)
 		if len(params) < 2 || params[1] == "" {
 			return "", errors.New("Lack msg\n")
 		}
@@ -132,7 +132,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		}
 
-		ret = Publish(params[0], params[1], this.Client.uuid, false)
+		msgId, err := strconv.ParseInt(params[1], 10, 64)
+		if err != nil {
+			return "", errors.New("msgid error")
+		}
+
+		ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)
 
 	case CMD_SUBSCRIBE:
 		//		if !this.Client.IsClient() {
@@ -147,11 +152,15 @@ func (this *Cmdline) Process() (ret string, err error) {
 		//		if !this.Client.IsClient() && !this.Client.IsServer() {
 		//			return "", ErrNotPermit
 		//		}
-		params := strings.SplitN(this.Params, " ", 2)
-		if len(params) < 2 || params[1] == "" {
+		params := strings.SplitN(this.Params, " ", 3)
+		if len(params) < 3 || params[2] == "" {
 			return "", errors.New("Publish without msg\n")
 		} else {
-			ret = Publish(params[0], params[1], this.Client.uuid, false)
+			msgId, err := strconv.ParseInt(params[1], 10, 64)
+			if err != nil {
+				return "", errors.New("msgid error")
+			}
+			ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)
 		}
 
 	case CMD_UNSUBSCRIBE:

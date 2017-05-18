@@ -18,7 +18,7 @@ func newMongodbDriver() (this *MongoStorage) {
 }
 
 func (this *MongoStorage) store(mt *MsgTuple) error {
-	err := db.MgoSession().DB("pushd").C("msg_log").Insert(bson.M{"channel": mt.Channel, "msg": mt.Msg, "ts": mt.Ts, "uuid": mt.Uuid})
+	err := db.MgoSession().DB("pushd").C("msg_log").Insert(bson.M{"channel": mt.Channel, "msg": mt.Msg, "ts": mt.Ts, "msgid": mt.MsgId, "uuid": mt.Uuid})
 
 	return err
 }
@@ -26,7 +26,7 @@ func (this *MongoStorage) store(mt *MsgTuple) error {
 func (this *MongoStorage) storeMulti(mts []*MsgTuple) error {
 	records := make([]interface{}, 0)
 	for _, mt := range mts {
-		records = append(records, bson.M{"channel": mt.Channel, "msg": mt.Msg, "ts": mt.Ts, "uuid": mt.Uuid})
+		records = append(records, bson.M{"channel": mt.Channel, "msg": mt.Msg, "ts": mt.Ts, "msgid": mt.MsgId, "uuid": mt.Uuid})
 	}
 	err := db.MgoSession().DB("pushd").C("msg_log").Insert(records...)
 
