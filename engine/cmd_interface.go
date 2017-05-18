@@ -298,32 +298,38 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 		this.Client.uuid = params[1]
 
+		// clear old client connection
+		oldClient, exi := UuidToClient.GetClient(params[1])
+		if exi {
+			oldClient.Close()
+		}
+
 		uuidTokenMap.setTokenInfo(params[1], params[0], time.Now().Unix())
 
-		_, exists := UuidToClient.GetClient(params[1])
-		if !exists {
-			UuidToClient.AddClient(params[1], this.Client)
+		UuidToClient.AddClient(params[1], this.Client)
 
-			// check and force client to subscribe related and active channels
-			var result interface{}
-			err := db.MgoSession().DB("pushd").C("uuid_channels").
-				Find(bson.M{"_id": params[1]}).
-				Select(bson.M{"_id": 0, "channels": 1}).
-				One(&result)
+		// check and force client to subscribe related and active channels
+		var result interface{}
+		err := db.MgoSession().DB("pushd").C("uuid_channels").
+			Find(bson.M{"_id": params[1]}).
+			Select(bson.M{"_id": 0, "channels": 1}).
+			One(&result)
 
-			if err == nil {
-				channels := result.(bson.M)["channels"].([]interface{})
-				for _, value := range channels {
-					channel := value.(string)
-					// check native
-					if _, exists = PubsubChannels.Get(channel); !exists {
-						// check other nodes
-						if config.PushdConf.IsDistMode() {
-							_, exists = Proxy.Router.LookupPeersByChannel(channel)
-						}
-					} else {
-						Subscribe(this.Client, channel)
+		if err == nil {
+			channels := result.(bson.M)["channels"].([]interface{})
+			for _, value := range channels {
+				channel := value.(string)
+				// check native
+				_, exists := PubsubChannels.Get(channel)
+				if !exists {
+					// check other nodes
+					if config.PushdConf.IsDistMode() {
+						_, exists = Proxy.Router.LookupPeersByChannel(channel)
 					}
+				}
+
+				if exists {
+					Subscribe(this.Client, channel)
 				}
 			}
 		}

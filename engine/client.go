@@ -51,5 +51,6 @@ func (this *Client) Close() {
 	if this.uuid != "" {
 		UuidToClient.Remove(this.uuid)
 	}
+	uuidTokenMap.rmTokenInfo(this.uuid)
 	this.Client.Close()
 }
