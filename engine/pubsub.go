@@ -129,7 +129,11 @@ func UnsubscribeAllChannels(cli *Client) {
 	cli.Channels = nil
 }
 
-func Publish(channel, msg , uuid string, fromS2s bool) string {
+func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
+	if storage.MsgId.CheckAndSet(uuid, msgId) {
+		return OUTPUT_PUBLISHED
+	}
+
 	clients, exists := PubsubChannels.Get(channel)
 	ts := time.Now().UnixNano()
 	if exists {
@@ -142,11 +146,7 @@ func Publish(channel, msg , uuid string, fromS2s bool) string {
 				continue
 			}
 			if cli.IsConnected() {
-				if !fromS2s {
-					go cli.WriteMsg(fmt.Sprintf("%s %s %s %d %s",OUTPUT_RCIV, channel, uuid, ts, msg))
-				} else {
-					go cli.WriteMsg(msg)
-				}
+				go cli.WriteMsg(fmt.Sprintf("%s %s %s %d %d %s",OUTPUT_RCIV, channel, uuid, ts, msgId, msg))
 			}
 			cli.Mutex.Unlock()
 		}
@@ -154,7 +154,7 @@ func Publish(channel, msg , uuid string, fromS2s bool) string {
 
 	storage.MsgCache.Store(&storage.MsgTuple{Channel: channel, Msg: msg, Ts: ts, Uuid: uuid})
 	if !fromS2s && config.PushdConf.EnableStorage() {
-		storage.EnqueueMsg(channel, msg, uuid, ts)
+		storage.EnqueueMsg(channel, msg, uuid, ts, msgId)
 	}
 
 	if !fromS2s {
@@ -165,7 +165,7 @@ func Publish(channel, msg , uuid string, fromS2s bool) string {
 			log.Debug("now peers %s", peers)
 
 			if exists {
-				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts)
+				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts, msgId)
 			}
 		}
 

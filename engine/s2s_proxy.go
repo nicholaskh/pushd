@@ -55,7 +55,7 @@ func (this *S2sProxy) WaitMsg() {
 				log.Debug("peer was %s %s", peerInterface, reflect.TypeOf(peerInterface))
 				peer, _ := peerInterface.(*Peer)
 				log.Debug("peer is %s %s", peer, reflect.TypeOf(peer))
-				go peer.writeMsg(fmt.Sprintf("%s %s %s %d %s\n", S2S_PUB_CMD, tuple.channel, tuple.uuid, tuple.ts, tuple.msg))
+				go peer.writeMsg(fmt.Sprintf("%s %s %s %d %d %s\n", S2S_PUB_CMD, tuple.channel, tuple.uuid, tuple.ts, tuple.msgId, tuple.msg))
 			}
 
 		case channel := <-this.SubMsgChan:
@@ -81,9 +81,10 @@ type PubTuple struct {
 	channel string
 	uuid	string
 	ts      int64
+	msgId   int64
 }
 
-func NewPubTuple(peers set.Set, msg, channel , uuid string, ts int64) (this *PubTuple) {
-	this = &PubTuple{peers: peers, msg: msg, channel: channel, uuid: uuid, ts: ts}
+func NewPubTuple(peers set.Set, msg, channel , uuid string, ts, msgId int64) (this *PubTuple) {
+	this = &PubTuple{peers: peers, msg: msg, channel: channel, uuid: uuid, ts: ts, msgId:msgId}
 	return
 }

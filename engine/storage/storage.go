@@ -12,6 +12,7 @@ type MsgTuple struct {
 	Msg     string `json:"msg"`
 	Ts      int64  `json:"ts"`
 	Uuid	string `json:"uuid"`
+	MsgId   int64  `json:"msgid"`
 }
 
 type ChanUuidsTuple struct {
@@ -41,6 +42,7 @@ func Init() {
 	chanUuidsQueue = make(chan *ChanUuidsTuple)
 	driver = factory(config.PushdConf.MsgStorage)
 	MsgCache = NewCache(config.PushdConf.MaxCacheMsgsEveryChannel)
+	MsgId = NewMsgIdCache()
 	if config.PushdConf.MsgFlushPolicy != config.MSG_FLUSH_EVERY_TRX {
 		writeBuffer = make(chan *MsgTuple, config.PushdConf.MsgStorageWriteBufferSize)
 	}
@@ -113,8 +115,8 @@ func Serv() {
 	}
 }
 
-func EnqueueMsg(channel, msg , uuid string, ts int64) {
-	msgQueue <- &MsgTuple{channel, msg, ts, uuid}
+func EnqueueMsg(channel, msg , uuid string, ts, msgId int64) {
+	msgQueue <- &MsgTuple{channel, msg, ts, uuid, msgId}
 }
 
 func FetchHistory(channel string, ts int64) (result []interface{}, err error) {
