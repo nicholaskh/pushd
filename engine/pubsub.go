@@ -44,10 +44,6 @@ func NewUuidClientMap() (this *UuidClientMap) {
 }
 
 func (this *UuidClientMap) AddClient(uuid string, client *Client) {
-	_, exists := this.uuidToClient.Get(uuid)
-	if exists {
-		return
-	}
 	this.uuidToClient.Set(uuid, client)
 }
 

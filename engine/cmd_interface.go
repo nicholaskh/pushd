@@ -314,9 +314,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 				oldClient.Close()
 			}
 		}
-
 		uuidTokenMap.setTokenInfo(params[1], params[0], time.Now().Unix())
-
 		UuidToClient.AddClient(params[1], this.Client)
 
 		// check and force client to subscribe related and active channels
