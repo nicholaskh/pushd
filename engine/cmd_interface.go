@@ -310,11 +310,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 		// clear old client connection
 		oldClient, exi := UuidToClient.GetClient(params[1])
 		if exi {
-			oldClient.Close()
+			if this.Client != oldClient{
+				oldClient.Close()
+			}
 		}
-
 		uuidTokenMap.setTokenInfo(params[1], params[0], time.Now().Unix())
-
 		UuidToClient.AddClient(params[1], this.Client)
 
 		// check and force client to subscribe related and active channels

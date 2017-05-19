@@ -139,17 +139,6 @@ func (this *UuidTokenMap) updateExpire(uuid string, expire int64) {
 }
 
 func (this *UuidTokenMap) setTokenInfo(uuid string, token string, expire int64) error {
-
-	_, exists := this.uuidToToken.Get(uuid)
-	if exists {
-		return nil
-	}
-
-	_, err := authClient(token)
-	if err != nil {
-		return errors.New("Token Illegal")
-	}
-
 	info := new(tokenInfo)
 	info.token = token
 	info.expire = expire
