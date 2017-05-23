@@ -56,13 +56,17 @@ func checkServerToken(token string) bool {
 
 func checkClientToken(uuid, tokenChecking string) error {
 	token, expire, exists := uuidTokenMap.getTokenInfo(uuid)
-	if !exists || token != tokenChecking{
-		uuidTokenMap.rmTokenInfo(uuid)
+	if !exists{
+		return errors.New("Token Illegal")
+	}
+
+	if token != tokenChecking {
+		db.MgoSession().DB("pushd").C("client_token").Remove(bson.M{"uuid": uuid})
 		return errors.New("Token Illegal")
 	}
 
 	if time.Now().Unix() - expire > 7200 {
-		uuidTokenMap.rmTokenInfo(uuid)
+		db.MgoSession().DB("pushd").C("client_token").Remove(bson.M{"uuid": uuid})
 		return errors.New("Token expired")
 	}
 
@@ -144,8 +148,6 @@ func (this *UuidTokenMap) setTokenInfo(uuid string, token string, expire int64) 
 	info.expire = expire
 	this.uuidToToken.Set(uuid, info)
 
-	db.MgoSession().DB("pushd").C("client_token").RemoveAll(bson.M{"uuid": uuid})
-
 	return db.MgoSession().DB("pushd").C("client_token").
 		Update(bson.M{"tk": token}, bson.M{"$set": bson.M{"uuid": uuid, "expire": expire}})
 
@@ -158,9 +160,5 @@ func (this *UuidTokenMap) rmTokenInfo(uuid string) bool {
 		return false
 	}
 	this.uuidToToken.Remove(uuid)
-	err := db.MgoSession().DB("pushd").C("client_token").Remove(bson.M{"uuid": uuid})
-	if err == nil {
-		return true
-	}
-	return false
+	return true
 }
