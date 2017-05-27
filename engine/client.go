@@ -47,10 +47,17 @@ func (this *Client) Close() {
 	log.Debug("client channels: %s", this.Channels)
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
+	this.Mutex.Lock()
+	defer this.Mutex.Unlock()
+
+	if !this.IsConnected(){
+		return
+	}
 	UnsubscribeAllChannels(this)
 	if this.uuid != "" {
 		UuidToClient.Remove(this.uuid)
+		uuidTokenMap.rmTokenInfo(this.uuid)
 	}
-	uuidTokenMap.rmTokenInfo(this.uuid)
+
 	this.Client.Close()
 }

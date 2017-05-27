@@ -136,15 +136,10 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 		log.Debug("channel %s subscribed by %d clients", channel, clients.Count())
 		for ele := range clients.Iter() {
 			cli := ele.Val.(*Client)
-			cli.Mutex.Lock()
 			if cli.uuid == uuid {
-				cli.Mutex.Unlock()
 				continue
 			}
-			if cli.IsConnected() {
-				go cli.WriteMsg(fmt.Sprintf("%s %s %s %d %d %s",OUTPUT_RCIV, channel, uuid, ts, msgId, msg))
-			}
-			cli.Mutex.Unlock()
+			go cli.WriteMsg(fmt.Sprintf("%s %s %s %d %d %s",OUTPUT_RCIV, channel, uuid, ts, msgId, msg))
 		}
 	}
 
