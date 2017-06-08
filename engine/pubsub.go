@@ -10,6 +10,7 @@ import (
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine/storage"
+	"strconv"
 )
 
 var (
@@ -127,7 +128,7 @@ func UnsubscribeAllChannels(cli *Client) {
 
 func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 	if storage.MsgId.CheckAndSet(uuid, msgId) {
-		return OUTPUT_PUBLISHED
+		return fmt.Sprintf("%s%s", OUTPUT_PUBLISHED, strconv.FormatInt(msgId, 10));
 	}
 
 	clients, exists := PubsubChannels.Get(channel)
@@ -160,7 +161,7 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 			}
 		}
 
-		return OUTPUT_PUBLISHED
+		return fmt.Sprintf("%s%s", OUTPUT_PUBLISHED, strconv.FormatInt(msgId, 10));
 	} else {
 		return ""
 	}
