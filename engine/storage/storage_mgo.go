@@ -91,6 +91,10 @@ func (this *MongoStorage) rmUuidFromChannel(channelId string, uuids ...string) e
 	err := db.MgoSession().DB("pushd").C("channel_uuids").
 		Update(bson.M{"_id": channelId}, bson.M{"$pullAll": bson.M{"uuids": uuids}})
 
+	var emptyUuids []string
+	// delete mutil chat room if has no people
+	db.MgoSession().DB("pushd").C("channel_uuids").Remove(bson.M{"_id":channelId, "uuids": emptyUuids})
+
 	// rm channelId from uuid too
 	if err == nil {
 		bulk := db.MgoSession().DB("pushd").C("uuid_channels").Bulk()

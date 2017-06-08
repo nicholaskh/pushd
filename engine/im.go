@@ -22,13 +22,14 @@ func joinRoom(channelId, uuid string) string {
 	return fmt.Sprintf("%s %s", OUTPUT_JOINROOM, channelId)
 }
 
-func leaveRoom(uuid, channelId string) string {
-	client, exists := UuidToClient.GetClient(uuid)
-	if exists {
-		Unsubscribe(client, channelId)
+func leaveRoom(channelId string, uuids ...string) string {
+	for _, uuid := range uuids {
+		client, exists := UuidToClient.GetClient(uuid)
+		if exists {
+			Unsubscribe(client, channelId)
+		}
 	}
 
-	uuids := []string{uuid}
 	storage.EnqueueChanUuids("", channelId, true, uuids)
 
 	return fmt.Sprintf("%s %s", OUTPUT_LEAVEROOM, channelId)
