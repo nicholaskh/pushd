@@ -24,6 +24,7 @@ type Cmdline struct {
 }
 
 const (
+	CMD_DISOLVE	= "disolve"
 	CMD_UNSUBS 	= "unsubs"
 	CMD_SUBS	= "subs"
 	CMD_APPKEY    = "getappkey"
@@ -239,6 +240,13 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("param wrong")
 		}
 		leaveRoom(params[0], params[1:]...)
+		ret = "success"
+
+	case CMD_DISOLVE:
+		if this.Params == "" {
+			return "", errors.New("param wrong")
+		}
+		disolveRoom(this.Params)
 		ret = "success"
 
 	case CMD_HISTORY:
