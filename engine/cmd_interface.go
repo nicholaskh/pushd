@@ -24,6 +24,7 @@ type Cmdline struct {
 }
 
 const (
+	CMD_UNSUBS 	= "unsubs"
 	CMD_SUBS	= "subs"
 	CMD_APPKEY    = "getappkey"
 	CMD_SENDMSG   = "sendmsg"
@@ -231,6 +232,14 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		ret = fmt.Sprintf("%s success", OUTPUT_SUBS)
+
+	case CMD_UNSUBS:
+		params := strings.Split(this.Params, " ")
+		if len(params) < 2 {
+			return "", errors.New("param wrong")
+		}
+		leaveRoom(params[0], params[1:]...)
+		ret = "success"
 
 	case CMD_HISTORY:
 		//		if !this.Client.IsClient() {
