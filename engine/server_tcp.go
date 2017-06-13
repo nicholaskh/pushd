@@ -54,11 +54,14 @@ func (this *PushdClientProcessor) OnAccept(c *server.Client) {
 			}
 		}
 
-		this.OnRead(client, input)
+		if this.OnRead(client, input) != nil {
+			client.Close()
+			break
+		}
 	}
 }
 
-func (this *PushdClientProcessor) OnRead(client *Client, input []byte) {
+func (this *PushdClientProcessor) OnRead(client *Client, input []byte) (res error) {
 	var (
 		t1      time.Time
 		elapsed time.Duration
@@ -66,8 +69,8 @@ func (this *PushdClientProcessor) OnRead(client *Client, input []byte) {
 
 	t1 = time.Now()
 
-	cl, err := NewCmdline(input, client)
-	if err != nil {
+	cl, res := NewCmdline(input, client)
+	if res != nil {
 		return
 	}
 
@@ -97,6 +100,7 @@ func (this *PushdClientProcessor) OnRead(client *Client, input []byte) {
 	elapsed = time.Since(t1)
 	this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
 	this.serverStats.CallPerSecond.Mark(1)
+	return
 
 }
 
