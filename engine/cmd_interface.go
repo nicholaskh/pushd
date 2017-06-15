@@ -217,6 +217,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 		ret = leaveRoom(this.Client.uuid, roomid2Channelid(params[0]))
 
+    //subs: subscribe from server
 	case CMD_SUBS:
 		params := strings.Split(this.Params, " ")
 		if len(params) < 3 {
