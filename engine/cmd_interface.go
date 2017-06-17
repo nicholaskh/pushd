@@ -20,10 +20,12 @@ import (
 type Cmdline struct {
 	Cmd    string
 	Params string
+	Params2 []byte
 	*Client
 }
 
 const (
+	CMD_VIDO_CHAT	= "vido"
 	CMD_DISOLVE	= "disolve"
 	CMD_UNSUBS 	= "unsubs"
 	CMD_SUBS	= "subs"
@@ -43,6 +45,7 @@ const (
 	CMD_LEAVEROOM = "leave_room"
 
 
+	OUTPUT_VIDO_CHAT	 = "bina"
 	OUTPUT_TOKEN 	           = "TOKEN"
 	OUTPUT_SUBS		    = "SUBS"
 	OUTPUT_AUTH_SERVER        = "AUTHSERVER"
@@ -96,7 +99,11 @@ func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
 			err = errors.New("message has damaged")
 			return
 		}
-		this.Params = string(input[headL+4+4: headL+4+4+bodyL])
+		if this.Cmd == CMD_VIDO_CHAT {
+			this.Params2 = input[headL+4+4: headL+4+4+bodyL]
+		} else {
+			this.Params = string(input[headL+4+4: headL+4+4+bodyL])
+		}
 	}
 
 	this.Client = cli
@@ -140,6 +147,44 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)
+
+	case CMD_VIDO_CHAT:
+		len := 0
+		for i, value := range this.Params2 {
+			if value == ' ' {
+				len = i
+				break
+			}
+		}
+		if len == 0 {
+			return
+		}
+		channelId := string(this.Params2[: len])
+
+		_, exists := this.Client.Channels[channelId]
+		if !exists {
+			Subscribe(this.Client, channelId)
+
+			// force other related online clients to join in this channel
+			var result interface{}
+			err := db.MgoSession().DB("pushd").C("channel_uuids").
+				Find(bson.M{"_id": channelId}).
+				Select(bson.M{"uuids":1, "_id":0}).
+				One(&result)
+
+			if err == nil {
+				uuids := result.(bson.M)["uuids"].([]interface{})
+				for _, uuid := range uuids {
+					tclient, exists := UuidToClient.GetClient(uuid.(string))
+					if exists {
+						Subscribe(tclient, channelId)
+					}
+				}
+			}
+
+		}
+
+		Forward(channelId, this.Client.uuid, this.Params2[len+1:], false)
 
 	case CMD_SUBSCRIBE:
 		//		if !this.Client.IsClient() {

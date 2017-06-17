@@ -11,6 +11,7 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine/storage"
 	"strconv"
+	"bytes"
 )
 
 var (
@@ -165,4 +166,31 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 	} else {
 		return ""
 	}
+}
+
+func Forward(channel, uuid string, msg []byte, fromS2s bool) {
+	clients, exists := PubsubChannels.Get(channel)
+	if exists {
+		// generate binary msg
+		data := bytes.NewBuffer([]byte{})
+
+		data.WriteString(OUTPUT_VIDO_CHAT)
+		data.WriteString(uuid)
+		data.WriteByte(' ')
+		data.WriteString(channel)
+		data.WriteByte(' ')
+		data.Write(msg)
+		resMsg := data.Bytes()
+
+		for ele := range clients.Iter() {
+			cli := ele.Val.(*Client)
+			if cli.uuid == uuid {
+				continue
+			}
+			go cli.WriteBinMsg(resMsg)
+		}
+	}
+
+	//TODO 多节点转发
+
 }

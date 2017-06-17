@@ -7,6 +7,7 @@ import (
 
 func AclCheck(cli *Client, cmd string) (err error) {
 	if !cli.IsClient() &&
+		cmd != CMD_VIDO_CHAT &&
 		cmd != CMD_PING &&
 		cmd != CMD_AUTH_CLIENT &&
 		cmd != CMD_AUTH_SERVER &&
@@ -24,8 +25,13 @@ func AclCheck(cli *Client, cmd string) (err error) {
 
 func TokenCheck(cli *Cmdline) error {
 
-	if cli.Cmd == CMD_PING  || cli.Cmd == CMD_AUTH_CLIENT || cli.Cmd == CMD_AUTH_SERVER ||
-		cli.Cmd == CMD_TOKEN || cli.Cmd == CMD_APPKEY || cli.Cmd == CMD_SETUUID{
+	if cli.Cmd == CMD_PING  ||
+		cli.Cmd == CMD_VIDO_CHAT ||
+		cli.Cmd == CMD_AUTH_CLIENT ||
+		cli.Cmd == CMD_AUTH_SERVER ||
+		cli.Cmd == CMD_TOKEN ||
+		cli.Cmd == CMD_APPKEY ||
+		cli.Cmd == CMD_SETUUID {
 		return nil
 	}
 
