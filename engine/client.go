@@ -3,6 +3,10 @@ package engine
 import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
+	"container/list"
+	"github.com/nicholaskh/pushd/db"
+	"gopkg.in/mgo.v2/bson"
+	"sync"
 )
 
 const (
@@ -15,11 +19,13 @@ type Client struct {
 	Type     uint8
 	*server.Client
 	uuid string
+	ackList *AckList
 }
 
 func NewClient() (this *Client) {
 	this = new(Client)
 	this.Channels = make(map[string]int)
+	this.ackList = NewAckList()
 	return
 }
 
@@ -61,3 +67,54 @@ func (this *Client) Close() {
 
 	this.Client.Close()
 }
+
+func (this *Client) PushMsg(msg , channelId string, msgId, ts int64) {
+	err := this.WriteMsg(msg)
+
+	if err == nil {
+		ele := new(AckListElement)
+		ele.msgId = msgId
+		ele.channelId = channelId
+		ele.ts = ts
+		this.ackList.listLock.Lock()
+		defer this.ackList.listLock.Unlock()
+		this.ackList.PushBack(ele)
+	}
+}
+
+func (this *Client) AckMsg(msgId int64, channelId string) {
+	this.ackList.listLock.Lock()
+	defer this.ackList.listLock.Unlock()
+
+	for e := this.ackList.Front(); e != nil; e = e.Next() {
+		element := e.Value.(*AckListElement)
+		if element.msgId != msgId || element.channelId != channelId{
+			continue
+		}
+
+		this.ackList.List.Remove(e)
+		db.MgoSession().DB("pushd").
+			C("user_channel_stat").
+			Update(
+			bson.M{"_id": this.uuid, element.channelId:bson.M{"$lt": element.ts}},
+			bson.M{"$set": bson.M{element.channelId: element.ts}})
+	}
+}
+
+type AckListElement struct {
+	msgId int64
+	channelId string
+	ts int64
+}
+
+type AckList struct {
+	*list.List
+	listLock sync.Mutex
+}
+
+func NewAckList() (acklist *AckList) {
+	acklist = new(AckList)
+	acklist.List = list.New()
+	return
+}
+

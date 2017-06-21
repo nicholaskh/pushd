@@ -25,6 +25,7 @@ type Cmdline struct {
 }
 
 const (
+	CMD_ACK_MSG	= "ack"
 	CMD_VIDO_CHAT	= "vido"
 	CMD_DISOLVE	= "disolve"
 	CMD_UNSUBS 	= "unsubs"
@@ -185,6 +186,17 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		Forward(channelId, this.Client.uuid, this.Params2[len+1:], false)
+
+	case CMD_ACK_MSG:
+		params := strings.SplitN(this.Params, " ", 2)
+		if len(params) != 2 {
+			return "", errors.New("params number error")
+		}
+		msgId, err := strconv.ParseInt(params[1], 10, 64)
+		if err != nil {
+			return "", errors.New("msgid error")
+		}
+		this.Client.AckMsg(msgId, params[0])
 
 	case CMD_SUBSCRIBE:
 		//		if !this.Client.IsClient() {
