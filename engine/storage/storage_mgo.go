@@ -39,7 +39,7 @@ func (this *MongoStorage) fetchByChannelAndTs(channel string, ts int64) (result 
 	if channel == "" {
 		return nil, errors.New("No channel specified")
 	}
-	err = db.MgoSession().DB("pushd").C("msg_log").Find(bson.M{"ts": bson.M{"$gte": ts}, "channel": channel}).Select(bson.M{"_id": 0}).All(&result)
+	err = db.MgoSession().DB("pushd").C("msg_log").Find(bson.M{"ts": bson.M{"$gt": ts}, "channel": channel}).Select(bson.M{"_id": 0}).All(&result)
 	if err != nil && err != mgo.ErrNotFound {
 		log.Error("fetch messages log from db error: %s", err.Error())
 	}

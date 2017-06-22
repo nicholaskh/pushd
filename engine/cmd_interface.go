@@ -25,6 +25,7 @@ type Cmdline struct {
 }
 
 const (
+	CMD_OFFLINE_MSG	= "ofli_msg"
 	CMD_CREATE_USER	= "user_create"
 	CMD_ACK_MSG	= "ack"
 	CMD_VIDO_CHAT	= "vido"
@@ -47,6 +48,7 @@ const (
 	CMD_LEAVEROOM = "leave_room"
 
 
+	OUTPUT_OFFLIEN_MSG	= "RCIVofms"
 	OUTPUT_VIDO_CHAT	 = "bina"
 	OUTPUT_TOKEN 	           = "TOKEN"
 	OUTPUT_SUBS		    = "SUBS"
@@ -325,6 +327,42 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		return "success", nil
+
+	case CMD_OFFLINE_MSG:
+		coll := db.MgoSession().DB("pushd").C("user_info")
+		var result interface{}
+		coll.FindId(this.Client.uuid).Select(bson.M{"_id":0, "channel_stat":1}).One(&result)
+		if result == nil {
+			return "{}", nil
+		}
+		userInfo := result.(bson.M)
+		channelStat := userInfo["channel_stat"].(bson.M)
+
+		nowTimeStamp := time.Now().UnixNano()
+		updateData := bson.M{}
+
+		data := make(map[string][]interface{})
+		for channel, va := range channelStat {
+			ts := va.(int64)
+			hisRet, err := fullHistory(channel, ts)
+			if err != nil {
+				continue
+			}
+			if len(hisRet) > 0 {
+				data[channel] = hisRet
+				updateKey := fmt.Sprintf("channel_stat.%s", channel)
+				updateData[updateKey] = nowTimeStamp
+			}
+		}
+
+		if len(updateData) > 0 {
+			coll.UpdateId(this.Client.uuid, bson.M{"$set": updateData})
+		}
+
+		var retBytes []byte
+		retBytes, err = json.Marshal(data)
+		ret = fmt.Sprintf("%s %s", OUTPUT_OFFLIEN_MSG, string(retBytes))
+
 
 	case CMD_HISTORY:
 		//		if !this.Client.IsClient() {
