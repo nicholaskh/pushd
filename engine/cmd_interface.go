@@ -25,6 +25,7 @@ type Cmdline struct {
 }
 
 const (
+	CMD_CREATE_USER	= "user_create"
 	CMD_ACK_MSG	= "ack"
 	CMD_VIDO_CHAT	= "vido"
 	CMD_DISOLVE	= "disolve"
@@ -307,6 +308,24 @@ func (this *Cmdline) Process() (ret string, err error) {
 		disolveRoom(this.Params)
 		ret = "success"
 
+	case CMD_CREATE_USER:
+		if this.Params == "" {
+			return "", errors.New("param is empty")
+		}
+		coll := db.MgoSession().DB("pushd").C("user_info")
+
+		var user interface{}
+		coll.FindId(this.Params).One(&user)
+		if user != nil {
+			return "user exists", nil
+		}
+		err := coll.Insert(bson.M{"_id": this.Params, "channel_stat": bson.M{}})
+		if err != nil {
+			return "create error", nil
+		}
+
+		return "success", nil
+
 	case CMD_HISTORY:
 		//		if !this.Client.IsClient() {
 		//			return "", ErrNotPermit
@@ -380,6 +399,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(params) < 2 || params[1] == "" {
 			return "", errors.New("Lack uuid")
 		}
+
 		this.Client.uuid = params[1]
 
 		// clear old client connection

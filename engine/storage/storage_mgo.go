@@ -7,6 +7,8 @@ import (
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"time"
+	"fmt"
 )
 
 type MongoStorage struct {
@@ -66,6 +68,8 @@ func (this *MongoStorage) bindUuidToChannel(channelName, channelId string, uuids
 			Insert(bson.M{"_id": channelId, "channel": channelName, "uuids": uuids})
 	}
 
+	ts := time.Now().UnixNano()
+
 	// bind channelId to uuid too
 	if err == nil {
 		bulk := db.MgoSession().DB("pushd").C("uuid_channels").Bulk()
@@ -73,9 +77,22 @@ func (this *MongoStorage) bindUuidToChannel(channelName, channelId string, uuids
 		for _, v := range uuids {
 			documents = append(documents, bson.M{"_id": v})
 			documents = append(documents, bson.M{"$addToSet": bson.M{"channels": channelId}})
+
 		}
 		bulk.Upsert(documents...)
 		_, err = bulk.Run()
+
+
+		// update user_info collection
+		bulk2 := db.MgoSession().DB("pushd").C("user_info").Bulk()
+		var documents2 []interface{}
+		channelKey := fmt.Sprintf("channel_stat.%s", channelId)
+		for _, v := range uuids {
+			documents2 = append(documents2, bson.M{"_id": v})
+			documents2 = append(documents2, bson.M{"$set": bson.M{channelKey: ts}})
+		}
+		bulk2.Update(documents2...)
+		_, err = bulk2.Run()
 	}
 	return err
 }
@@ -105,6 +122,17 @@ func (this *MongoStorage) rmUuidFromChannel(channelId string, uuids ...string) e
 		}
 		bulk.Update(documents...)
 		_, err = bulk.Run()
+
+		// delete key in channle_stat of user_info
+		bulk2 := db.MgoSession().DB("pushd").C("user_info").Bulk()
+		var documents2 []interface{}
+		channelKey := fmt.Sprintf("channel_stat.%s", channelId)
+		for _, v := range uuids {
+			documents2 = append(documents2, bson.M{"_id": v})
+			documents2 = append(documents2, bson.M{"$unset": bson.M{channelKey: 1}})
+		}
+		bulk2.Update(documents2...)
+		_, err = bulk2.Run()
 	}
 
 	return err

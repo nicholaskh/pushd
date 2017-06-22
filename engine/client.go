@@ -7,6 +7,7 @@ import (
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
 	"sync"
+	"fmt"
 )
 
 const (
@@ -93,11 +94,12 @@ func (this *Client) AckMsg(msgId int64, channelId string) {
 		}
 
 		this.ackList.List.Remove(e)
+		channelKey := fmt.Sprintf("channel_stat.%s", channelId)
 		db.MgoSession().DB("pushd").
-			C("user_channel_stat").
+			C("user_info").
 			Update(
-			bson.M{"_id": this.uuid, element.channelId:bson.M{"$lt": element.ts}},
-			bson.M{"$set": bson.M{element.channelId: element.ts}})
+			bson.M{"_id": this.uuid, channelKey: bson.M{"$lt": element.ts}},
+			bson.M{"$set": bson.M{channelKey: element.ts}})
 	}
 }
 
