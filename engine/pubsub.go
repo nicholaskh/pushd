@@ -12,6 +12,8 @@ import (
 	"github.com/nicholaskh/pushd/engine/storage"
 	"strconv"
 	"bytes"
+	"github.com/nicholaskh/pushd/db"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var (
@@ -150,6 +152,13 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 	if !fromS2s && config.PushdConf.EnableStorage() {
 		storage.EnqueueMsg(channel, msg, uuid, ts, msgId)
 	}
+
+	channelKey := fmt.Sprintf("channel_stat.%s", channel)
+	db.MgoSession().DB("pushd").
+		C("user_info").
+		Update(
+		bson.M{"_id": uuid},
+		bson.M{"$set": bson.M{channelKey: ts}})
 
 	if !fromS2s {
 		//s2s

@@ -16,6 +16,7 @@ func AclCheck(cli *Client, cmd string) (err error) {
 		cmd != CMD_TOKEN &&
 		cmd != CMD_APPKEY &&
 		cmd != CMD_DISOLVE &&
+		cmd != CMD_CREATE_USER &&
 		!cli.IsServer() {
 		return errors.New("Need Auth first")
 	}
