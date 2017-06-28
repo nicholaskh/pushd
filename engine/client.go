@@ -69,8 +69,9 @@ func (this *Client) Close() {
 	this.Client.Close()
 }
 
-func (this *Client) PushMsg(msg , channelId string, msgId, ts int64) {
-	err := this.WriteMsg(msg)
+
+func (this *Client) PushMsg(op, msg , channelId string, msgId, ts int64) {
+	err := this.WriteFormatMsg(op, msg)
 
 	if err == nil {
 		ele := new(AckListElement)
