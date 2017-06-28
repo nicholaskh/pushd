@@ -130,9 +130,6 @@ func UnsubscribeAllChannels(cli *Client) {
 }
 
 func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
-	if storage.MsgId.CheckAndSet(uuid, msgId) {
-		return fmt.Sprintf("%s%s %d", OUTPUT_PUBLISHED, strconv.FormatInt(msgId, 10), time.Now().UnixNano());
-	}
 
 	clients, exists := PubsubChannels.Get(channel)
 	ts := time.Now().UnixNano()

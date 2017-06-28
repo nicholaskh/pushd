@@ -150,6 +150,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("msgid error")
 		}
 
+		if this.Client.msgIdCache.CheckAndSet(msgId) {
+			ret = fmt.Sprintf("%s%d %d", OUTPUT_PUBLISHED, msgId, time.Now().UnixNano());
+			return ret, nil
+		}
+
 		ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)
 
 	case CMD_VIDO_CHAT:
@@ -222,6 +227,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 			if err != nil {
 				return "", errors.New("msgid error")
 			}
+
+			if this.Client.msgIdCache.CheckAndSet(msgId) {
+				ret = fmt.Sprintf("%s%d %d", OUTPUT_PUBLISHED, msgId, time.Now().UnixNano());
+				return ret, nil
+			}
+
 			ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)
 		}
 

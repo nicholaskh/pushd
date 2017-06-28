@@ -22,12 +22,14 @@ type Client struct {
 	uuid string
 	ackList *AckList
 	tokenInfo TokenInfo
+	msgIdCache MsgIdCache
 }
 
 func NewClient() (this *Client) {
 	this = new(Client)
 	this.Channels = make(map[string]int)
 	this.ackList = NewAckList()
+	this.msgIdCache = NewMsgIdCashe()
 	return
 }
 
@@ -141,4 +143,25 @@ type TokenInfo struct {
 	expire int64
 }
 
+type MsgIdCache struct {
+	*list.List
+}
 
+func NewMsgIdCashe() MsgIdCache {
+	return MsgIdCache{list.New()}
+}
+
+func (this MsgIdCache) CheckAndSet(msgId int64) bool {
+	for e := this.Front(); e != nil; e = e.Next() {
+		if e.Value == nil {
+			continue
+		} else if e.Value.(int64) == msgId {
+			return true
+		}
+	}
+
+	this.PushFront(msgId)
+	this.Remove(this.Back())
+	return false
+
+}
