@@ -447,7 +447,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 				oldClient.Close()
 			}
 		}
-		uuidTokenMap.setTokenInfo(params[1], params[0], time.Now().Unix())
+
+		// set token
+		this.Client.initToken(params[0], time.Now().Unix())
+
+		// make uuit to this client mapping
 		UuidToClient.AddClient(params[1], this.Client)
 
 		// check and force client to subscribe related and active channels

@@ -21,6 +21,7 @@ type Client struct {
 	*server.Client
 	uuid string
 	ackList *AckList
+	tokenInfo TokenInfo
 }
 
 func NewClient() (this *Client) {
@@ -63,7 +64,6 @@ func (this *Client) Close() {
 	UnsubscribeAllChannels(this)
 	if this.uuid != "" {
 		UuidToClient.Remove(this.uuid)
-		uuidTokenMap.rmTokenInfo(this.uuid)
 	}
 
 	this.Client.Close()
@@ -105,6 +105,20 @@ func (this *Client) AckMsg(msgId int64, channelId string) {
 	}
 }
 
+func (this *Client) initToken(token string, expire int64) {
+	this.tokenInfo.token = token
+	this.tokenInfo.expire = expire
+
+	db.MgoSession().DB("pushd").C("client_token").
+		Update(bson.M{"tk": token}, bson.M{"$set": bson.M{"uuid": this.uuid, "expire": expire}})
+}
+
+func (this *Client) updateTokenExpire(expire int64) {
+	this.tokenInfo.expire = expire
+	db.MgoSession().DB("pushd").C("client_token").UpdateId(this.uuid, bson.M{"expire": expire})
+
+}
+
 type AckListElement struct {
 	msgId int64
 	channelId string
@@ -121,4 +135,10 @@ func NewAckList() (acklist *AckList) {
 	acklist.List = list.New()
 	return
 }
+
+type TokenInfo struct {
+	token string
+	expire int64
+}
+
 

@@ -42,7 +42,7 @@ func TokenCheck(cli *Cmdline) error {
 	}
 
 	if cli.Client.IsClient() {
-		err := checkClientToken(cli.Client.uuid, temp[0])
+		err := checkClientToken(cli.Client, temp[0])
 		if err != nil {
 			cli.Client.ClearIdentity()
 			return err
