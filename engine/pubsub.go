@@ -143,7 +143,7 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 			if cli.uuid == uuid {
 				continue
 			}
-			go cli.PushMsg(fmt.Sprintf("%s %s %s %d %d %s",OUTPUT_RCIV, channel, uuid, ts, msgId, msg),
+			go cli.PushMsg(OUTPUT_RCIV, fmt.Sprintf("%s %s %s %d %d %s",OUTPUT_RCIV, channel, uuid, ts, msgId, msg),
 				channel, msgId, ts)
 		}
 	}
