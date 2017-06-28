@@ -88,6 +88,7 @@ func (this *Client) AckMsg(msgId int64, channelId string) {
 	this.ackList.listLock.Lock()
 	defer this.ackList.listLock.Unlock()
 
+	log.Info(fmt.Sprintf("log ack:channel:%s msgid:%d", channelId, msgId))
 	for e := this.ackList.Front(); e != nil; e = e.Next() {
 		element := e.Value.(*AckListElement)
 		if element.msgId != msgId || element.channelId != channelId{
