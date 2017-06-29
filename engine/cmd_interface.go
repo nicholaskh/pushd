@@ -48,7 +48,6 @@ const (
 	CMD_LEAVEROOM = "leave_room"
 
 
-	OUTPUT_OFFLIEN_MSG	= "RCIVofms"
 	OUTPUT_VIDO_CHAT	 = "bina"
 	OUTPUT_TOKEN 	           = "TOKEN"
 	OUTPUT_SUBS		    = "SUBS"
@@ -57,7 +56,6 @@ const (
 	OUTPUT_APPKEY             = "APPKEY"
 	OUTPUT_SUBSCRIBED         = "SUBSCRIBED"
 	OUTPUT_ALREADY_SUBSCRIBED = "ALREADY SUBSCRIBED"
-	OUTPUT_PUBLISHED          = "PUBLISHED"
 	OUTPUT_NOT_SUBSCRIBED     = "NOT SUBSCRIBED"
 	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
 	OUTPUT_PONG               = "pong"
@@ -151,7 +149,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		if this.Client.msgIdCache.CheckAndSet(msgId) {
-			ret = fmt.Sprintf("%s%d %d", OUTPUT_PUBLISHED, msgId, time.Now().UnixNano());
+			ret = fmt.Sprintf("%d %d", msgId, time.Now().UnixNano());
 			return ret, nil
 		}
 
@@ -229,7 +227,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 
 			if this.Client.msgIdCache.CheckAndSet(msgId) {
-				ret = fmt.Sprintf("%s%d %d", OUTPUT_PUBLISHED, msgId, time.Now().UnixNano());
+				ret = fmt.Sprintf("%d %d", msgId, time.Now().UnixNano());
 				return ret, nil
 			}
 
@@ -372,7 +370,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		var retBytes []byte
 		retBytes, err = json.Marshal(data)
-		ret = fmt.Sprintf("%s %s", OUTPUT_OFFLIEN_MSG, string(retBytes))
+		ret = string(retBytes)
 
 
 	case CMD_HISTORY:

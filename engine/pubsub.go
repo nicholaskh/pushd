@@ -170,7 +170,7 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 			}
 		}
 
-		return fmt.Sprintf("%s%s %d", OUTPUT_PUBLISHED, strconv.FormatInt(msgId, 10), ts);
+		return fmt.Sprintf("%s %d", strconv.FormatInt(msgId, 10), ts);
 	} else {
 		return ""
 	}
