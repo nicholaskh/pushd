@@ -130,9 +130,6 @@ func UnsubscribeAllChannels(cli *Client) {
 }
 
 func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
-	if storage.MsgId.CheckAndSet(uuid, msgId) {
-		return fmt.Sprintf("%s%s %d", OUTPUT_PUBLISHED, strconv.FormatInt(msgId, 10), time.Now().UnixNano());
-	}
 
 	clients, exists := PubsubChannels.Get(channel)
 	ts := time.Now().UnixNano()
@@ -143,6 +140,7 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 			if cli.uuid == uuid {
 				continue
 			}
+			log.Info(fmt.Sprintf("log push: %s -> %s, channle:%s msgId:%d content:%s", uuid, cli.uuid, channel, msgId, msg))
 			go cli.PushMsg(OUTPUT_RCIV, fmt.Sprintf("%s %s %s %d %d %s",OUTPUT_RCIV, channel, uuid, ts, msgId, msg),
 				channel, msgId, ts)
 		}
@@ -172,7 +170,7 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 			}
 		}
 
-		return fmt.Sprintf("%s%s %d", OUTPUT_PUBLISHED, strconv.FormatInt(msgId, 10), ts);
+		return fmt.Sprintf("%s %d", strconv.FormatInt(msgId, 10), ts);
 	} else {
 		return ""
 	}

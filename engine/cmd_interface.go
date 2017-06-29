@@ -48,7 +48,6 @@ const (
 	CMD_LEAVEROOM = "leave_room"
 
 
-	OUTPUT_OFFLIEN_MSG	= "RCIVofms"
 	OUTPUT_VIDO_CHAT	 = "bina"
 	OUTPUT_TOKEN 	           = "TOKEN"
 	OUTPUT_SUBS		    = "SUBS"
@@ -57,7 +56,6 @@ const (
 	OUTPUT_APPKEY             = "APPKEY"
 	OUTPUT_SUBSCRIBED         = "SUBSCRIBED"
 	OUTPUT_ALREADY_SUBSCRIBED = "ALREADY SUBSCRIBED"
-	OUTPUT_PUBLISHED          = "PUBLISHED"
 	OUTPUT_NOT_SUBSCRIBED     = "NOT SUBSCRIBED"
 	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
 	OUTPUT_PONG               = "pong"
@@ -150,6 +148,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("msgid error")
 		}
 
+		if this.Client.msgIdCache.CheckAndSet(msgId) {
+			ret = fmt.Sprintf("%d %d", msgId, time.Now().UnixNano());
+			return ret, nil
+		}
+
 		ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)
 
 	case CMD_VIDO_CHAT:
@@ -222,6 +225,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 			if err != nil {
 				return "", errors.New("msgid error")
 			}
+
+			if this.Client.msgIdCache.CheckAndSet(msgId) {
+				ret = fmt.Sprintf("%d %d", msgId, time.Now().UnixNano());
+				return ret, nil
+			}
+
 			ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)
 		}
 
@@ -361,7 +370,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		var retBytes []byte
 		retBytes, err = json.Marshal(data)
-		ret = fmt.Sprintf("%s %s", OUTPUT_OFFLIEN_MSG, string(retBytes))
+		ret = string(retBytes)
 
 
 	case CMD_HISTORY:
@@ -447,7 +456,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 				oldClient.Close()
 			}
 		}
-		uuidTokenMap.setTokenInfo(params[1], params[0], time.Now().Unix())
+
+		// set token
+		this.Client.initToken(params[0], time.Now().Unix())
+
+		// make uuit to this client mapping
 		UuidToClient.AddClient(params[1], this.Client)
 
 		// check and force client to subscribe related and active channels

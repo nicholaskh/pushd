@@ -11,17 +11,12 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/nicholaskh/golib/concurrent/map"
 )
 
 var (
 	loginUsers *cache.LruCache = cache.NewLruCache(200000) //username => 1
-	uuidTokenMap *UuidTokenMap
 )
 
-func InitAuth(){
-	uuidTokenMap = newUuidTokenMap()
-}
 
 //Auth for client
 func authClient(token string) (string, error) {
@@ -54,23 +49,22 @@ func checkServerToken(token string) bool {
 	return true
 }
 
-func checkClientToken(uuid, tokenChecking string) error {
-	token, expire, exists := uuidTokenMap.getTokenInfo(uuid)
-	if !exists{
+func checkClientToken(client *Client, tokenChecking string) error {
+	if client.tokenInfo.token == ""{
 		return errors.New("Token Illegal")
 	}
 
-	if token != tokenChecking {
-		db.MgoSession().DB("pushd").C("client_token").Remove(bson.M{"uuid": uuid})
+	if client.tokenInfo.token != tokenChecking {
+		db.MgoSession().DB("pushd").C("client_token").Remove(bson.M{"uuid": client.uuid})
 		return errors.New("Token Illegal")
 	}
 
-	if time.Now().Unix() - expire > 7200 {
-		db.MgoSession().DB("pushd").C("client_token").Remove(bson.M{"uuid": uuid})
+	if time.Now().Unix() - client.tokenInfo.expire > 7200 {
+		db.MgoSession().DB("pushd").C("client_token").Remove(bson.M{"uuid": client.uuid})
 		return errors.New("Token expired")
 	}
 
-	uuidTokenMap.updateExpire(uuid, time.Now().Unix())
+	client.updateTokenExpire(time.Now().Unix())
 	return nil
 }
 
@@ -108,57 +102,3 @@ func getAppKey() string {
 	return appkey
 }
 
-type tokenInfo struct {
-	token string
-	expire int64
-}
-
-type UuidTokenMap struct {
-	uuidToToken cmap.ConcurrentMap
-}
-
-func newUuidTokenMap() (this *UuidTokenMap) {
-	this = new(UuidTokenMap)
-	this.uuidToToken = cmap.New()
-	return
-}
-
-func (this *UuidTokenMap) getTokenInfo(uuid string) (token string, expire int64, exists bool) {
-	info, exists := this.uuidToToken.Get(uuid)
-	if exists {
-		tnfo := info.(*tokenInfo)
-		token = tnfo.token
-		expire = tnfo.expire
-	}
-
-	return
-}
-
-func (this *UuidTokenMap) updateExpire(uuid string, expire int64) {
-	info, exists := this.uuidToToken.Get(uuid)
-	if exists {
-		info.(*tokenInfo).expire = expire
-		db.MgoSession().DB("pushd").C("client_token").UpdateId(uuid, bson.M{"expire": expire})
-	}
-}
-
-func (this *UuidTokenMap) setTokenInfo(uuid string, token string, expire int64) error {
-	info := new(tokenInfo)
-	info.token = token
-	info.expire = expire
-	this.uuidToToken.Set(uuid, info)
-
-	return db.MgoSession().DB("pushd").C("client_token").
-		Update(bson.M{"tk": token}, bson.M{"$set": bson.M{"uuid": uuid, "expire": expire}})
-
-}
-
-func (this *UuidTokenMap) rmTokenInfo(uuid string) bool {
-
-	exists := this.uuidToToken.Has(uuid)
-	if !exists {
-		return false
-	}
-	this.uuidToToken.Remove(uuid)
-	return true
-}

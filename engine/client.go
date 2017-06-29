@@ -21,12 +21,15 @@ type Client struct {
 	*server.Client
 	uuid string
 	ackList *AckList
+	tokenInfo TokenInfo
+	msgIdCache MsgIdCache
 }
 
 func NewClient() (this *Client) {
 	this = new(Client)
 	this.Channels = make(map[string]int)
 	this.ackList = NewAckList()
+	this.msgIdCache = NewMsgIdCashe()
 	return
 }
 
@@ -63,7 +66,6 @@ func (this *Client) Close() {
 	UnsubscribeAllChannels(this)
 	if this.uuid != "" {
 		UuidToClient.Remove(this.uuid)
-		uuidTokenMap.rmTokenInfo(this.uuid)
 	}
 
 	this.Client.Close()
@@ -88,6 +90,7 @@ func (this *Client) AckMsg(msgId int64, channelId string) {
 	this.ackList.listLock.Lock()
 	defer this.ackList.listLock.Unlock()
 
+	log.Info(fmt.Sprintf("log ack:channel:%s msgid:%d", channelId, msgId))
 	for e := this.ackList.Front(); e != nil; e = e.Next() {
 		element := e.Value.(*AckListElement)
 		if element.msgId != msgId || element.channelId != channelId{
@@ -102,6 +105,20 @@ func (this *Client) AckMsg(msgId int64, channelId string) {
 			bson.M{"_id": this.uuid, channelKey: bson.M{"$lt": element.ts}},
 			bson.M{"$set": bson.M{channelKey: element.ts}})
 	}
+}
+
+func (this *Client) initToken(token string, expire int64) {
+	this.tokenInfo.token = token
+	this.tokenInfo.expire = expire
+
+	db.MgoSession().DB("pushd").C("client_token").
+		Update(bson.M{"tk": token}, bson.M{"$set": bson.M{"uuid": this.uuid, "expire": expire}})
+}
+
+func (this *Client) updateTokenExpire(expire int64) {
+	this.tokenInfo.expire = expire
+	db.MgoSession().DB("pushd").C("client_token").UpdateId(this.uuid, bson.M{"expire": expire})
+
 }
 
 type AckListElement struct {
@@ -121,3 +138,30 @@ func NewAckList() (acklist *AckList) {
 	return
 }
 
+type TokenInfo struct {
+	token string
+	expire int64
+}
+
+type MsgIdCache struct {
+	*list.List
+}
+
+func NewMsgIdCashe() MsgIdCache {
+	return MsgIdCache{list.New()}
+}
+
+func (this MsgIdCache) CheckAndSet(msgId int64) bool {
+	for e := this.Front(); e != nil; e = e.Next() {
+		if e.Value == nil {
+			continue
+		} else if e.Value.(int64) == msgId {
+			return true
+		}
+	}
+
+	this.PushFront(msgId)
+	this.Remove(this.Back())
+	return false
+
+}
