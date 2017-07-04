@@ -146,7 +146,11 @@ type MsgIdCache struct {
 }
 
 func NewMsgIdCashe() MsgIdCache {
-	return MsgIdCache{list.New()}
+	caches := MsgIdCache{list.New()}
+	for i:=int64(0);i<10;i++ {
+		caches.PushFront(i)
+	}
+	return caches
 }
 
 func (this MsgIdCache) CheckAndSet(msgId int64) bool {
