@@ -489,6 +489,31 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 		}
 
+		// cashe in last msgid
+		coll := db.MgoSession().DB("pushd").C("user_info")
+
+		coll.FindId(this.Client.uuid).Select(bson.M{"_id":0, "channel_stat":1}).One(&result)
+		if result != nil {
+			userInfo := result.(bson.M)
+			channelStat := userInfo["channel_stat"].(bson.M)
+			maxTs := int64(0)
+			hitChannle := ""
+			for channel, va := range channelStat {
+				ts := va.(int64)
+				if ts > maxTs {
+					maxTs = ts
+					hitChannle = channel
+				}
+			}
+			if maxTs > 0 {
+				db.MgoSession().DB("pushd").C("msg_log").Find(bson.M{"channel": hitChannle, "ts": maxTs}).
+					Select(bson.M{"_id":0,"msgid":1}).One(&result)
+				if result != nil {
+					this.Client.msgIdCache.CheckAndSet(result.(bson.M)["msgid"].(int64))
+				}
+			}
+		}
+
 		ret = "uuid saved"
 		err = nil
 
