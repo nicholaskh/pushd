@@ -11,7 +11,6 @@ import (
 	"github.com/nicholaskh/pushd/engine/storage"
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/nicholaskh/pushd/config"
 	"time"
 	"bytes"
 	"encoding/binary"
@@ -347,9 +346,6 @@ func (this *Cmdline) Process() (ret string, err error) {
 		userInfo := result.(bson.M)
 		channelStat := userInfo["channel_stat"].(bson.M)
 
-		nowTimeStamp := time.Now().UnixNano()
-		updateData := bson.M{}
-
 		data := make(map[string][]interface{})
 		for channel, va := range channelStat {
 			ts := va.(int64)
@@ -359,13 +355,13 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 			if len(hisRet) > 0 {
 				data[channel] = hisRet
-				updateKey := fmt.Sprintf("channel_stat.%s", channel)
-				updateData[updateKey] = nowTimeStamp
+				for _, msg := range hisRet {
+					msgInfo := msg.(bson.M)
+					msgid := msgInfo["msgid"].(int64)
+					ts := msgInfo["ts"].(int64)
+					this.Client.ackList.push(channel, ts, msgid)
+				}
 			}
-		}
-
-		if len(updateData) > 0 {
-			coll.UpdateId(this.Client.uuid, bson.M{"$set": updateData})
 		}
 
 		var retBytes []byte
@@ -438,6 +434,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 			ret, err = authClient(params[0])
 			if err == nil {
 				this.Client.SetClient()
+				// set token
+				this.Client.initToken(params[0], time.Now().UnixNano())
 			}
 		}
 
@@ -446,74 +444,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(params) < 2 || params[1] == "" {
 			return "", errors.New("Lack uuid")
 		}
-
-		this.Client.uuid = params[1]
-
-		// clear old client connection
-		oldClient, exi := UuidToClient.GetClient(params[1])
-		if exi {
-			if this.Client != oldClient{
-				oldClient.Close()
-			}
-		}
-
-		// set token
-		this.Client.initToken(params[0], time.Now().Unix())
-
-		// make uuit to this client mapping
-		UuidToClient.AddClient(params[1], this.Client)
-
-		// check and force client to subscribe related and active channels
-		var result interface{}
-		err := db.MgoSession().DB("pushd").C("uuid_channels").
-			Find(bson.M{"_id": params[1]}).
-			Select(bson.M{"_id": 0, "channels": 1}).
-			One(&result)
-
-		if err == nil {
-			channels := result.(bson.M)["channels"].([]interface{})
-			for _, value := range channels {
-				channel := value.(string)
-				// check native
-				_, exists := PubsubChannels.Get(channel)
-				if !exists {
-					// check other nodes
-					if config.PushdConf.IsDistMode() {
-						_, exists = Proxy.Router.LookupPeersByChannel(channel)
-					}
-				}
-
-				if exists {
-					Subscribe(this.Client, channel)
-				}
-			}
-		}
-
-		// cashe in last msgid
-		coll := db.MgoSession().DB("pushd").C("user_info")
-
-		coll.FindId(this.Client.uuid).Select(bson.M{"_id":0, "channel_stat":1}).One(&result)
-		if result != nil {
-			userInfo := result.(bson.M)
-			channelStat := userInfo["channel_stat"].(bson.M)
-			maxTs := int64(0)
-			hitChannle := ""
-			for channel, va := range channelStat {
-				ts := va.(int64)
-				if ts > maxTs {
-					maxTs = ts
-					hitChannle = channel
-				}
-			}
-			if maxTs > 0 {
-				db.MgoSession().DB("pushd").C("msg_log").Find(bson.M{"channel": hitChannle, "ts": maxTs}).
-					Select(bson.M{"_id":0,"msgid":1}).One(&result)
-				if result != nil {
-					this.Client.msgIdCache.CheckAndSet(result.(bson.M)["msgid"].(int64))
-				}
-			}
-		}
-
+		this.Client.initChatEnv(params[1])
 		ret = "uuid saved"
 		err = nil
 

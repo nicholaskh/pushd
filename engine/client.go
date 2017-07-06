@@ -8,6 +8,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"sync"
 	"fmt"
+	"github.com/nicholaskh/pushd/config"
 )
 
 const (
@@ -74,13 +75,7 @@ func (this *Client) PushMsg(op, msg , channelId string, msgId, ts int64) {
 	err := this.WriteFormatMsg(op, msg)
 
 	if err == nil {
-		ele := new(AckListElement)
-		ele.msgId = msgId
-		ele.channelId = channelId
-		ele.ts = ts
-		this.ackList.listLock.Lock()
-		defer this.ackList.listLock.Unlock()
-		this.ackList.PushBack(ele)
+		this.ackList.push(channelId, msgId, ts)
 	}
 }
 
@@ -109,14 +104,85 @@ func (this *Client) initToken(token string, expire int64) {
 	this.tokenInfo.token = token
 	this.tokenInfo.expire = expire
 
+	//TODO is it neccesary to synchronize to database
 	db.MgoSession().DB("pushd").C("client_token").
 		Update(bson.M{"tk": token}, bson.M{"$set": bson.M{"uuid": this.uuid, "expire": expire}})
 }
 
 func (this *Client) updateTokenExpire(expire int64) {
 	this.tokenInfo.expire = expire
+	//TODO is it neccesary to synchronize to database
 	db.MgoSession().DB("pushd").C("client_token").UpdateId(this.uuid, bson.M{"expire": expire})
 
+}
+
+func (this *Client) initChatEnv(uuid string) {
+
+	this.uuid = uuid
+
+	// clear old client connection
+	oldClient, exi := UuidToClient.GetClient(uuid)
+	if exi {
+		if this != oldClient{
+			oldClient.Close()
+		}
+	}
+
+	// cache last msgid and push all offline messsage that are relevant to the user
+	var result interface{}
+	coll := db.MgoSession().DB("pushd").C("user_info")
+	coll.FindId(uuid).Select(bson.M{"_id":0, "channel_stat":1}).One(&result)
+	if result != nil {
+		// cache last msgid
+		userInfo := result.(bson.M)
+		channelStat := userInfo["channel_stat"].(bson.M)
+		maxTs := int64(0)
+		hitChannle := ""
+		for channel, va := range channelStat {
+			ts := va.(int64)
+			if ts > maxTs {
+				maxTs = ts
+				hitChannle = channel
+			}
+		}
+		if maxTs > 0 {
+			db.MgoSession().DB("pushd").C("msg_log").Find(bson.M{"channel": hitChannle, "ts": maxTs}).
+				Select(bson.M{"_id":0,"msgid":1}).One(&result)
+			if result != nil {
+				if result.(bson.M)["msgid"] != nil {
+					this.msgIdCache.CheckAndSet(result.(bson.M)["msgid"].(int64))
+				}
+			}
+		}
+	}
+
+	// store relate of uuid and client to table of mapping
+	UuidToClient.AddClient(uuid, this)
+
+	// check and force client to subscribe related and active channels
+	err := db.MgoSession().DB("pushd").C("uuid_channels").
+		Find(bson.M{"_id": uuid}).
+		Select(bson.M{"_id": 0, "channels": 1}).
+		One(&result)
+
+	if err == nil {
+		channels := result.(bson.M)["channels"].([]interface{})
+		for _, value := range channels {
+			channel := value.(string)
+			// check native
+			_, exists := PubsubChannels.Get(channel)
+			if !exists {
+				// check other nodes
+				if config.PushdConf.IsDistMode() {
+					_, exists = Proxy.Router.LookupPeersByChannel(channel)
+				}
+			}
+
+			if exists {
+				Subscribe(this, channel)
+			}
+		}
+	}
 }
 
 type AckListElement struct {
@@ -134,6 +200,16 @@ func NewAckList() (acklist *AckList) {
 	acklist = new(AckList)
 	acklist.List = list.New()
 	return
+}
+
+func (this *AckList)push(channelId string, ts, msgId int64) {
+	ele := new(AckListElement)
+	ele.msgId = msgId
+	ele.channelId = channelId
+	ele.ts = ts
+	this.listLock.Lock()
+	defer this.listLock.Unlock()
+	this.PushBack(ele)
 }
 
 type TokenInfo struct {
