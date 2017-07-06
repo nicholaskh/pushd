@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
+	"encoding/binary"
 )
 
 var (
@@ -182,14 +183,35 @@ func Forward(channel, uuid string, msg []byte, fromS2s bool) {
 		// generate binary msg
 		data := bytes.NewBuffer([]byte{})
 
-		data.WriteString(OUTPUT_VIDO_CHAT)
-		data.WriteString(uuid)
-		data.WriteByte(' ')
-		data.WriteString(channel)
-		data.WriteByte(' ')
-		data.Write(msg)
+		opBytes := []byte(CMD_VIDO_CHAT)
+		// write op to data
+		buf := bytes.NewBuffer([]byte{})
+		binary.Write(buf, binary.BigEndian, int32(len(opBytes)))
+		data.Write(buf.Bytes())
+
+		buf.Reset()
+		binary.Write(buf, binary.BigEndian, opBytes)
+		data.Write(buf.Bytes())
+
+		// write body to data
+		body := bytes.NewBuffer([]byte{})
+		body.WriteString(uuid)
+		body.WriteByte(' ')
+		body.WriteString(channel)
+		body.WriteByte(' ')
+		body.Write(msg)
+
+		buf.Reset()
+		binary.Write(buf, binary.BigEndian, int32(body.Len()))
+		data.Write(buf.Bytes())
+
+		buf.Reset()
+		binary.Write(buf, binary.BigEndian, body.Bytes())
+		data.Write(buf.Bytes())
+
 		resMsg := data.Bytes()
 
+		// send to clients
 		for ele := range clients.Iter() {
 			cli := ele.Val.(*Client)
 			if cli.uuid == uuid {
