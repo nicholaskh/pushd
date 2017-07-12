@@ -75,7 +75,7 @@ func (this *Client) PushMsg(op, msg , channelId string, msgId, ts int64) {
 	err := this.WriteFormatMsg(op, msg)
 
 	if err == nil {
-		this.ackList.push(channelId, msgId, ts)
+		this.ackList.push(channelId, ts, msgId)
 	}
 }
 
