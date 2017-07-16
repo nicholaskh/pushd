@@ -95,7 +95,7 @@ func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
 		b_buf = bytes.NewBuffer(input[headL+4: headL+4+4])
 		binary.Read(b_buf, binary.BigEndian, &headerLen)
 		bodyL := int(headerLen)
-		if len(input) < headL + 4 + 4 + bodyL {
+		if len(input) != headL + 4 + 4 + bodyL {
 			this = nil
 			err = errors.New("message has damaged")
 			return
