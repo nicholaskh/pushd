@@ -162,11 +162,17 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 	if !fromS2s {
 		//s2s
 		if config.PushdConf.IsDistMode() {
-			var peers set.Set
-			peers, exists = Proxy.Router.LookupPeersByChannel(channel)
+			peers, exists := Proxy.Router.LookupPeersByChannel(channel)
 			log.Debug("now peers %s", peers)
 
 			if exists {
+				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts, msgId)
+			} else {
+				// boradcast to every node
+				peers = set.NewSet()
+				for _, v := range Proxy.Router.Peers {
+					peers.Add(v)
+				}
 				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts, msgId)
 			}
 		}

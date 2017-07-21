@@ -6,10 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/mgo.v2/bson"
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"strconv"
+	"github.com/nicholaskh/pushd/db"
 )
 
 type S2sClientProcessor struct {
@@ -78,7 +80,34 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 
 	case S2S_SUB_CMD:
 		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params)
+
+		_, exists := Proxy.Router.LookupPeersByChannel(cl.Params)
+		if exists {
+			return nil
+		}
 		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params)
+
+		_, exists = PubsubChannels.Get(cl.Params)
+		if exists {
+			return nil
+		}
+
+		// force local clients to join in this channel
+		var result interface{}
+		err := db.MgoSession().DB("pushd").C("channel_uuids").
+			Find(bson.M{"_id": cl.Params}).
+			Select(bson.M{"uuids":1, "_id":0}).
+			One(&result)
+
+		if err == nil {
+			uuids := result.(bson.M)["uuids"].([]interface{})
+			for _, uuid := range uuids {
+				tclient, exists := UuidToClient.GetClient(uuid.(string))
+				if exists {
+					Subscribe(tclient, cl.Params)
+				}
+			}
+		}
 
 	case S2S_UNSUB_CMD:
 		log.Debug("Remote addr %s unsub: %s", client.RemoteAddr(), cl.Params)
