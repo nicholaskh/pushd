@@ -60,7 +60,18 @@ func (this *UuidClientMap) GetClient(uuid string) (client *Client, exists bool) 
 	return
 }
 
-func (this *UuidClientMap) Remove(uuid string) {
+func (this *UuidClientMap) Remove(uuid string, client *Client) {
+	cli, exists := this.GetClient(uuid)
+	if !exists {
+		return
+	}
+	cli.Mutex.Lock()
+	defer cli.Mutex.Unlock()
+
+	cli, _ = this.GetClient(uuid)
+	if cli != client {
+		return
+	}
 	this.uuidToClient.Remove(uuid)
 }
 

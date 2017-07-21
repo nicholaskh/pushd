@@ -58,15 +58,8 @@ func (this *Client) Close() {
 	log.Debug("client channels: %s", this.Channels)
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
-	this.Mutex.Lock()
-	cli, exist := UuidToClient.GetClient(this.uuid)
-	if !exist || cli != this{
-		return
-	}
 	UnsubscribeAllChannels(this)
-	UuidToClient.Remove(this.uuid)
-	this.Mutex.Unlock()
-
+	UuidToClient.Remove(this.uuid, this)
 	this.Client.Close()
 }
 
@@ -120,14 +113,6 @@ func (this *Client) initChatEnv(uuid string) {
 
 	this.uuid = uuid
 
-	// clear old client connection
-	oldClient, exi := UuidToClient.GetClient(uuid)
-	if exi {
-		if this != oldClient{
-			oldClient.Close()
-		}
-	}
-
 	// cache last msgid and push all offline messsage that are relevant to the user
 	var result interface{}
 	coll := db.MgoSession().DB("pushd").C("user_info")
@@ -156,6 +141,7 @@ func (this *Client) initChatEnv(uuid string) {
 		}
 	}
 
+	UuidToClient.Remove(uuid, this)
 	// store relate of uuid and client to table of mapping
 	UuidToClient.AddClient(uuid, this)
 
