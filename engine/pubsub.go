@@ -60,7 +60,18 @@ func (this *UuidClientMap) GetClient(uuid string) (client *Client, exists bool) 
 	return
 }
 
-func (this *UuidClientMap) Remove(uuid string) {
+func (this *UuidClientMap) Remove(uuid string, client *Client) {
+	cli, exists := this.GetClient(uuid)
+	if !exists {
+		return
+	}
+	cli.Mutex.Lock()
+	defer cli.Mutex.Unlock()
+
+	cli, _ = this.GetClient(uuid)
+	if cli != client {
+		return
+	}
 	this.uuidToClient.Remove(uuid)
 }
 
@@ -162,11 +173,17 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 	if !fromS2s {
 		//s2s
 		if config.PushdConf.IsDistMode() {
-			var peers set.Set
-			peers, exists = Proxy.Router.LookupPeersByChannel(channel)
+			peers, exists := Proxy.Router.LookupPeersByChannel(channel)
 			log.Debug("now peers %s", peers)
 
 			if exists {
+				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts, msgId)
+			} else {
+				// boradcast to every node
+				peers = set.NewSet()
+				for _, v := range Proxy.Router.Peers {
+					peers.Add(v)
+				}
 				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts, msgId)
 			}
 		}
