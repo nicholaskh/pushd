@@ -15,6 +15,8 @@ const (
 	S2S_SUB_CMD   = "sub"
 	S2S_PUB_CMD   = "pub"
 	S2S_UNSUB_CMD = "unsub"
+
+	S2S_PUSH_CMD = "push"
 )
 
 var (
@@ -24,6 +26,7 @@ var (
 type S2sProxy struct {
 	Router       *Router
 	PubMsgChan   chan *PubTuple
+	PubMsgChan2   chan *PubTuple2
 	SubMsgChan   chan string
 	UnsubMsgChan chan string
 
@@ -35,6 +38,7 @@ func NewS2sProxy() (this *S2sProxy) {
 	this.SubMsgChan = make(chan string, 100)
 	this.UnsubMsgChan = make(chan string, 100)
 	this.PubMsgChan = make(chan *PubTuple, 100)
+	this.PubMsgChan2 = make(chan *PubTuple2, 100)
 
 	go watchPeers(this)
 
@@ -56,6 +60,15 @@ func (this *S2sProxy) WaitMsg() {
 				peer, _ := peerInterface.(*Peer)
 				log.Debug("peer is %s %s", peer, reflect.TypeOf(peer))
 				go peer.writeMsg(fmt.Sprintf("%s %s %s %d %d %s\n", S2S_PUB_CMD, tuple.channel, tuple.uuid, tuple.ts, tuple.msgId, tuple.msg))
+			}
+
+		case tuple2 := <-this.PubMsgChan2:
+			this.Stats.pubCalls.Mark(1)
+			for peerInterface := range tuple2.peers.Iter() {
+				log.Debug("peer was %s %s", peerInterface, reflect.TypeOf(peerInterface))
+				peer, _ := peerInterface.(*Peer)
+				log.Debug("peer is %s %s", peer, reflect.TypeOf(peer))
+				go peer.writeMsg(tuple2.msg)
 			}
 
 		case channel := <-this.SubMsgChan:
@@ -86,5 +99,16 @@ type PubTuple struct {
 
 func NewPubTuple(peers set.Set, msg, channel , uuid string, ts, msgId int64) (this *PubTuple) {
 	this = &PubTuple{peers: peers, msg: msg, channel: channel, uuid: uuid, ts: ts, msgId:msgId}
+	return
+}
+
+// It maybe replace of PubTuple in the future
+type PubTuple2 struct {
+	peers   set.Set
+	msg     string
+}
+
+func NewPubTuple2(peers set.Set, msg string) (this *PubTuple2) {
+	this = &PubTuple2{peers: peers, msg: msg}
 	return
 }
