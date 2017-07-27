@@ -3,8 +3,10 @@ package storage
 import (
 	"time"
 
+	"gopkg.in/mgo.v2/bson"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
+	"github.com/nicholaskh/pushd/db"
 )
 
 type MsgTuple struct {
@@ -124,4 +126,24 @@ func FetchHistory(channel string, ts int64) (result []interface{}, err error) {
 
 func EnqueueChanUuids(channelName, channelId string, isDel bool, uuids []string) {
 	chanUuidsQueue <- &ChanUuidsTuple{channelId, channelName, uuids, isDel}
+}
+func FetchUuidsAboutChannel(channelId string) []string{
+
+	var result interface{}
+	err := db.MgoSession().DB("pushd").C("channel_uuids").
+		Find(bson.M{"_id": channelId}).
+		Select(bson.M{"uuids":1, "_id":0}).
+		One(&result)
+
+	if err == nil {
+		uuids := result.(bson.M)["uuids"].([]interface{})
+		res := make([]string, 0, len(uuids))
+		for _, uuid := range uuids {
+			res = append(res, uuid.(string))
+		}
+		return res
+	}
+
+	return nil
+
 }
