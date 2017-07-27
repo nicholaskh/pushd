@@ -45,6 +45,7 @@ const (
 	CMD_CREATEROOM  = "create_room"
 	CMD_JOINROOM = "join_room"
 	CMD_LEAVEROOM = "leave_room"
+	CMD_FRAME_APPLY = "frame_apply"
 
 
 	OUTPUT_VIDO_CHAT	 = "bina"
@@ -61,6 +62,13 @@ const (
 	OUTPUT_CREATEROOM = "CREATEROOM"
 	OUTPUT_JOINROOM  = "JOINROOM"
 	OUTPUT_LEAVEROOM = "LEAVEROOM"
+)
+
+const (
+ TYPE_SINGLE_VOICE  = 1
+ TYPE_MUL_VOICE  = 2
+ TYPE_SINGLE_VIDEO  = 3
+ TYPE_MUL_VIDEO  = 4
 )
 
 func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
@@ -284,6 +292,55 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("Lack roomid")
 		}
 		ret = leaveRoom(this.Client.uuid, roomid2Channelid(params[0]))
+
+	case CMD_FRAME_APPLY:
+		params := strings.Split(this.Params, " ")
+		if len(params) != 2 {
+			return "", errors.New("errorparam wrong")
+		}
+
+		mainType, _err0 :=  strconv.Atoi(params[0])
+		if _err0 != nil {
+			return "", errors.New("errorparam wrong")
+		}
+
+		newChannelId := fmt.Sprintf("%s_", params[1])
+		activeUser := []string{this.Client.uuid}
+		collection := db.MgoSession().DB("pushd").C("unstable_info")
+		// create temp channle
+		_, err0 := collection.Upsert(
+			bson.M{"_id": newChannelId},
+			bson.M{"type": 1,
+				"subtype": mainType,
+				"proposer": this.Client.uuid,
+				"channelId": params[1],
+				"time": time.Now().Unix(),
+				"activeUser": activeUser})
+
+		if err0 != nil {
+			ret = fmt.Sprintf("error%s", err0.Error())
+			return
+		}
+
+		// update userInfo
+		uuids := storage.FetchUuidsAboutChannel(params[1])
+		var documents []interface{}
+		for _, userId := range uuids {
+			documents = append(documents, bson.M{"_id": userId})
+			documents = append(documents, bson.M{"$push": bson.M{"frame_chat": newChannelId}})
+		}
+
+		bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
+		bulk.Upsert(documents...)
+		_, err0 = bulk.Run()
+		if err0 != nil {
+			collection.RemoveId(newChannelId)
+		}
+
+		// push notify according to type
+		notice := fmt.Sprintf("%s %d %s %s", CMD_FRAME_APPLY, mainType, this.Client.uuid, params[0])
+		Publish2(params[1], notice, true)
+		ret = "success"
 
     //subs: subscribe from server
 	case CMD_SUBS:
