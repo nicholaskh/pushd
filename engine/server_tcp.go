@@ -89,7 +89,7 @@ func (this *PushdClientProcessor) OnRead(client *Client, input []byte) (res erro
 	}
 
 	ret, err := cl.Process()
-	if cl.Cmd == CMD_VIDO_CHAT || cl.Cmd == CMD_ACK_MSG {
+	if cl.Cmd == CMD_VIDO_CHAT || cl.Cmd == CMD_ACK_MSG || cl.Cmd == CMD_INVOKE_FRAME_ACTION {
 		return
 	}
 	if err != nil {

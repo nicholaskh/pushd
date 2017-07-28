@@ -14,6 +14,7 @@ import (
 	"time"
 	"bytes"
 	"encoding/binary"
+	"gopkg.in/mgo.v2"
 )
 
 type Cmdline struct {
@@ -47,6 +48,12 @@ const (
 	CMD_LEAVEROOM = "leave_room"
 	CMD_FRAME_APPLY = "frame_apply"
 	CMD_FRAME_JOIN = "frame_join"
+	CMD_FRAME_OUT = "frame_out"
+	CMD_FRAME_ACCEPT = "frame_accept"
+	CMD_FRAME_DISMISS = "frame_dismiss"
+	CMD_FRAME_REFUSE = "frame_refuse"
+	CMD_FRAME_INFO	= "frame_info"
+	CMD_INVOKE_FRAME_ACTION = "frame_action"
 
 
 	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
@@ -63,6 +70,10 @@ const (
 	OUTPUT_CREATEROOM = "CREATEROOM"
 	OUTPUT_JOINROOM  = "JOINROOM"
 	OUTPUT_LEAVEROOM = "LEAVEROOM"
+)
+
+const (
+	UNSTABLE_INFO_TYPE_FRAME_CHAT = 1
 )
 
 const (
@@ -300,61 +311,241 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("errorparam wrong")
 		}
 
-		mainType, _err0 :=  strconv.Atoi(params[0])
-		if _err0 != nil {
+		oldChannelId := params[1]
+		mainType, err0 :=  strconv.Atoi(params[0])
+		if err0 != nil {
 			return "", errors.New("errorparam wrong")
 		}
 
-		newChannelId := fmt.Sprintf("%s_", params[1])
-		activeUser := []string{this.Client.uuid}
 		collection := db.MgoSession().DB("pushd").C("unstable_info")
-		// create temp channle
-		_, err0 := collection.Upsert(
-			bson.M{"_id": newChannelId},
-			bson.M{"type": 1,
-				"subtype": mainType,
-				"proposer": this.Client.uuid,
-				"channelId": params[1],
-				"time": time.Now().Unix(),
-				"activeUser": activeUser})
+
+		// create channel info in collection of unstable_info
+		activeUser := []string{this.Client.uuid}
+		objectId := bson.NewObjectId()
+
+		err0 = collection.Insert(bson.M{"type": UNSTABLE_INFO_TYPE_FRAME_CHAT,
+					"subtype": mainType,
+					"proposer": this.Client.uuid,
+					"channelId": oldChannelId,
+					"time": time.Now().Unix(),
+					"activeUser": activeUser,
+					"_id": objectId})
 
 		if err0 != nil {
-			ret = fmt.Sprintf("error%s", err0.Error())
+			ret = "error已有申请"
 			return
 		}
 
 		// update userInfo
-		uuids := storage.FetchUuidsAboutChannel(params[1])
+		uuids := storage.FetchUuidsAboutChannel(oldChannelId)
 		var documents []interface{}
 		for _, userId := range uuids {
 			documents = append(documents, bson.M{"_id": userId})
-			documents = append(documents, bson.M{"$push": bson.M{"frame_chat": newChannelId}})
+			documents = append(documents, bson.M{"$push": bson.M{"frame_chat": objectId}})
 		}
 
 		bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
 		bulk.Upsert(documents...)
 		_, err0 = bulk.Run()
 		if err0 != nil {
-			collection.RemoveId(newChannelId)
+			collection.RemoveId(objectId)
 		}
 
-		// push notify according to type
-		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_APPLY, mainType, this.Client.uuid, params[0])
-		Publish2(params[1], notice, this.Client.uuid, true)
-		ret = "success"
+		Subscribe(this.Client, oldChannelId)
+		for _, uuid := range uuids {
+			tclient, exists := UuidToClient.GetClient(uuid)
+			if exists {
+				Subscribe(tclient, oldChannelId)
+			}
+		}
+
+		newChannelId := objectId.Hex()
+		// subscribe self to channel
+		Subscribe(this.Client, newChannelId)
+
+		// force notify all relevant online users
+		notice := fmt.Sprintf("%s %s %d %s %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_APPLY, mainType, this.Client.uuid, newChannelId, oldChannelId)
+		Publish2(oldChannelId, notice, this.Client.uuid, true)
+		ret = newChannelId
 
 	case CMD_FRAME_JOIN:
+
+		channelObjectId := bson.ObjectIdHex(this.Params)
+		channelId := this.Params
+
 		collection := db.MgoSession().DB("pushd").C("unstable_info")
-		err0 := collection.UpdateId(this.Params, bson.M{"$push": bson.M{"activeUser": this.Client.uuid}})
+		// why $push or not $addToSet
+		// To prevent old conn from removing self from activeUser
+		err0 := collection.UpdateId(channelObjectId, bson.M{"$push": bson.M{"activeUser": this.Client.uuid}})
+		if err0 != nil {
+			// cause is channel have been dismiss
+			ret = fmt.Sprintf("error%s", err0.Error())
+			return
+		}
+
+		// join in this channel
+		Subscribe(this.Client, channelId)
+
+		// notify other users that I have join in
+		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_JOIN, -1, this.Client.uuid, channelId)
+		Publish2(channelId, notice, this.Client.uuid, false)
+		ret = "success"
+
+	case CMD_FRAME_ACCEPT:
+
+		channelObjectId := bson.ObjectIdHex(this.Params)
+		channelId := this.Params
+
+		collection := db.MgoSession().DB("pushd").C("unstable_info")
+		err0 := collection.UpdateId(channelObjectId, bson.M{"$push": bson.M{"activeUser": this.Client.uuid}})
+		if err0 != nil {
+			// channel has been dismissed
+			ret = fmt.Sprintf("error%s", err0.Error())
+			return
+		}
+
+		// join in this channel
+		Subscribe(this.Client, channelId)
+
+		// notify another user that I agree
+		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_ACCEPT, -1, this.Client.uuid, channelId)
+		Publish2(channelId, notice, this.Client.uuid, false)
+		ret = "success"
+
+	case CMD_FRAME_OUT:
+		channelObjectId := bson.ObjectIdHex(this.Params)
+		channelId := this.Params
+
+		collection := db.MgoSession().DB("pushd").C("unstable_info")
+		change := mgo.Change{
+			Update:bson.M{"$pull": bson.M{"activeUser": this.Client.uuid}},
+			ReturnNew: true,
+		}
+		var result interface{}
+		_, err0 := collection.Find(bson.M{"_id": channelObjectId}).Apply(change, &result)
 		if err0 != nil {
 			ret = fmt.Sprintf("error%s", err0.Error())
 			return
 		}
 
-		// push notify according to type
-		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_JOIN, -1, this.Client.uuid, this.Params)
+		// check if anyone is in this channel chat
+		err0 = collection.Remove(bson.M{"_id": channelObjectId, "activeUser": []string{}})
+		if err0 == nil {
+			// clear relevant data about newChannelId in mongodb
+			unstableInfo := result.(bson.M)
+			realChannelId := unstableInfo["channelId"].(string)
+			UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
+			var documents []interface{}
+			for _, userId := range UUIDs {
+				documents = append(documents, bson.M{"_id": userId})
+				documents = append(documents, bson.M{"$pull": bson.M{"frame_chat": channelObjectId}})
+			}
+
+			bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
+			bulk.Upsert(documents...)
+			bulk.Run()
+
+		}
+
+		// quit out from this channel
+		Unsubscribe(this.Client, channelId)
+
+		// notify other users that I have quit
+		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_OUT, -1, this.Client.uuid, channelId)
+		Publish2(channelId, notice, this.Client.uuid, false)
+		ret = "success"
+
+	case CMD_FRAME_REFUSE:
+		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_REFUSE, -1, this.Client.uuid, this.Params)
 		Publish2(this.Params, notice, this.Client.uuid, false)
 		ret = "success"
+
+	case CMD_FRAME_DISMISS:
+		channelObjectId := bson.ObjectIdHex(this.Params)
+		channelId := this.Params
+
+		collection := db.MgoSession().DB("pushd").C("unstable_info")
+
+
+		change := mgo.Change{
+			Update:bson.M{"$pull": bson.M{"activeUser": this.Client.uuid}},
+			ReturnNew: true,
+		}
+		var result interface{}
+		_, err0 := collection.Find(bson.M{"_id": channelObjectId}).Apply(change, &result)
+		if err0 != nil {
+			ret = fmt.Sprintf("error%s", err0.Error())
+			return
+		}
+
+		// check if anyone is in this channel chat
+		err0 = collection.Remove(bson.M{"_id": channelObjectId, "activeUser": []string{}})
+		if err0 == nil {
+			// clear relevant data about newChannelId in mongodb
+			unstableInfo := result.(bson.M)
+			realChannelId := unstableInfo["channelId"].(string)
+			UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
+			var documents []interface{}
+			for _, userId := range UUIDs {
+				documents = append(documents, bson.M{"_id": userId})
+				documents = append(documents, bson.M{"$pull": bson.M{"frame_chat": channelObjectId}})
+			}
+
+			bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
+			bulk.Upsert(documents...)
+			bulk.Run()
+
+		}
+
+		// quit out from this channel
+		Unsubscribe(this.Client, channelId)
+
+		// notify other users that I have quit
+		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
+		Publish2(channelId, notice, this.Client.uuid, false)
+		ret = "success"
+
+	case CMD_FRAME_INFO:
+		channelId := bson.ObjectIdHex(this.Params)
+		var result interface{}
+		err0 := db.MgoSession().DB("pushd").C("unstable_info").FindId(channelId).One(&result)
+		if err0 != nil {
+			ret = "errornotfound"
+			return
+		}
+
+		retBytes, _ := json.Marshal(result)
+		ret = string(retBytes)
+
+	case CMD_INVOKE_FRAME_ACTION:
+		var result interface{}
+		err0 := db.MgoSession().DB("pushd").C("user_info").FindId(this.Client.uuid).Select(bson.M{"frame_chat":1, "_id":0}).One(&result)
+		if err0 != nil {
+			return
+		}
+
+		frame_chat := result.(bson.M)["frame_chat"].([]interface{})
+		if len(frame_chat) == 0 {
+			return
+		}
+
+		for _, id := range frame_chat {
+			channelId := id.(bson.ObjectId)
+			err0 = db.MgoSession().DB("pushd").C("unstable_info").FindId(channelId).One(&result)
+			if err0 != nil {
+				continue
+			}
+			info := result.(bson.M)
+			if info["type"].(int) == UNSTABLE_INFO_TYPE_FRAME_CHAT {
+				mainType := info["subtype"].(int)
+				proposerId := info["proposer"].(string)
+				newChannelId := info["_id"].(bson.ObjectId).Hex()
+				oldChannelId := info["channelId"].(string)
+				notice := fmt.Sprintf("%s %s %d %s %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_APPLY, mainType, proposerId, newChannelId, oldChannelId)
+				go this.Client.WriteFormatMsg(OUTPUT_RCIV, notice)
+			}
+		}
+
 
     //subs: subscribe from server
 	case CMD_SUBS:
@@ -400,7 +591,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if user != nil {
 			return "user exists", nil
 		}
-		err := coll.Insert(bson.M{"_id": this.Params, "channel_stat": bson.M{}})
+		err := coll.Insert(bson.M{"_id": this.Params, "channel_stat": bson.M{}, "frame_chat": []string{}})
 		if err != nil {
 			return "create error", nil
 		}

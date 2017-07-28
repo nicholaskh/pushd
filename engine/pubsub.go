@@ -202,7 +202,7 @@ func Publish2(channel, msg, skipUserId string, forceToOtherNode bool) {
 			if cli.uuid == skipUserId {
 				continue
 			}
-			go cli.WriteMsg(fmt.Sprintf("%s %s", OUTPUT_RCIV, msg))
+			go cli.WriteFormatMsg(OUTPUT_RCIV, msg)
 		}
 	}
 
