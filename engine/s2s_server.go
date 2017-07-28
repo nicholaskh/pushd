@@ -74,7 +74,7 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 		params := strings.SplitN(cl.Params, " ", 2)
 		if params[0] == S2S_PUSH_CMD {
 			params2 := strings.SplitN(params[1], " ", 2)
-			Publish2(params2[0], params2[1], false)
+			Publish2(params2[0], params2[1], "", false)
 		} else {
 			params := strings.SplitN(cl.Params, " ", 5)
 			msgId, err := strconv.ParseInt(params[3], 10, 64)

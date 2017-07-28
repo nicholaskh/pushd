@@ -194,29 +194,30 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 	}
 }
 
-func Publish2(channel, msg string, toOtherNode bool) {
+func Publish2(channel, msg, skipUserId string, forceToOtherNode bool) {
 	clients, exists := PubsubChannels.Get(channel)
 	if exists {
 		for ele := range clients.Iter() {
 			cli := ele.Val.(*Client)
+			if cli.uuid == skipUserId {
+				continue
+			}
 			go cli.WriteMsg(fmt.Sprintf("%s %s", OUTPUT_RCIV, msg))
 		}
 	}
 
-	if toOtherNode {
-		if config.PushdConf.IsDistMode() {
-			peers, exists := Proxy.Router.LookupPeersByChannel(channel)
-			msg2 := fmt.Sprintf("%s %s %s %s", S2S_PUB_CMD, S2S_PUSH_CMD, channel, msg)
-			if exists {
-				Proxy.PubMsgChan2 <- NewPubTuple2(peers, msg2)
-			} else {
-				// boradcast to every node
-				peers = set.NewSet()
-				for _, v := range Proxy.Router.Peers {
-					peers.Add(v)
-				}
-				Proxy.PubMsgChan2 <- NewPubTuple2(peers, msg2)
+	if config.PushdConf.IsDistMode() {
+		peers, exists := Proxy.Router.LookupPeersByChannel(channel)
+		msg2 := fmt.Sprintf("%s %s %s %s", S2S_PUB_CMD, S2S_PUSH_CMD, channel, msg)
+		if exists {
+			Proxy.PubMsgChan2 <- NewPubTuple2(peers, msg2)
+		} else if forceToOtherNode {
+			// boradcast to every node
+			peers = set.NewSet()
+			for _, v := range Proxy.Router.Peers {
+				peers.Add(v)
 			}
+			Proxy.PubMsgChan2 <- NewPubTuple2(peers, msg2)
 		}
 	}
 }

@@ -48,7 +48,7 @@ const (
 	CMD_FRAME_APPLY = "frame_apply"
 
 
-	OUTPUT_VIDO_CHAT	 = "bina"
+	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
 	OUTPUT_TOKEN 	           = "TOKEN"
 	OUTPUT_SUBS		    = "SUBS"
 	OUTPUT_AUTH_SERVER        = "AUTHSERVER"
@@ -338,8 +338,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		// push notify according to type
-		notice := fmt.Sprintf("%s %d %s %s", CMD_FRAME_APPLY, mainType, this.Client.uuid, params[0])
-		Publish2(params[1], notice, true)
+		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_APPLY, mainType, this.Client.uuid, params[0])
+		Publish2(params[1], notice, this.Client.uuid, true)
 		ret = "success"
 
     //subs: subscribe from server
