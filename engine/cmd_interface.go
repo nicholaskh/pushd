@@ -46,6 +46,7 @@ const (
 	CMD_JOINROOM = "join_room"
 	CMD_LEAVEROOM = "leave_room"
 	CMD_FRAME_APPLY = "frame_apply"
+	CMD_FRAME_JOIN = "frame_join"
 
 
 	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
@@ -340,6 +341,19 @@ func (this *Cmdline) Process() (ret string, err error) {
 		// push notify according to type
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_APPLY, mainType, this.Client.uuid, params[0])
 		Publish2(params[1], notice, this.Client.uuid, true)
+		ret = "success"
+
+	case CMD_FRAME_JOIN:
+		collection := db.MgoSession().DB("pushd").C("unstable_info")
+		err0 := collection.UpdateId(this.Params, bson.M{"$push": bson.M{"activeUser": this.Client.uuid}})
+		if err0 != nil {
+			ret = fmt.Sprintf("error%s", err0.Error())
+			return
+		}
+
+		// push notify according to type
+		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_JOIN, -1, this.Client.uuid, this.Params)
+		Publish2(this.Params, notice, this.Client.uuid, false)
 		ret = "success"
 
     //subs: subscribe from server
