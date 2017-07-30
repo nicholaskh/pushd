@@ -9,6 +9,8 @@ import (
 	"sync"
 	"fmt"
 	"github.com/nicholaskh/pushd/config"
+	"gopkg.in/mgo.v2"
+	"github.com/nicholaskh/pushd/engine/storage"
 )
 
 const (
@@ -58,9 +60,58 @@ func (this *Client) Close() {
 	log.Debug("client channels: %s", this.Channels)
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
+	// clear revelant data in unstable_info
+	var result interface{}
+	err0 := db.MgoSession().DB("pushd").C("user_info").FindId(this.uuid).Select(bson.M{"frame_chat":1,"_id":0}).One(&result)
+	if err0 == nil {
+		frame_chat := result.(bson.M)["frame_chat"].([]interface{})
+		if len(frame_chat) != 0 {
+			collection := db.MgoSession().DB("pushd").C("unstable_info")
+			for _, id := range frame_chat {
+				objectId := id.(bson.ObjectId)
+				channelId := objectId.Hex()
+				_, exist := this.Channels[channelId]
+				if exist {
+					change := mgo.Change{
+						Update:bson.M{"$pull": bson.M{"activeUser": this.uuid}},
+						ReturnNew: true,
+					}
+					var result interface{}
+					_, err0 := collection.Find(bson.M{"_id": objectId}).Apply(change, &result)
+					if err0 != nil {
+						continue
+					}
+
+					// check if anyone is in this channel chat
+					err0 = collection.Remove(bson.M{"_id": objectId, "activeUser": []string{}})
+					if err0 == nil {
+						// clear relevant data about newChannelId in mongodb
+						unstableInfo := result.(bson.M)
+						realChannelId := unstableInfo["channelId"].(string)
+						UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
+						var documents []interface{}
+						for _, userId := range UUIDs {
+							documents = append(documents, bson.M{"_id": userId})
+							documents = append(documents, bson.M{"$pull": bson.M{"frame_chat": objectId}})
+						}
+
+						bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
+						bulk.Upsert(documents...)
+						bulk.Run()
+
+					}
+
+				}
+
+			}
+		}
+
+	}
+
 	UnsubscribeAllChannels(this)
 	UuidToClient.Remove(this.uuid, this)
 	this.Client.Close()
+
 }
 
 
