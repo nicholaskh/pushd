@@ -430,23 +430,25 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return
 		}
 
-		// check if anyone is in this channel chat
-		err0 = collection.Remove(bson.M{"_id": channelObjectId, "activeUser": []string{}})
-		if err0 == nil {
-			// clear relevant data about newChannelId in mongodb
-			unstableInfo := result.(bson.M)
-			realChannelId := unstableInfo["channelId"].(string)
-			UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
-			var documents []interface{}
-			for _, userId := range UUIDs {
-				documents = append(documents, bson.M{"_id": userId})
-				documents = append(documents, bson.M{"$pull": bson.M{"frame_chat": channelObjectId}})
+		if len(result.(bson.M)["activeUser"].([]interface{})) == 0 {
+			// double check
+			err0 = collection.Remove(bson.M{"_id": channelObjectId, "activeUser": []string{}})
+			if err0 == nil {
+				// clear relevant data about newChannelId in mongodb
+				unstableInfo := result.(bson.M)
+				realChannelId := unstableInfo["channelId"].(string)
+				UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
+				var documents []interface{}
+				for _, userId := range UUIDs {
+					documents = append(documents, bson.M{"_id": userId})
+					documents = append(documents, bson.M{"$pull": bson.M{"frame_chat": channelObjectId}})
+				}
+
+				bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
+				bulk.Upsert(documents...)
+				bulk.Run()
+
 			}
-
-			bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
-			bulk.Upsert(documents...)
-			bulk.Run()
-
 		}
 
 		// quit out from this channel
@@ -480,23 +482,25 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return
 		}
 
-		// check if anyone is in this channel chat
-		err0 = collection.Remove(bson.M{"_id": channelObjectId, "activeUser": []string{}})
-		if err0 == nil {
-			// clear relevant data about newChannelId in mongodb
-			unstableInfo := result.(bson.M)
-			realChannelId := unstableInfo["channelId"].(string)
-			UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
-			var documents []interface{}
-			for _, userId := range UUIDs {
-				documents = append(documents, bson.M{"_id": userId})
-				documents = append(documents, bson.M{"$pull": bson.M{"frame_chat": channelObjectId}})
+		if len(result.(bson.M)["activeUser"].([]interface{})) == 0 {
+			// double check
+			err0 = collection.Remove(bson.M{"_id": channelObjectId, "activeUser": []string{}})
+			if err0 == nil {
+				// clear relevant data about newChannelId in mongodb
+				unstableInfo := result.(bson.M)
+				realChannelId := unstableInfo["channelId"].(string)
+				UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
+				var documents []interface{}
+				for _, userId := range UUIDs {
+					documents = append(documents, bson.M{"_id": userId})
+					documents = append(documents, bson.M{"$pull": bson.M{"frame_chat": channelObjectId}})
+				}
+
+				bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
+				bulk.Upsert(documents...)
+				bulk.Run()
+
 			}
-
-			bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
-			bulk.Upsert(documents...)
-			bulk.Run()
-
 		}
 
 		// quit out from this channel
