@@ -349,6 +349,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 		_, err0 = bulk.Run()
 		if err0 != nil {
 			collection.RemoveId(objectId)
+			ret = "error服务器操作失败"
+			return
 		}
 
 		Subscribe(this.Client, oldChannelId)
