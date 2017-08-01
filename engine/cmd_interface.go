@@ -319,6 +319,18 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		collection := db.MgoSession().DB("pushd").C("unstable_info")
 
+		// check if channel has been applied
+		var result interface{}
+		err0 = collection.Find(bson.M{"channelId": oldChannelId}).Select(bson.M{"_id":0, "proposer":1}).One(&result)
+		if err0 == nil {
+			if result.(bson.M)["proposer"].(string) == this.Client.uuid {
+				ret = "error10002"
+			}else{
+				ret = "error10001"
+			}
+			return
+		}
+
 		// create channel info in collection of unstable_info
 		activeUser := []string{this.Client.uuid}
 		objectId := bson.NewObjectId()
@@ -331,8 +343,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 					"activeUser": activeUser,
 					"_id": objectId})
 
+		// this happens when another user apply on the channel at the same time
 		if err0 != nil {
-			ret = "error已有申请"
+			ret = "error10001"
 			return
 		}
 
@@ -349,7 +362,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		_, err0 = bulk.Run()
 		if err0 != nil {
 			collection.RemoveId(objectId)
-			ret = "error服务器操作失败"
+			ret = "error500"
 			return
 		}
 
@@ -381,7 +394,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		err0 := collection.UpdateId(channelObjectId, bson.M{"$push": bson.M{"activeUser": this.Client.uuid}})
 		if err0 != nil {
 			// cause is channel have been dismiss
-			ret = fmt.Sprintf("error%s", err0.Error())
+			ret = "error10003"
 			return
 		}
 
@@ -402,7 +415,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		err0 := collection.UpdateId(channelObjectId, bson.M{"$push": bson.M{"activeUser": this.Client.uuid}})
 		if err0 != nil {
 			// channel has been dismissed
-			ret = fmt.Sprintf("error%s", err0.Error())
+			ret = "error10003"
 			return
 		}
 
@@ -426,7 +439,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		var result interface{}
 		_, err0 := collection.Find(bson.M{"_id": channelObjectId}).Apply(change, &result)
 		if err0 != nil {
-			ret = fmt.Sprintf("error%s", err0.Error())
+			ret = "error500"
 			return
 		}
 
@@ -478,7 +491,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		var result interface{}
 		_, err0 := collection.Find(bson.M{"_id": channelObjectId}).Apply(change, &result)
 		if err0 != nil {
-			ret = fmt.Sprintf("error%s", err0.Error())
+			ret = "error500"
 			return
 		}
 
@@ -516,7 +529,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		var result interface{}
 		err0 := db.MgoSession().DB("pushd").C("unstable_info").FindId(channelId).One(&result)
 		if err0 != nil {
-			ret = "errornotfound"
+			ret = "error10003"
 			return
 		}
 
