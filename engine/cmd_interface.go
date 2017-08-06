@@ -306,6 +306,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 		ret = leaveRoom(this.Client.uuid, roomid2Channelid(params[0]))
 
 	case CMD_FRAME_APPLY:
+
+		if this.Params == "" {
+			ret = "error500"
+			return
+		}
+
 		params := strings.Split(this.Params, " ")
 		if len(params) != 2 {
 			return "", errors.New("errorparam wrong")
@@ -385,6 +391,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 	case CMD_FRAME_JOIN:
 
+		if this.Params == "" {
+			ret = "error500"
+			return
+		}
+
 		channelObjectId := bson.ObjectIdHex(this.Params)
 		channelId := this.Params
 
@@ -408,6 +419,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 	case CMD_FRAME_ACCEPT:
 
+		if this.Params == "" {
+			ret = "error500"
+			return
+		}
+
 		channelObjectId := bson.ObjectIdHex(this.Params)
 		channelId := this.Params
 
@@ -428,6 +444,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 		ret = "success"
 
 	case CMD_FRAME_OUT:
+
+		if this.Params == "" {
+			ret = "error500"
+			return
+		}
+
 		channelObjectId := bson.ObjectIdHex(this.Params)
 		channelId := this.Params
 
@@ -479,11 +501,23 @@ func (this *Cmdline) Process() (ret string, err error) {
 		ret = "success"
 
 	case CMD_FRAME_REFUSE:
+
+		if this.Params == "" {
+			ret = "error500"
+			return
+		}
+
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_REFUSE, -1, this.Client.uuid, this.Params)
 		Publish2(this.Params, notice, this.Client.uuid, false)
 		ret = "success"
 
 	case CMD_FRAME_DISMISS:
+
+		if this.Params == "" {
+			ret = "error500"
+			return
+		}
+
 		channelObjectId := bson.ObjectIdHex(this.Params)
 		channelId := this.Params
 
@@ -535,6 +569,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 		ret = "success"
 
 	case CMD_FRAME_INFO:
+
+		if this.Params == "" {
+			ret = "error500"
+			return
+		}
+
 		channelId := bson.ObjectIdHex(this.Params)
 		var result interface{}
 		err0 := db.MgoSession().DB("pushd").C("unstable_info").FindId(channelId).One(&result)
