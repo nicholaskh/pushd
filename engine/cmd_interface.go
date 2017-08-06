@@ -461,6 +461,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 				bulk.Upsert(documents...)
 				bulk.Run()
 
+				notice := fmt.Sprintf("%s %s2 %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
+				Publish2(realChannelId, notice, this.Client.uuid, true)
+				Unsubscribe(this.Client, channelId)
+				ret = "success"
+				return
+
 			}
 		}
 
@@ -513,6 +519,10 @@ func (this *Cmdline) Process() (ret string, err error) {
 				bulk.Upsert(documents...)
 				bulk.Run()
 
+				notice := fmt.Sprintf("%s %s2 %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
+				Publish2(realChannelId, notice, this.Client.uuid, true)
+				ret = "success"
+				return
 			}
 		}
 
