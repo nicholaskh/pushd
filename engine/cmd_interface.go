@@ -134,19 +134,41 @@ func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
 func (this *Cmdline) Process() (ret string, err error) {
 	switch this.Cmd {
 	case CMD_SENDMSG:
-		params := strings.SplitN(this.Params, " ", 3)
-		if len(params) < 2 || params[1] == "" {
+		params := strings.SplitN(this.Params, " ", 4)
+		if len(params) < 4 {
 			return "", errors.New("Lack msg\n")
 		}
 
-		_, exists := this.Client.Channels[params[0]]
+		isResend := params[0]
+		channel := params[1]
+		tempMsgId := params[2]
+		msg := params[3]
+
+		msgId, err := strconv.ParseInt(tempMsgId, 10, 64)
+		if err != nil {
+			return "", errors.New("msgid error")
+		}
+
+		// check if user has sent this msg
+		if isResend == "Y" {
+			isHit := db.MgoSession().DB("pushd").C("msg_log").
+					Find(bson.M{"channel": channel,
+						"uuid": this.Client.uuid,
+						"msgid": msgId})
+			if isHit == nil {
+				ret = fmt.Sprintf("%d %d", msgId, time.Now().UnixNano())
+				return ret, nil
+			}
+		}
+
+		_, exists := this.Client.Channels[channel]
 		if !exists {
-			Subscribe(this.Client, params[0])
+			Subscribe(this.Client, channel)
 
 			// force other related online clients to join in this channel
 			var result interface{}
 			err := db.MgoSession().DB("pushd").C("channel_uuids").
-				Find(bson.M{"_id": params[0]}).
+				Find(bson.M{"_id": channel}).
 				Select(bson.M{"uuids":1, "_id":0}).
 				One(&result)
 
@@ -155,24 +177,14 @@ func (this *Cmdline) Process() (ret string, err error) {
 				for _, uuid := range uuids {
 					tclient, exists := UuidToClient.GetClient(uuid.(string))
 					if exists {
-						Subscribe(tclient, params[0])
+						Subscribe(tclient, channel)
 					}
 				}
 			}
 
 		}
 
-		msgId, err := strconv.ParseInt(params[1], 10, 64)
-		if err != nil {
-			return "", errors.New("msgid error")
-		}
-
-		if this.Client.msgIdCache.CheckAndSet(msgId) {
-			ret = fmt.Sprintf("%d %d", msgId, time.Now().UnixNano());
-			return ret, nil
-		}
-
-		ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)
+		ret = Publish(channel, msg, this.Client.uuid, msgId, false)
 
 	case CMD_VIDO_CHAT:
 		len := 0
@@ -243,11 +255,6 @@ func (this *Cmdline) Process() (ret string, err error) {
 			msgId, err := strconv.ParseInt(params[1], 10, 64)
 			if err != nil {
 				return "", errors.New("msgid error")
-			}
-
-			if this.Client.msgIdCache.CheckAndSet(msgId) {
-				ret = fmt.Sprintf("%d %d", msgId, time.Now().UnixNano());
-				return ret, nil
 			}
 
 			ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)

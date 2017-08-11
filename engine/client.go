@@ -25,14 +25,12 @@ type Client struct {
 	uuid string
 	ackList *AckList
 	tokenInfo TokenInfo
-	msgIdCache MsgIdCache
 }
 
 func NewClient() (this *Client) {
 	this = new(Client)
 	this.Channels = make(map[string]int)
 	this.ackList = NewAckList()
-	this.msgIdCache = NewMsgIdCashe()
 	return
 }
 
@@ -163,37 +161,10 @@ func (this *Client) updateTokenExpire(expire int64) {
 func (this *Client) initChatEnv(uuid string) {
 
 	this.uuid = uuid
-
-	// cache last msgid and push all offline messsage that are relevant to the user
 	var result interface{}
-	coll := db.MgoSession().DB("pushd").C("user_info")
-	coll.FindId(uuid).Select(bson.M{"_id":0, "channel_stat":1}).One(&result)
-	if result != nil {
-		// cache last msgid
-		userInfo := result.(bson.M)
-		channelStat := userInfo["channel_stat"].(bson.M)
-		maxTs := int64(0)
-		hitChannle := ""
-		for channel, va := range channelStat {
-			ts := va.(int64)
-			if ts > maxTs {
-				maxTs = ts
-				hitChannle = channel
-			}
-		}
-		if maxTs > 0 {
-			db.MgoSession().DB("pushd").C("msg_log").Find(bson.M{"channel": hitChannle, "ts": maxTs}).
-				Select(bson.M{"_id":0,"msgid":1}).One(&result)
-			if result != nil {
-				if result.(bson.M)["msgid"] != nil {
-					this.msgIdCache.CheckAndSet(result.(bson.M)["msgid"].(int64))
-				}
-			}
-		}
-	}
 
 	UuidToClient.Remove(uuid, this)
-	// store relate of uuid and client to table of mapping
+	// store relationship between uuid and client to table of mapping
 	UuidToClient.AddClient(uuid, this)
 
 	// check and force client to subscribe related and active channels
@@ -252,31 +223,4 @@ func (this *AckList)push(channelId string, ts, msgId int64) {
 type TokenInfo struct {
 	token string
 	expire int64
-}
-
-type MsgIdCache struct {
-	*list.List
-}
-
-func NewMsgIdCashe() MsgIdCache {
-	caches := MsgIdCache{list.New()}
-	for i:=int64(0);i<10;i++ {
-		caches.PushFront(i)
-	}
-	return caches
-}
-
-func (this MsgIdCache) CheckAndSet(msgId int64) bool {
-	for e := this.Front(); e != nil; e = e.Next() {
-		if e.Value == nil {
-			continue
-		} else if e.Value.(int64) == msgId {
-			return true
-		}
-	}
-
-	this.PushFront(msgId)
-	this.Remove(this.Back())
-	return false
-
 }
