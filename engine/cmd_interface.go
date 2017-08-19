@@ -154,7 +154,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			isHit := db.MgoSession().DB("pushd").C("msg_log").
 					Find(bson.M{"channel": channel,
 						"uuid": this.Client.uuid,
-						"msgid": msgId})
+						"msgid": msgId}).One(nil)
 			if isHit == nil {
 				ret = fmt.Sprintf("%d %d", msgId, time.Now().UnixNano())
 				return ret, nil
