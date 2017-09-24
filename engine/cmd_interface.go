@@ -54,7 +54,6 @@ const (
 	CMD_FRAME_REFUSE = "frame_refuse"
 	CMD_FRAME_INFO	= "frame_info"
 	CMD_INVOKE_FRAME_ACTION = "frame_action"
-	CMD_RETRACT_MESSAGE	= "retract_msg"
 
 
 	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
@@ -77,20 +76,11 @@ const (
 	UNSTABLE_INFO_TYPE_FRAME_CHAT = 1
 )
 
-// TODO 思考定义了这些常量，为什么没有用上
 const (
  TYPE_SINGLE_VOICE  = 1
  TYPE_MUL_VOICE  = 2
  TYPE_SINGLE_VIDEO  = 3
  TYPE_MUL_VIDEO  = 4
-)
-
-// TODO 所有响应消息，修改为使用code码来区别类型
-const (
-	CODE_SUCCESS = 200
-	CODE_PARAM_ERROR = 202
-	CODE_SERVER_ERROR = 500
-	CODE_FAILED = 400
 )
 
 func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
@@ -279,45 +269,6 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("Lack unsub channel")
 		}
 		ret = Unsubscribe(this.Client, params[0])
-
-	case CMD_RETRACT_MESSAGE:
-		if this.Params == "" {
-			return "", errors.New(fmt.Sprintf("%d param is empty", CODE_PARAM_ERROR))
-		}
-		params := strings.SplitN(this.Params, " ", 3)
-		if len(params) < 3 {
-			return "", errors.New(fmt.Sprintf("%d Lack of param", CODE_PARAM_ERROR))
-		}
-
-		channel := params[0]
-		msgId, err := strconv.ParseInt(params[1], 10, 64)
-		if err != nil {
-			return "", errors.New(fmt.Sprintf("%d msgId can not parse", CODE_PARAM_ERROR))
-		}
-
-		newMsgId, err := strconv.ParseInt(params[2], 10, 64)
-		if err != nil {
-			return "", errors.New(fmt.Sprintf("%d msgId can not parse", CODE_PARAM_ERROR))
-		}
-
-		col := db.MgoSession().DB("pushd").C("msg_log")
-		err = col.Remove(bson.M{"channel": channel, "uuid": this.uuid, "msgid": msgId})
-
-		if err != nil {
-			if realError, ok := err.(interface{}).(*mgo.LastError); ok {
-				return "", errors.New(fmt.Sprintf("%d %s",
-					CODE_SERVER_ERROR, realError.Error()))
-			}
-
-			if err == mgo.ErrNotFound {
-				return fmt.Sprintf("%d not found", CODE_FAILED), nil
-			}
-		}
-
-		Publish(channel, fmt.Sprintf("[del] %s %d", this.uuid, msgId),
-			this.Client.uuid, newMsgId, false)
-
-		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_CREATEROOM:
 		params := strings.Split(this.Params, " ")
