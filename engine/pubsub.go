@@ -194,6 +194,7 @@ func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
 	}
 }
 
+// 直接推送msg消息，不做任何判断
 func Publish2(channel, msg, skipUserId string, forceToOtherNode bool) {
 	clients, exists := PubsubChannels.Get(channel)
 	if exists {
