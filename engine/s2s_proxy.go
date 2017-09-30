@@ -16,7 +16,11 @@ const (
 	S2S_PUB_CMD   = "pub"
 	S2S_UNSUB_CMD = "unsub"
 
-	S2S_PUSH_CMD = "push"
+	S2S_PUSH_CMD = "push"			// 广播用户发送的消息
+	S2S_ADD_USER_INFO = "add_user_info" 	// 某用户上线，状态表中更新或增加用户信息
+	S2S_DISABLE_NOTIFY = "disable_notify"   // 关闭某用户的离线消息推送
+	S2S_ENABLE_NOTIFY = "enable_notify"	// 激活某用户的离线消息推送
+	S2S_USER_OFFLINE = "user_offline"	// 某用户下线
 )
 
 var (

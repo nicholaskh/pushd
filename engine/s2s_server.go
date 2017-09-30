@@ -12,6 +12,7 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"strconv"
 	"github.com/nicholaskh/pushd/db"
+	"github.com/nicholaskh/pushd/engine/offpush"
 )
 
 type S2sClientProcessor struct {
@@ -72,17 +73,7 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 	switch cl.Cmd {
 	case S2S_PUB_CMD:
 		params := strings.SplitN(cl.Params, " ", 2)
-		if params[0] == S2S_PUSH_CMD {
-			params2 := strings.SplitN(params[1], " ", 2)
-			Publish2(params2[0], params2[1], "", false)
-		} else {
-			params := strings.SplitN(cl.Params, " ", 5)
-			msgId, err := strconv.ParseInt(params[3], 10, 64)
-			if err != nil {
-				return err
-			}
-			Publish(params[0], params[4], params[1], msgId, true)
-		}
+		this.processChildCmdOfPub(params[0], params[1])
 
 	case S2S_SUB_CMD:
 		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params)
@@ -121,4 +112,69 @@ func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) e
 	}
 
 	return nil
+}
+
+func (this *S2sClientProcessor)processChildCmdOfPub(cmd, params string) {
+	switch cmd {
+	case S2S_PUSH_CMD:
+		/**
+			params:	   "channel message"
+		 */
+		params2 := strings.SplitN(params, " ", 2)
+		Publish2(params2[0], params2[1], "", false)
+
+	case S2S_ADD_USER_INFO:
+		/**
+			params:	   "userId pushId isAllowNotify"
+			example:   "7097d5d45754859550d4 91W490747097d5d45754859550d44776d68400046027f 1"
+
+			1: true 0: false
+		 */
+		t := strings.SplitN(params, " ", 3)
+		userId := t[0]
+		pushId := t[1]
+		isAllowNotify := true
+		if t[2] != "1" {
+			isAllowNotify = false
+		}
+
+		offpush.UpdateOrAddUserInfo(userId, pushId, true, isAllowNotify)
+
+	case S2S_ENABLE_NOTIFY:
+		/**
+			params:	   "userId"
+			example:   "7097d5d45754859550d4"
+		 */
+
+		userId := params
+		offpush.InvalidUser(userId)
+
+
+	case S2S_DISABLE_NOTIFY:
+		/**
+			params:	   "userId"
+			example:   "7097d5d45754859550d4"
+ 		*/
+
+		userId := params
+		offpush.ValidUser(userId)
+
+	case S2S_USER_OFFLINE:
+		/**
+			params:	   "userId"
+			example:   "7097d5d45754859550d4"
+	 	*/
+
+		userId := params
+		offpush.ChangeUserStatus(userId, false)
+
+	default:
+		// TODO 为其指定一个命令标志
+		params := strings.SplitN(params, " ", 5)
+		msgId, err := strconv.ParseInt(params[3], 10, 64)
+		if err != nil {
+			return err
+		}
+		Publish(params[0], params[4], params[1], msgId, true)
+	}
 }
