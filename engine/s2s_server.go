@@ -173,7 +173,7 @@ func (this *S2sClientProcessor)processChildCmdOfPub(cmd, params string) {
 		params := strings.SplitN(params, " ", 5)
 		msgId, err := strconv.ParseInt(params[3], 10, 64)
 		if err != nil {
-			return err
+			return
 		}
 		Publish(params[0], params[4], params[1], msgId, true)
 	}

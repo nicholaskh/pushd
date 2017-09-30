@@ -38,7 +38,7 @@ func CheckAndPush(channel, message, ownerId string) {
 			return
 		}
 
-		userIds := []string(t.([]interface{}))
+		userIds := t.([]string)
 		coll := db.MgoSession().DB("pushd").C("user_info")
 		// 将用户信息缓存在内存中
 		for _, uId := range userIds {
@@ -75,7 +75,7 @@ func CheckAndPush(channel, message, ownerId string) {
 			}
 		}
 		// 缓存群中所有用户id
-		channelToUserIds.addAllUserIds(channel, userIds)
+		channelToUserIds.addAllUserIds(channel, userIds...)
 
 		userIds, _ = channelToUserIds.getUserIdsByChannel(channel)
 	}
@@ -114,7 +114,6 @@ func ChangeUserStatus(userId string, isOnline bool) {
 	userInfo, exists := userInfoCollection.getUserInfo(userId)
 	if exists {
 		userInfo.isOnline = isOnline
-		return nil
 	}
 }
 

@@ -2,7 +2,6 @@ package offpush
 
 import (
 	"sync/atomic"
-	"github.com/go-redis/redis"
 	"errors"
 )
 
@@ -12,7 +11,7 @@ var (
 
 
 type IOffSender interface {
-	send(pushIds *[]string, message, ownerId string)
+	send(pushIds []string, message, ownerId string) error
 }
 
 type OffSenderPool struct {
@@ -37,41 +36,47 @@ func (this *OffSenderPool)ObtainOneOffSender() IOffSender {
 }
 
 type Sender struct {
-	address string
-	redis redis.Client
+	//address string
+	//redis redis.Client
+	// TODO 实现
 }
 
 func newSender(address string) (*Sender, error) {
 	sender := new(Sender)
-	sender.redis = redis.NewClient(&redis.Options{
-		Addr: address,
-		Password: "",
-		DB: 0,
-	})
-
-	_, err := sender.redis.Ping().Result()
-	if err != nil {
-		return nil, err
-	}
+	//sender.redis = redis.NewClient(&redis.Options{
+	//	Addr: address,
+	//	Password: "",
+	//	DB: 0,
+	//})
+	//
+	//_, err := sender.redis.Ping().Result()
+	//if err != nil {
+	//	return nil, err
+	//}
+	// TODO 实现
 	return sender, nil
 
 }
 
-func (this *Sender) Send(pushIds *[]string, message, ownerId string) error {
+func (this *Sender) send(pushIds []string, message, ownerId string) error {
 
 	//TODO 实现发送逻辑
 	return nil
 }
 
-func initOffSenderPool(capacity int32, addrs []string) error {
+func (this *Sender) close(){
+	// TODO 实现
+}
+
+func initOffSenderPool(capacity int, addrs []string) error {
 	if len(addrs) < 1 {
 		return errors.New("地址为空")
 	}
 
 	senderPool = new(OffSenderPool)
-	senderPool.size = capacity
+	senderPool.size = int32(capacity)
 	senderPool.baton = 0
-	senderPool.pool = make([]*IOffSender, len(addrs))
+	senderPool.pool = make([]IOffSender, len(addrs))
 
 	length := len(addrs)
 	for i:= 0; i<capacity; i++ {
@@ -83,7 +88,7 @@ func initOffSenderPool(capacity int32, addrs []string) error {
 				if temp != nil {
 					sender, ok := interface{}(temp).(Sender)
 					if ok {
-						sender.redis.Close()
+						sender.close()
 					}
 				}
 			}
@@ -92,6 +97,6 @@ func initOffSenderPool(capacity int32, addrs []string) error {
 		senderPool.pool[i] = t
 	}
 
-	return
+	return nil
 
 }

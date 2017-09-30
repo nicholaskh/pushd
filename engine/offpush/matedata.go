@@ -51,7 +51,8 @@ func (this *ChannelToUserIds) addNewKeyEmptyValue(channel string) (collection *U
 func (this *ChannelToUserIds) getValue(channel string) (*UserIdCollection, bool) {
 	this.rwMutex.RLock()
 	defer this.rwMutex.RUnlock()
-	return this.m[channel]
+	t, exists := this.m[channel]
+	return t, exists
 }
 
 func (this *ChannelToUserIds)addUserId(channel, userId string){
@@ -95,13 +96,13 @@ func (this *ChannelToUserIds) getUserIdsByChannel(channel string) ([]string, boo
 	}
 
 	userIds := collection.userIds
-	items := new([]string, 0, len(userIds))
+	items := make([]string, len(userIds))
 
 	// TODO 每次都要复制是不是性能太差
 	// TODO 补充：不一定是复制，引用地址？
 	collection.rwMutex.RLock()
 	for key := range userIds {
-		items = append(items, key)
+		items = append(items, key.(string))
 	}
 	collection.rwMutex.RUnlock()
 
@@ -142,13 +143,13 @@ func (this *UserInfoCollection)checkAndFetchPushId(userId string) (string, bool,
 
 	entity, exists := this.getUserInfo(userId)
 	if !exists {
-		return nil, true, false
+		return "", true, false
 	}
 	if !entity.isOnline && entity.isAllowNotify{
 		return entity.pushId, true, true
 	}
 
-	return nil, false, true
+	return "", false, true
 
 }
 
