@@ -38,6 +38,10 @@ type ConfigPushd struct {
 
 	EtcServers []string
 
+
+	OffSenderPoolNum int
+	MsgQueueAddrs []string
+
 	MetricsLogfile      string
 	StatsOutputInterval time.Duration
 
@@ -76,6 +80,13 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 	if len(this.EtcServers) == 0 {
 		this.EtcServers = nil
 	}
+
+	this.MsgQueueAddrs = cf.StringList("message_queue_addrs", nil)
+	if len(this.MsgQueueAddrs) == 0 {
+		this.MsgQueueAddrs = nil
+	}
+
+	this.OffSenderPoolNum = cf.Int("offline_sender_pool_num", 1)
 
 	this.MetricsLogfile = cf.String("metrics_logfile", "metrics.log")
 	this.StatsOutputInterval = cf.Duration("stats_output_interval", time.Minute*10)
