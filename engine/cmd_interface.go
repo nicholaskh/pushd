@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"gopkg.in/mgo.v2"
+	"github.com/nicholaskh/pushd/engine/offpush"
 )
 
 type Cmdline struct {
@@ -159,7 +160,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return "", errors.New("msgid error")
 		}
 
-		// check if user has sent this msg
+		// check if this message has been sent
 		if isResend == "Y" {
 			isHit := db.MgoSession().DB("pushd").C("msg_log").
 					Find(bson.M{"channel": channel,
@@ -194,6 +195,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		}
 
+		offpush.CheckAndPush(channel, msg, this.Client.uuid)
 		ret = Publish(channel, msg, this.Client.uuid, msgId, false)
 
 	case CMD_VIDO_CHAT:
@@ -821,9 +823,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if len(params) < 2 || params[1] == "" {
 			return "", errors.New("Lack uuid")
 		}
-		this.Client.initChatEnv(params[1])
-		ret = "uuid saved"
-		err = nil
+		this.uuid = params[1]
+		// 具体聊天环境初始化在另一个GO ROUTINE中来完成,目的是及早让客户端准备好
+		go this.Client.initChatEnv(params[1])
+		// TODO 新启动的GO routine 在本命令响应返回前完成，会引发一些问题（如：其他用户发来消息，概率非常小），该如何处理
+		// TODO 考虑一种办法来close掉之前的client，目前做法是不做任何处理，超时后自动清理
+		return "uuid saved", nil
 
 	case CMD_PING:
 		return OUTPUT_PONG, nil

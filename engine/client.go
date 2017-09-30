@@ -11,6 +11,8 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"gopkg.in/mgo.v2"
 	"github.com/nicholaskh/pushd/engine/storage"
+	"errors"
+	"github.com/nicholaskh/pushd/engine/offpush"
 )
 
 const (
@@ -159,28 +161,77 @@ func (this *Client) updateTokenExpire(expire int64) {
 }
 
 func (this *Client) initChatEnv(uuid string) {
+	this.updateGlobalUserCacheInfo()
+	this.updateUserIdToClientMappingTable()
+	this.subAllAssociateChannels()
+}
 
-	this.uuid = uuid
+// 更新用户全局状态信息缓存表
+func (this *Client) updateGlobalUserCacheInfo() error {
+
+	// 获取用户基本信息
 	var result interface{}
+	coll := db.MgoSession().DB("push").C("user_info")
+	err := coll.FindId(this.uuid).Select(bson.M{"isAllowNotify":1, "pushId":1,"_id":0}).One(&result)
+	if err != nil {
+		return err
+	}
 
-	UuidToClient.Remove(uuid, this)
-	// store relationship between uuid and client to table of mapping
-	UuidToClient.AddClient(uuid, this)
+	info, _ := result.(bson.M)
 
-	// check and force client to subscribe related and active channels
+	tPushId, ok := info["pushId"]
+	if !ok {
+		return errors.New("this user has no pushId")
+	}
+	pushId := tPushId.(string)
+
+	tisAllowNotify, ok := info["isAllowNotify"]
+	var isAllowNotify bool
+	if !ok {
+		isAllowNotify = true
+	}else{
+		isAllowNotify = tisAllowNotify.(bool)
+	}
+
+	// 更新本地缓存表
+	offpush.UpdateOrAddUserInfo(this.uuid, pushId, true, isAllowNotify)
+
+	var msg string
+	if isAllowNotify {
+		msg = fmt.Sprintf("%s %s 1", this.uuid, pushId, isAllowNotify)
+	} else {
+		msg = fmt.Sprintf("%s %s 0", this.uuid, pushId, isAllowNotify)
+	}
+
+	// 同步更新其他服务器缓存表
+	forwardToAllOtherServer(S2S_ADD_USER_INFO, msg)
+	return nil
+}
+
+// 更新用户Id到Client映射表
+func (this *Client) updateUserIdToClientMappingTable(){
+	// 清除之前还未来得及关闭的client
+	UuidToClient.Remove(this.uuid, this)
+	// 注册自己到映射表
+	UuidToClient.AddClient(this.uuid, this)
+}
+
+// 订阅所有和自己相关的处于活跃状态的群聊
+func (this *Client) subAllAssociateChannels(){
+	// 获取自己所在的所有群聊Id
+	var result interface{}
 	err := db.MgoSession().DB("pushd").C("uuid_channels").
-		Find(bson.M{"_id": uuid}).
+		Find(bson.M{"_id": this.uuid}).
 		Select(bson.M{"_id": 0, "channels": 1}).
 		One(&result)
 
 	if err == nil {
+		// 订阅所有和自己相关的处于活跃状态的群聊
 		channels := result.(bson.M)["channels"].([]interface{})
 		for _, value := range channels {
 			channel := value.(string)
-			// check native
 			_, exists := PubsubChannels.Get(channel)
 			if !exists {
-				// check other nodes
 				if config.PushdConf.IsDistMode() {
 					_, exists = Proxy.Router.LookupPeersByChannel(channel)
 				}

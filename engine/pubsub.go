@@ -270,3 +270,20 @@ func Forward(channel, uuid string, msg []byte, fromS2s bool) {
 	//TODO 多节点转发
 
 }
+
+// TODO 整理规范此文件中的所有方法
+
+// 向其他所有服务器发送某条消息
+func forwardToAllOtherServer(cmd, message string){
+	if !config.PushdConf.IsDistMode() || cmd == "" || message == ""{
+		return
+	}
+
+	msg := fmt.Sprintf("%s %s", cmd, message)
+
+	peers := set.NewSet()
+	for _, v := range Proxy.Router.Peers {
+		peers.Add(v)
+	}
+	Proxy.PubMsgChan2 <- NewPubTuple2(peers, msg)
+}
