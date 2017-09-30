@@ -61,12 +61,13 @@ func (this *Client) Close() {
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
 	this.clearFrameChat()
-
+	this.clearGlobalCacheUserInfo()
 	UnsubscribeAllChannels(this)
 	UuidToClient.Remove(this.uuid, this)
 	this.Client.Close()
 
 }
+
 
 // 清理和语音电话、视频聊天有关的信息
 func (this *Client) clearFrameChat(){
@@ -210,6 +211,13 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 	// 同步更新其他服务器缓存表
 	forwardToAllOtherServer(S2S_ADD_USER_INFO, msg)
 	return nil
+}
+
+
+// 修改用户全局状态信息缓存表
+func (this *Client) clearGlobalCacheUserInfo(){
+	offpush.ChangeUserStatus(this.uuid, false)
+	forwardToAllOtherServer(S2S_USER_OFFLINE, this.uuid)
 }
 
 // 更新用户Id到Client映射表
