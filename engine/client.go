@@ -60,7 +60,16 @@ func (this *Client) Close() {
 	log.Debug("client channels: %s", this.Channels)
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
-	// clear revelant data in unstable_info
+	this.clearFrameChat()
+
+	UnsubscribeAllChannels(this)
+	UuidToClient.Remove(this.uuid, this)
+	this.Client.Close()
+
+}
+
+// 清理和语音电话、视频聊天有关的信息
+func (this *Client) clearFrameChat(){
 	var result interface{}
 	err0 := db.MgoSession().DB("pushd").C("user_info").FindId(this.uuid).Select(bson.M{"frame_chat":1,"_id":0}).One(&result)
 	if err0 == nil {
@@ -82,10 +91,10 @@ func (this *Client) Close() {
 						continue
 					}
 
-					// check if anyone is in this channel chat
+					// 通过删除的方式来检测是否临时聊天已经结束
 					err0 = collection.Remove(bson.M{"_id": objectId, "activeUser": []string{}})
 					if err0 == nil {
-						// clear relevant data about newChannelId in mongodb
+						// 如果结束清楚相关用户与此临时群聊相关的数据信息
 						unstableInfo := result.(bson.M)
 						realChannelId := unstableInfo["channelId"].(string)
 						UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
@@ -107,11 +116,6 @@ func (this *Client) Close() {
 		}
 
 	}
-
-	UnsubscribeAllChannels(this)
-	UuidToClient.Remove(this.uuid, this)
-	this.Client.Close()
-
 }
 
 
