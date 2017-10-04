@@ -60,10 +60,12 @@ func (this *Client) Close() {
 	log.Debug("client channels: %s", this.Channels)
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
-	this.clearFrameChat()
-	this.clearGlobalCacheUserInfo()
-	UnsubscribeAllChannels(this)
-	UuidToClient.Remove(this.uuid, this)
+	if this.IsClient() {
+		this.clearFrameChat()
+		this.clearGlobalCacheUserInfo()
+		UnsubscribeAllChannels(this)
+		UuidToClient.Remove(this.uuid, this)
+	}
 	this.Client.Close()
 
 }
