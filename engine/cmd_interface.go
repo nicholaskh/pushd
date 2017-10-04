@@ -57,6 +57,7 @@ const (
 	CMD_INVOKE_FRAME_ACTION = "frame_action"
 	CMD_RETRACT_MESSAGE	= "retract_msg"
 	CMD_UPDATE_OR_ADD_PUSH_ID = "up_ad_pushId"
+	CMD_SET_OFF_NOTIFY = "set_notify"
 
 
 	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
@@ -347,6 +348,39 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		offpush.UpdateUserPushId(userId, pushId)
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
+
+	case CMD_SET_OFF_NOTIFY:
+		params := strings.Split(this.Params, " ")
+		userId := params[0]
+		isAllowNotify := params[1]
+
+		if userId == "" || isAllowNotify == "" {
+			return fmt.Sprintf("%d param error", CODE_PARAM_ERROR), nil
+		}
+
+		coll := db.MgoSession().DB("pushd").C("user_info")
+		err := coll.FindId(userId).One(nil)
+		if err != nil {
+			if err == mgo.ErrNotFound {
+				return fmt.Sprintf("%d userId not found", CODE_FAILED), nil
+			}
+
+			return fmt.Sprintf("%d server error", CODE_SERVER_ERROR), nil
+		}
+
+		if isAllowNotify == "1" {
+			err = coll.Update(bson.M{"_id": userId}, bson.M{"$set": bson.M{"isAllowNotify": true}})
+			offpush.ValidUser(userId)
+		} else {
+			err = coll.Update(bson.M{"_id": userId}, bson.M{"$set": bson.M{"isAllowNotify": false}})
+			offpush.InvalidUser(userId)
+		}
+
+		if err != nil {
+			return fmt.Sprintf("%d server error", CODE_SERVER_ERROR), nil
+		}
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
