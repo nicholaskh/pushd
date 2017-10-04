@@ -55,6 +55,7 @@ const (
 	CMD_FRAME_REFUSE = "frame_refuse"
 	CMD_FRAME_INFO	= "frame_info"
 	CMD_INVOKE_FRAME_ACTION = "frame_action"
+
 	CMD_RETRACT_MESSAGE	= "retract_msg"
 	CMD_UPDATE_OR_ADD_PUSH_ID = "up_ad_pushId"
 	CMD_SET_OFF_NOTIFY = "set_notify"
@@ -80,20 +81,11 @@ const (
 	UNSTABLE_INFO_TYPE_FRAME_CHAT = 1
 )
 
-// TODO 思考定义了这些常量，为什么没有用上
 const (
  TYPE_SINGLE_VOICE  = 1
  TYPE_MUL_VOICE  = 2
  TYPE_SINGLE_VIDEO  = 3
  TYPE_MUL_VIDEO  = 4
-)
-
-// TODO 所有响应消息，修改为使用code码来区别类型
-const (
-	CODE_SUCCESS = 200
-	CODE_PARAM_ERROR = 202
-	CODE_SERVER_ERROR = 500
-	CODE_FAILED = 400
 )
 
 func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
