@@ -3,6 +3,8 @@ package offpush
 import (
 	"sync/atomic"
 	"errors"
+	"fmt"
+	log "github.com/nicholaskh/log4go"
 )
 
 var (
@@ -60,6 +62,13 @@ func newSender(address string) (*Sender, error) {
 
 func (this *Sender) send(pushIds []string, message, ownerId string) error {
 
+	var a string
+	for _, str := range pushIds {
+		a += " "
+		a += str
+	}
+
+	log.Info(fmt.Sprintf("offpush: %s %s %s", ownerId, message, a))
 	//TODO 实现发送逻辑
 	return nil
 }
