@@ -25,7 +25,7 @@ func CheckAndPush(channel, message, ownerId string) {
 	if !exists {
 		var result interface{}
 		err := db.MgoSession().DB("pushd").C("channel_uuids").
-			Find(bson.M{"channel":channel}).
+			Find(bson.M{"_id":channel}).
 			Select(bson.M{"uuids":1,"_id":0}).
 			One(&result)
 
@@ -38,13 +38,16 @@ func CheckAndPush(channel, message, ownerId string) {
 			return
 		}
 
-		userIds := t.([]string)
+		tempUserIds := t.([]interface{})
 		coll := db.MgoSession().DB("pushd").C("user_info")
+
+		userIds = make([]string, len(tempUserIds))
 		// 将用户信息缓存在内存中
-		for _, uId := range userIds {
+		for _, value := range tempUserIds {
+			uId := value.(string)
+			userIds = append(userIds, uId)
 			_, exists = userInfoCollection.getUserInfo(uId)
 			if !exists {
-
 				// 从MONGODB中加载用户的信息
 				err = coll.FindId(uId).
 					Select(bson.M{"isAllowNotify":1, "pushId":1,"_id":0}).
@@ -53,7 +56,6 @@ func CheckAndPush(channel, message, ownerId string) {
 				if err != nil {
 					continue
 				}
-
 				info, _ := result.(bson.M)
 
 				tPushId, ok := info["pushId"]
@@ -61,7 +63,6 @@ func CheckAndPush(channel, message, ownerId string) {
 					continue
 				}
 				pushId := tPushId.(string)
-
 				tisAllowNotify, ok := info["isAllowNotify"]
 				var isAllowNotify bool
 				if !ok {
@@ -69,7 +70,6 @@ func CheckAndPush(channel, message, ownerId string) {
 				}else{
 					isAllowNotify = tisAllowNotify.(bool)
 				}
-
 				userInfoCollection.addUserInfo(uId, pushId, false, isAllowNotify)
 
 			}
@@ -79,7 +79,6 @@ func CheckAndPush(channel, message, ownerId string) {
 
 		userIds, _ = channelToUserIds.getUserIdsByChannel(channel)
 	}
-
 	// 筛选符合离线推送条件的用户，提取出相应的pushId
 	pushIds := make([]string, len(userIds))
 	for _, uId := range userIds {
@@ -89,7 +88,6 @@ func CheckAndPush(channel, message, ownerId string) {
 		}
 		pushIds = append(pushIds, pushId)
 	}
-
 	if len(pushIds) == 0 {
 		return
 	}

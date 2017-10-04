@@ -45,6 +45,7 @@ func (this *ChannelToUserIds) addNewKeyEmptyValue(channel string) (collection *U
 		return
 	}
 	collection = newUserIdCollection()
+	this.m[channel] = collection
 	return
 }
 
@@ -132,7 +133,7 @@ func newUserInfoCollection() (t *UserInfoCollection) {
 
 func (this *UserInfoCollection) getUserInfo(userId string) (*UserInfoEntity, bool) {
 	this.mutex.RLock()
-	defer this.mutex.RLock()
+	defer this.mutex.RUnlock()
 
 	entity, exists := this.m[userId]
 	return entity, exists
@@ -163,7 +164,6 @@ func (this *UserInfoCollection) addUserInfo(userId, pushId string, isOnline, isA
 	if exists {
 		return entity
 	}
-
 	entity = new(UserInfoEntity)
 	entity.pushId = pushId
 	entity.isAllowNotify = isAllowNotify

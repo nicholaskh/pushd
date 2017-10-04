@@ -76,7 +76,7 @@ func initOffSenderPool(capacity int, addrs []string) error {
 	senderPool = new(OffSenderPool)
 	senderPool.size = int32(capacity)
 	senderPool.baton = 0
-	senderPool.pool = make([]IOffSender, len(addrs))
+	senderPool.pool = make([]IOffSender, capacity)
 
 	length := len(addrs)
 	for i:= 0; i<capacity; i++ {
