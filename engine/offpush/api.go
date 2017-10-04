@@ -60,7 +60,7 @@ func CheckAndPush(channel, message, ownerId string) {
 
 				tPushId, ok := info["pushId"]
 				if !ok {
-					continue
+					tPushId = ""
 				}
 				pushId := tPushId.(string)
 				tisAllowNotify, ok := info["isAllowNotify"]
