@@ -178,7 +178,7 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 
 	// 获取用户基本信息
 	var result interface{}
-	coll := db.MgoSession().DB("push").C("user_info")
+	coll := db.MgoSession().DB("pushd").C("user_info")
 	err := coll.FindId(this.uuid).Select(bson.M{"isAllowNotify":1, "pushId":1,"_id":0}).One(&result)
 	if err != nil {
 		return err
@@ -191,7 +191,6 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 		return errors.New("this user has no pushId")
 	}
 	pushId := tPushId.(string)
-
 	tisAllowNotify, ok := info["isAllowNotify"]
 	var isAllowNotify bool
 	if !ok {
@@ -199,7 +198,6 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 	}else{
 		isAllowNotify = tisAllowNotify.(bool)
 	}
-
 	// 更新本地缓存表
 	offpush.UpdateOrAddUserInfo(this.uuid, pushId, true, isAllowNotify)
 
@@ -209,7 +207,6 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 	} else {
 		msg = fmt.Sprintf("%s %s 0", this.uuid, pushId, isAllowNotify)
 	}
-
 	// 同步更新其他服务器缓存表
 	forwardToAllOtherServer(S2S_ADD_USER_INFO, msg)
 	return nil
