@@ -14,6 +14,7 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine"
 	"github.com/nicholaskh/pushd/engine/storage"
+	"github.com/nicholaskh/pushd/engine/offpush"
 )
 
 var (
@@ -49,6 +50,11 @@ func main() {
 		}
 		shutdown()
 	}()
+
+	err := offpush.InitOffPushService()
+	if err != nil {
+		panic(err.Error())
+	}
 
 	pushdServer = server.NewTcpServer("pushd")
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
