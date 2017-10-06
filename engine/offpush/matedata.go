@@ -3,8 +3,6 @@ package offpush
 import (
 	"sync"
 	"github.com/nicholaskh/golib/set"
-	log "github.com/nicholaskh/log4go"
-	"fmt"
 )
 
 var (
@@ -181,7 +179,6 @@ func (this *UserInfoCollection)updateOrAddUserInfo(userId, pushId string, isOnli
 		entity = this.addUserInfo(userId, pushId, isOnline, isAllowNotify)
 	}
 
-	log.Info(fmt.Sprint(userId, " ", pushId, " ", isOnline, " ", isAllowNotify))
 	entity.isOnline = isOnline
 	entity.isAllowNotify = isAllowNotify
 

@@ -80,7 +80,7 @@ func CheckAndPush(channel, message, ownerId string) {
 		userIds, _ = channelToUserIds.getUserIdsByChannel(channel)
 	}
 	// 筛选符合离线推送条件的用户，提取出相应的pushId
-	pushIds := make([]string, len(userIds))
+	pushIds := make([]string, 0, len(userIds))
 	for _, uId := range userIds {
 		pushId, isValid, exists := userInfoCollection.checkAndFetchPushId(uId)
 		if !exists || !isValid {
