@@ -3,8 +3,14 @@ package offpush
 import (
 	"sync/atomic"
 	"errors"
-	"fmt"
+	"jpushclient"
 	log "github.com/nicholaskh/log4go"
+	"fmt"
+)
+
+const (
+	appKey = "3119b423cd31a4827d9a53cf"
+        secret = "2da5c85573ff4e490d3d5d6f"
 )
 
 var (
@@ -38,39 +44,54 @@ func (this *OffSenderPool)ObtainOneOffSender() IOffSender {
 }
 
 type Sender struct {
-	//address string
-	//redis redis.Client
-	// TODO 实现
+	pushClient *jpushclient.PushClient
 }
 
 func newSender(address string) (*Sender, error) {
 	sender := new(Sender)
-	//sender.redis = redis.NewClient(&redis.Options{
-	//	Addr: address,
-	//	Password: "",
-	//	DB: 0,
-	//})
-	//
-	//_, err := sender.redis.Ping().Result()
-	//if err != nil {
-	//	return nil, err
-	//}
-	// TODO 实现
+	// TODO 检测是否是http长连接
+	sender.pushClient = jpushclient.NewPushClient(secret, appKey)
 	return sender, nil
 
 }
 
 func (this *Sender) send(pushIds []string, message, ownerId string) error {
 
-	var a string
-	for _, str := range pushIds {
-		a += " "
-		a += str
+	if len(pushIds) == 0 {
+		return nil
 	}
 
-	log.Info(fmt.Sprintf("offpush: %s %s %s", ownerId, message, a))
-	//TODO 实现发送逻辑
-	return nil
+	//Platform
+	pf := jpushclient.Platform{}
+	pf.Add(jpushclient.ANDROID)
+
+	//Audience
+	ad := jpushclient.Audience{}
+	ad.SetID(pushIds)
+
+	//Notice
+	var notice jpushclient.Notice
+	notice.SetAlert("alert_test")
+	notice.SetAndroidNotice(&jpushclient.AndroidNotice{Alert: "AndroidNotice"})
+
+	var msg jpushclient.Message
+	msg.Title = ""
+	msg.Content = message
+
+	payload := jpushclient.NewPushPayLoad()
+	payload.SetPlatform(&pf)
+	payload.SetAudience(&ad)
+	payload.SetMessage(&msg)
+	payload.SetNotice(&notice)
+
+	bytes, _ := payload.ToBytes()
+
+	log.Info(fmt.Sprintf("offpush: %s", string(bytes)))
+
+	_, err := this.pushClient.Send(bytes)
+
+	// TODO 处理pushId不合法的情况
+	return err
 }
 
 func (this *Sender) close(){
