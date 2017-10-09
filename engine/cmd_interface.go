@@ -63,7 +63,6 @@ const (
 
 	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
 	OUTPUT_TOKEN 	           = "TOKEN"
-	OUTPUT_SUBS		    = "SUBS"
 	OUTPUT_AUTH_SERVER        = "AUTHSERVER"
 	OUTPUT_RCIV	            = "RCIV"
 	OUTPUT_APPKEY             = "APPKEY"
@@ -72,9 +71,6 @@ const (
 	OUTPUT_NOT_SUBSCRIBED     = "NOT SUBSCRIBED"
 	OUTPUT_UNSUBSCRIBED       = "UNSUBSCRIBED"
 	OUTPUT_PONG               = "pong"
-	OUTPUT_CREATEROOM = "CREATEROOM"
-	OUTPUT_JOINROOM  = "JOINROOM"
-	OUTPUT_LEAVEROOM = "LEAVEROOM"
 )
 
 const (
@@ -95,6 +91,7 @@ const (
 	CODE_PARAM_ERROR = 202
 	CODE_SERVER_ERROR = 500
 	CODE_FAILED = 400
+	CODE_TOKEN_OR_TERM_ERROR = 508
 )
 
 func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {

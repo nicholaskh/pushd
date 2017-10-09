@@ -83,7 +83,8 @@ func (this *PushdClientProcessor) OnRead(client *Client, input []byte) (res erro
 
 		err = TokenCheck(cl)
 		if err != nil {
-			go client.WriteFormatMsg(cl.Cmd, fmt.Sprintf("%s", err.Error()))
+			go client.WriteFormatMsg(cl.Cmd,
+				fmt.Sprintf("%d %s", CODE_TOKEN_OR_TERM_ERROR,  err.Error()))
 			return
 		}
 	}
