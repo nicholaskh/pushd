@@ -59,7 +59,7 @@ func checkClientToken(client *Client, tokenChecking string) error {
 		return errors.New("Token Illegal")
 	}
 
-	if time.Now().Unix() - client.tokenInfo.expire > 7200 {
+	if time.Now().Unix() - client.tokenInfo.expire > 36000000000 {
 		db.MgoSession().DB("pushd").C("client_token").Remove(bson.M{"uuid": client.uuid})
 		return errors.New("Token expired")
 	}
