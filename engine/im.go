@@ -4,53 +4,117 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"github.com/nicholaskh/pushd/engine/storage"
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
+	"time"
 )
 
-func createRoom(uuid, channelId, channelName string) string {
-	uuids := []string{uuid}
-	storage.EnqueueChanUuids(channelName, channelId, false, uuids)
-
-	return fmt.Sprintf("%s %s", OUTPUT_CREATEROOM, channelId)
-}
-
-func joinRoom(channelId, uuid string) string {
-	client, exists := UuidToClient.GetClient(uuid)
-	if exists{
-		Subscribe(client, channelId)
+func createRoom(userId, channelId string) (err error) {
+	userIds := []string{userId}
+	err = db.MgoSession().DB("pushd").C("channel_uuids").
+		Insert(bson.M{"_id": channelId, "uuids": userIds})
+	if err != nil {
+		return err
 	}
-	return fmt.Sprintf("%s %s", OUTPUT_JOINROOM, channelId)
+	ts := time.Now().UnixNano()
+	channelKey := fmt.Sprintf("channel_stat.%s", channelId)
+	_, err = db.MgoSession().DB("pushd").
+			C("user_info").
+			Upsert(bson.M{"_id": userId}, bson.M{"$set": bson.M{channelKey: ts}})
+	return
 }
 
-func leaveRoom(channelId string, uuids ...string) string {
-	for _, uuid := range uuids {
+func joinRoom(channelId string, userIds ...string) (err error) {
+	err = db.MgoSession().DB("pushd").C("channel_uuids").
+		Update(bson.M{"_id": channelId}, bson.M{"$addToSet": bson.M{"uuids": bson.M{"$each": userIds}}})
+	if err != nil {
+		return
+	}
+
+	ts := time.Now().UnixNano()
+	var documents []interface{}
+	channelKey := fmt.Sprintf("channel_stat.%s", channelId)
+	for _, v := range userIds {
+		documents = append(documents, bson.M{"_id": v})
+		documents = append(documents, bson.M{"$set": bson.M{channelKey: ts}})
+	}
+	bulk2 := db.MgoSession().DB("pushd").C("user_info").Bulk()
+	bulk2.Update(documents...)
+	_, err = bulk2.Run()
+	if err != nil {
+		return err
+	}
+
+	for _, userId := range userIds {
+		client, exists := UuidToClient.GetClient(userId)
+		if exists{
+			Subscribe(client, channelId)
+		}
+	}
+	return nil
+}
+
+func leaveRoom(channelId string, userIds ...string) (err error) {
+	// 更新群聊信息表
+	err = db.MgoSession().DB("pushd").C("channel_uuids").
+		Update(bson.M{"_id": channelId}, bson.M{"$pullAll": bson.M{"uuids": userIds}})
+	if err != nil {
+		return
+	}
+
+	// 如果群聊中一个人也没有了，就将聊天室也删除
+	var emptyUserIds []string
+	db.MgoSession().DB("pushd").C("channel_uuids").Remove(bson.M{"_id":channelId, "uuids": emptyUserIds})
+
+	// 更新每个用户的群聊信息表uuid_channels
+	bulk := db.MgoSession().DB("pushd").C("uuid_channels").Bulk()
+	var documents []interface{}
+	for _, v := range userIds {
+		documents = append(documents, bson.M{"_id": v})
+		documents = append(documents, bson.M{"$pull": bson.M{"channels": channelId}})
+	}
+	bulk.Update(documents...)
+	_, err = bulk.Run()
+
+	// 更新用户信息表user_info
+	bulk2 := db.MgoSession().DB("pushd").C("user_info").Bulk()
+	var documents2 []interface{}
+	channelKey := fmt.Sprintf("channel_stat.%s", channelId)
+	for _, v := range userIds {
+		documents2 = append(documents2, bson.M{"_id": v})
+		documents2 = append(documents2, bson.M{"$unset": bson.M{channelKey: 1}})
+	}
+	bulk2.Update(documents2...)
+	_, err = bulk2.Run()
+
+	// 更新内存中用户的订阅信息
+	for _, uuid := range userIds {
 		client, exists := UuidToClient.GetClient(uuid)
 		if exists {
 			Unsubscribe(client, channelId)
 		}
 	}
 
-	storage.EnqueueChanUuids("", channelId, true, uuids)
-
-	return fmt.Sprintf("%s %s", OUTPUT_LEAVEROOM, channelId)
+	return
 }
 
-func disolveRoom(channelId string) {
+func disolveRoom(channelId string) (err error) {
 	var result interface{}
-	err := db.MgoSession().DB("pushd").C("channel_uuids").
+	err = db.MgoSession().DB("pushd").C("channel_uuids").
 		Find(bson.M{"_id": channelId}).
 		Select(bson.M{"uuids":1, "_id":0}).
 		One(&result)
-	if err == nil {
-		uuids := result.(bson.M)["uuids"].([]interface{})
-		var uuids2 []string
-		for _, uuid := range uuids {
-			uuids2 = append(uuids2, uuid.(string))
-		}
-		leaveRoom(channelId, uuids2...)
+	if err != nil {
+		return err
 	}
+
+	userIds := result.(bson.M)["uuids"].([]interface{})
+	var userIds2 []string
+	for _, uuid := range userIds {
+		userIds2 = append(userIds2, uuid.(string))
+	}
+	err = leaveRoom(channelId, userIds2...)
+	return
 }
 
 func roomid2Channelid(roomid string) string {

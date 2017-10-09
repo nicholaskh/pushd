@@ -33,6 +33,7 @@ const (
 	CMD_DISOLVE	= "disolve"
 	CMD_UNSUBS 	= "unsubs"
 	CMD_SUBS	= "subs"
+	CMD_ADD_USER_INTO_ROOM = "add_into_room"
 	CMD_APPKEY    = "getappkey"
 	CMD_SENDMSG   = "sendmsg"
 	CMD_SETUUID	= "setuuid"
@@ -387,44 +388,49 @@ func (this *Cmdline) Process() (ret string, err error) {
 	case CMD_CREATEROOM:
 		params := strings.Split(this.Params, " ")
 		if len(params) < 1 {
-			return "", errors.New("Lack uuid")
-		}
-		if this.Client.uuid == "" {
-			return "", errors.New("client has no uuid")
+			return fmt.Sprintf("%d param error", CODE_PARAM_ERROR), nil
 		}
 
-		roomid := generateRoomIdByUuidList(append(params, this.Client.uuid)...)
-		channelId := roomid2Channelid(roomid)
-		ret = createRoom(this.Client.uuid, channelId, channelId)
+		roomId := generateRoomIdByUuidList(append(params, this.Client.uuid)...)
+		channelId := roomid2Channelid(roomId)
+		err = createRoom(this.Client.uuid, channelId)
+		if err != nil {
+			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+		}
 
 		for _, uuid := range params {
-			joinRoom(channelId, uuid)
+			err = joinRoom(channelId, uuid)
+			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
 		}
 
-		storage.EnqueueChanUuids("", channelId, false, params)
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_JOINROOM:
 		params := strings.Split(this.Params, " ")
 		if len(params) < 1 || params[0] == "" {
-			return "", errors.New("Lack roomid")
-		}
-
-		if this.Client.uuid == "" {
-			return "", errors.New("client must setuuid first")
+			return fmt.Sprintf("%d param error", CODE_PARAM_ERROR), nil
 		}
 
 		channelId := roomid2Channelid(params[0])
-		ret = joinRoom(channelId, this.Client.uuid)
+		err = joinRoom(channelId, this.Client.uuid)
+		if err != nil {
+			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+		}
 
-		uuids := []string{this.Client.uuid}
-		storage.EnqueueChanUuids("", channelId, false, uuids)
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_LEAVEROOM:
 		params := strings.Split(this.Params, " ")
 		if len(params) < 1 || params[0] == "" {
-			return "", errors.New("Lack roomid")
+			return fmt.Sprintf("%d param error", CODE_PARAM_ERROR), nil
 		}
-		ret = leaveRoom(this.Client.uuid, roomid2Channelid(params[0]))
+
+		err = leaveRoom(this.Client.uuid, roomid2Channelid(params[0]))
+		if err != nil {
+			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+		}
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_APPLY:
 		params := strings.Split(this.Params, " ")
@@ -726,57 +732,124 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 		}
 
+	case CMD_ADD_USER_INTO_ROOM:
+		params := strings.Split(this.Params, " ")
+		if len(params) < 2 {
+			return fmt.Sprintf("%d param wrong", CODE_PARAM_ERROR), nil
+		}
+
+		channelId := params[0]
+		err = db.MgoSession().DB("pushd").C("channel_uuids").FindId(channelId).One(nil)
+		if err != nil {
+			if err == mgo.ErrNotFound {
+				return fmt.Sprintf("%d channelId is not exists", CODE_FAILED), nil
+			}
+			return fmt.Sprintf("%d %s", CODE_SERVER_ERROR, err.Error()), nil
+		}
+
+		for _, tempUserId := range params[1:]{
+			err := db.MgoSession().DB("pushd").C("user_info").FindId(tempUserId).One(nil)
+			if err != nil {
+				if err == mgo.ErrNotFound {
+					return fmt.Sprintf("%d userId:%s is not exists", CODE_FAILED, tempUserId), nil
+				}
+
+				return fmt.Sprintf("%d %s", CODE_SERVER_ERROR, err.Error()), nil
+			}
+		}
+
+		for _, tempUserId := range params[1:] {
+			err = joinRoom(channelId, tempUserId)
+			if err != nil {
+				return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+			}
+		}
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
     //subs: subscribe from server
 	case CMD_SUBS:
 		params := strings.Split(this.Params, " ")
 		if len(params) < 3 {
-			return "", errors.New("param wrong")
+			return fmt.Sprintf("%d param wrong", CODE_PARAM_ERROR), nil
 		}
 
-		createRoom(params[2], params[1], params[0])
+		ownerId := params[2]
+		channelId := params[1]
+		// channelName := params[0]
+
+		for _, tempUserId := range params[2:]{
+			err := db.MgoSession().DB("pushd").C("user_info").FindId(tempUserId).One(nil)
+			if err != nil {
+				if err == mgo.ErrNotFound {
+					return fmt.Sprintf("%d userId:%s is not exists", CODE_FAILED, tempUserId), nil
+				}
+
+				return fmt.Sprintf("%d server error", CODE_SERVER_ERROR), nil
+			}
+		}
+
+		err = db.MgoSession().DB("pushd").C("channel_uuids").FindId(channelId).One(nil)
+		if err == nil {
+			return fmt.Sprintf("%d channelId has been exists", CODE_FAILED), nil
+		}
+
+		err = createRoom(ownerId, channelId)
+		if err != nil {
+			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+		}
 
 		for _, uuid := range params[3:] {
-			joinRoom(params[1], uuid)
-		}
-		if len(params[3:]) > 0{
-			storage.EnqueueChanUuids("", params[1], false, params[3:])
+			err = joinRoom(channelId, uuid)
+			if err != nil {
+				return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+			}
 		}
 
-		ret = fmt.Sprintf("%s success", OUTPUT_SUBS)
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_UNSUBS:
 		params := strings.Split(this.Params, " ")
 		if len(params) < 2 {
-			return "", errors.New("param wrong")
+			return fmt.Sprintf("%d param wrong", CODE_PARAM_ERROR), nil
 		}
-		leaveRoom(params[0], params[1:]...)
-		ret = "success"
+		err = leaveRoom(params[0], params[1:]...)
+		if err != nil {
+			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+		}
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_DISOLVE:
 		if this.Params == "" {
-			return "", errors.New("param wrong")
+			return fmt.Sprintf("%d param wrong", CODE_PARAM_ERROR), nil
 		}
-		disolveRoom(this.Params)
-		ret = "success"
+		channelId := this.Params
+		err = disolveRoom(channelId)
+		if err != nil {
+			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+		}
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_CREATE_USER:
 		if this.Params == "" {
-			return "", errors.New("param is empty")
+			return fmt.Sprintf("%d param wrong", CODE_PARAM_ERROR), nil
 		}
 		coll := db.MgoSession().DB("pushd").C("user_info")
 
-		var user interface{}
-		coll.FindId(this.Params).One(&user)
-		if user != nil {
-			return "user exists", nil
-		}
-		err := coll.Insert(bson.M{"_id": this.Params, "channel_stat": bson.M{}, "frame_chat": []string{}})
-		if err != nil {
-			return "create error", nil
+		userId := this.Params
+		err := coll.FindId(userId).One(nil)
+		if err == nil {
+			return fmt.Sprintf("%d userId has been exists", CODE_FAILED), nil
 		}
 
-		return "success", nil
+		err = coll.Insert(bson.M{"_id": userId, "channel_stat": bson.M{}, "frame_chat": []string{}})
+		if err != nil {
+			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+		}
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_OFFLINE_MSG:
 		coll := db.MgoSession().DB("pushd").C("user_info")
