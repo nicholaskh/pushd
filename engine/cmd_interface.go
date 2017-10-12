@@ -147,7 +147,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 	case CMD_SENDMSG:
 		params := strings.SplitN(this.Params, " ", 4)
 		if len(params) < 4 {
-			return "", errors.New("Lack msg\n")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 
 		isResend := params[0]
@@ -157,7 +157,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		msgId, err := strconv.ParseInt(tempMsgId, 10, 64)
 		if err != nil {
-			return "", errors.New("msgid error")
+			return fmt.Sprintf("%d param error, msgId cannot be parse", CODE_PARAM_ERROR), nil
 		}
 
 		// check if this message has been sent
@@ -167,8 +167,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 						"uuid": this.Client.uuid,
 						"msgid": msgId}).One(nil)
 			if isHit == nil {
-				ret = fmt.Sprintf("%d %d", msgId, time.Now().UnixNano())
-				return ret, nil
+				return fmt.Sprintf("%d %d %d", CODE_SUCCESS, msgId, time.Now().UnixNano()), nil
 			}
 		}
 
@@ -196,7 +195,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		offpush.CheckAndPush(channel, msg, this.Client.uuid)
-		ret = Publish(channel, msg, this.Client.uuid, msgId, false)
+		Publish(channel, msg, this.Client.uuid, msgId, false)
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_VIDO_CHAT:
 		len := 0
@@ -207,7 +208,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 		}
 		if len == 0 {
-			return
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 		channelId := string(this.Params2[: len])
 
@@ -236,25 +237,29 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		Forward(channelId, this.Client.uuid, this.Params2[len+1:], false)
 
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
+
 	case CMD_ACK_MSG:
 		params := strings.SplitN(this.Params, " ", 2)
 		if len(params) != 2 {
-			return "", errors.New("params number error")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 		msgId, err := strconv.ParseInt(params[1], 10, 64)
 		if err != nil {
-			return "", errors.New("msgid error")
+			return fmt.Sprintf("%d param error, msgId cannot be parse", CODE_PARAM_ERROR), nil
 		}
 		this.Client.AckMsg(msgId, params[0])
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_SUBSCRIBE:
 		//		if !this.Client.IsClient() {
 		//			return "", ErrNotPermit
 		//		}
 		if this.Params == "" {
-			return "", errors.New("Lack sub channel")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
-		ret = Subscribe(this.Client, this.Params)
+		Subscribe(this.Client, this.Params)
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_PUBLISH:
 		//		if !this.Client.IsClient() && !this.Client.IsServer() {
@@ -262,14 +267,15 @@ func (this *Cmdline) Process() (ret string, err error) {
 		//		}
 		params := strings.SplitN(this.Params, " ", 3)
 		if len(params) < 3 || params[2] == "" {
-			return "", errors.New("Publish without msg\n")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		} else {
 			msgId, err := strconv.ParseInt(params[1], 10, 64)
 			if err != nil {
-				return "", errors.New("msgid error")
+				return fmt.Sprintf("%d param error, msgId cannot be parse", CODE_PARAM_ERROR), nil
 			}
 
-			ret = Publish(params[0], params[2], this.Client.uuid, msgId, false)
+			Publish(params[0], params[2], this.Client.uuid, msgId, false)
+			return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 		}
 
 	case CMD_UNSUBSCRIBE:
@@ -278,28 +284,29 @@ func (this *Cmdline) Process() (ret string, err error) {
 		//		}
 		params := strings.SplitN(this.Params, " ", 2)
 		if len(params) < 1 || params[0] == "" {
-			return "", errors.New("Lack unsub channel")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
-		ret = Unsubscribe(this.Client, params[0])
+		Unsubscribe(this.Client, params[0])
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_RETRACT_MESSAGE:
 		if this.Params == "" {
-			return "", errors.New(fmt.Sprintf("%d param is empty", CODE_PARAM_ERROR))
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 		params := strings.SplitN(this.Params, " ", 3)
 		if len(params) < 3 {
-			return "", errors.New(fmt.Sprintf("%d Lack of param", CODE_PARAM_ERROR))
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 
 		channel := params[0]
 		msgId, err := strconv.ParseInt(params[1], 10, 64)
 		if err != nil {
-			return "", errors.New(fmt.Sprintf("%d msgId can not parse", CODE_PARAM_ERROR))
+			return fmt.Sprintf("%d msgId can not parse", CODE_PARAM_ERROR), nil
 		}
 
 		newMsgId, err := strconv.ParseInt(params[2], 10, 64)
 		if err != nil {
-			return "", errors.New(fmt.Sprintf("%d msgId can not parse", CODE_PARAM_ERROR))
+			return fmt.Sprintf("%d param error", CODE_PARAM_ERROR), nil
 		}
 
 		col := db.MgoSession().DB("pushd").C("msg_log")
@@ -307,8 +314,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		if err != nil {
 			if realError, ok := err.(interface{}).(*mgo.LastError); ok {
-				return "", errors.New(fmt.Sprintf("%d %s",
-					CODE_SERVER_ERROR, realError.Error()))
+				return fmt.Sprintf("%d %s",CODE_SERVER_ERROR, realError.Error()), nil
 			}
 
 			if err == mgo.ErrNotFound {
@@ -327,7 +333,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		pushId := params[1]
 
 		if userId == "" || pushId == "" {
-			return fmt.Sprintf("%d param error", CODE_PARAM_ERROR), nil
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 
 		coll := db.MgoSession().DB("pushd").C("user_info")
@@ -355,7 +361,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		isAllowNotify := params[1]
 
 		if userId == "" || isAllowNotify == "" {
-			return fmt.Sprintf("%d param error", CODE_PARAM_ERROR), nil
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 
 		coll := db.MgoSession().DB("pushd").C("user_info")
@@ -432,13 +438,13 @@ func (this *Cmdline) Process() (ret string, err error) {
 	case CMD_FRAME_APPLY:
 		params := strings.Split(this.Params, " ")
 		if len(params) != 2 {
-			return "", errors.New("errorparam wrong")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 
 		oldChannelId := params[1]
 		mainType, err0 :=  strconv.Atoi(params[0])
 		if err0 != nil {
-			return "", errors.New("errorparam wrong")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 
 		collection := db.MgoSession().DB("pushd").C("unstable_info")
@@ -448,9 +454,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 		err0 = collection.Find(bson.M{"channelId": oldChannelId}).Select(bson.M{"_id":0, "proposer":1}).One(&result)
 		if err0 == nil {
 			if result.(bson.M)["proposer"].(string) == this.Client.uuid {
-				ret = "error10002"
+				return fmt.Sprintf("%d 10002", CODE_FAILED), nil
 			}else{
-				ret = "error10001"
+				return fmt.Sprintf("%d 10001", CODE_FAILED), nil
 			}
 			return
 		}
@@ -469,8 +475,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		// this happens when another user apply on the channel at the same time
 		if err0 != nil {
-			ret = "error10001"
-			return
+			return fmt.Sprintf("%d 10001", CODE_FAILED), nil
 		}
 
 		// update userInfo
@@ -486,7 +491,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		_, err0 = bulk.Run()
 		if err0 != nil {
 			collection.RemoveId(objectId)
-			ret = "error500"
+			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 			return
 		}
 
@@ -506,11 +511,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 		notice := fmt.Sprintf("%s %s %d %s %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_APPLY, mainType, this.Client.uuid, newChannelId, oldChannelId)
 		Publish2(oldChannelId, notice, this.Client.uuid, true)
 		ret = newChannelId
+		return fmt.Sprintf("%d %s", CODE_SUCCESS, newChannelId), nil
+
 
 	case CMD_FRAME_JOIN:
 		if !bson.IsObjectIdHex(this.Params){
-			ret = "error500"
-			return
+			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
 		channelObjectId := bson.ObjectIdHex(this.Params)
@@ -522,8 +528,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		err0 := collection.UpdateId(channelObjectId, bson.M{"$push": bson.M{"activeUser": this.Client.uuid}})
 		if err0 != nil {
 			// cause is channel have been dismiss
-			ret = "error10003"
-			return
+			return fmt.Sprintf("%d 10003", CODE_FAILED), nil
 		}
 
 		// join in this channel
@@ -532,12 +537,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 		// notify other users that I have join in
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_JOIN, -1, this.Client.uuid, channelId)
 		Publish2(channelId, notice, this.Client.uuid, false)
-		ret = "success"
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_ACCEPT:
 		if !bson.IsObjectIdHex(this.Params){
-			ret = "error500"
-			return
+			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
 		channelObjectId := bson.ObjectIdHex(this.Params)
@@ -547,8 +551,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		err0 := collection.UpdateId(channelObjectId, bson.M{"$push": bson.M{"activeUser": this.Client.uuid}})
 		if err0 != nil {
 			// channel has been dismissed
-			ret = "error10003"
-			return
+			return fmt.Sprintf("%d 10003", CODE_FAILED), nil
 		}
 
 		// join in this channel
@@ -557,12 +560,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 		// notify another user that I agree
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_ACCEPT, -1, this.Client.uuid, channelId)
 		Publish2(channelId, notice, this.Client.uuid, false)
-		ret = "success"
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_OUT:
 		if !bson.IsObjectIdHex(this.Params){
-			ret = "error500"
-			return
+			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
 		channelObjectId := bson.ObjectIdHex(this.Params)
@@ -576,8 +578,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		var result interface{}
 		_, err0 := collection.Find(bson.M{"_id": channelObjectId}).Apply(change, &result)
 		if err0 != nil {
-			ret = "error500"
-			return
+			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
 		if len(result.(bson.M)["activeUser"].([]interface{})) == 0 {
@@ -601,8 +602,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 				notice := fmt.Sprintf("%s %s2 %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
 				Publish2(realChannelId, notice, this.Client.uuid, true)
 				Unsubscribe(this.Client, channelId)
-				ret = "success"
-				return
+				return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 			}
 		}
@@ -613,22 +613,20 @@ func (this *Cmdline) Process() (ret string, err error) {
 		// notify other users that I have quit
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_OUT, -1, this.Client.uuid, channelId)
 		Publish2(channelId, notice, this.Client.uuid, false)
-		ret = "success"
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_REFUSE:
 		if !bson.IsObjectIdHex(this.Params){
-			ret = "error500"
-			return
+			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_REFUSE, -1, this.Client.uuid, this.Params)
 		Publish2(this.Params, notice, this.Client.uuid, false)
-		ret = "success"
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_DISMISS:
 
 		if !bson.IsObjectIdHex(this.Params){
-			ret = "error500"
-			return
+			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
 		channelObjectId := bson.ObjectIdHex(this.Params)
@@ -644,8 +642,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		var result interface{}
 		_, err0 := collection.Find(bson.M{"_id": channelObjectId}).Apply(change, &result)
 		if err0 != nil {
-			ret = "error500"
-			return
+			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
 		if len(result.(bson.M)["activeUser"].([]interface{})) == 0 {
@@ -668,8 +665,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 				notice := fmt.Sprintf("%s %s2 %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
 				Publish2(realChannelId, notice, this.Client.uuid, true)
-				ret = "success"
-				return
+				return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 			}
 		}
 
@@ -679,13 +675,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 		// notify other users that I have quit
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
 		Publish2(channelId, notice, this.Client.uuid, false)
-		ret = "success"
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_INFO:
 
 		if !bson.IsObjectIdHex(this.Params){
-			ret = "error500"
-			return
+			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
 		channelId := bson.ObjectIdHex(this.Params)
@@ -693,12 +688,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 		var result interface{}
 		err0 := db.MgoSession().DB("pushd").C("unstable_info").FindId(channelId).One(&result)
 		if err0 != nil {
-			ret = "error10003"
-			return
+			return fmt.Sprintf("%d 10003", CODE_FAILED), nil
 		}
 
 		retBytes, _ := json.Marshal(result)
-		ret = string(retBytes)
+		return fmt.Sprintf("%d %s", CODE_SUCCESS, string(retBytes)), nil
 
 	case CMD_INVOKE_FRAME_ACTION:
 		var result interface{}
@@ -831,7 +825,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 	case CMD_CREATE_USER:
 		if this.Params == "" {
-			return fmt.Sprintf("%d param wrong", CODE_PARAM_ERROR), nil
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 		coll := db.MgoSession().DB("pushd").C("user_info")
 
@@ -887,11 +881,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 		//		}
 		params := strings.Split(this.Params, " ")
 		if len(params) < 2 {
-			return "", errors.New("Invalid Params for history")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 		ts, err := strconv.ParseInt(params[1], 10, 64)
 		if err != nil {
-			return "", err
+			return fmt.Sprintf("%d time cannot be parse", CODE_PARAM_ERROR), nil
 		}
 		channel := params[0]
 		hisRet, err := fullHistory(channel, ts)
@@ -902,8 +896,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 		var retBytes []byte
 		retBytes, err = json.Marshal(hisRet)
 
-		ret = string(retBytes)
+		return fmt.Sprintf("%d %s", CODE_SUCCESS, string(retBytes)), nil
 
+		//TODO auth_server修改为code码形式
 	case CMD_AUTH_SERVER:
 		if this.Params == "" {
 			return "", errors.New("Invalid Params for auth_server")
@@ -920,6 +915,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return ret, err
 		}
 
+	//TODO CMD_TOKEN修改为code码形式
 	case CMD_TOKEN:
 		//if !this.Client.IsServer() {
 		//	return "", ErrNotPermit
@@ -931,43 +927,42 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		ret = fmt.Sprintf("%s %s", OUTPUT_TOKEN, token)
 
+	//TODO CMD_APPKEY修改为code码形式
 	case CMD_APPKEY:
 		ret = fmt.Sprintf("%s %s", OUTPUT_APPKEY, getAppKey())
 
 	case CMD_AUTH_CLIENT:
 		params := strings.Split(this.Params, " ")
 		if len(params) < 1 {
-			return "", errors.New("Invalid Params for auth_client")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
-		if this.Client.IsClient() {
-			ret = "Already authed client"
-			err = nil
-		} else {
-			ret, err = authClient(params[0])
-			if err == nil {
-				this.Client.SetClient()
-				// set token
-				this.Client.initToken(params[0], time.Now().UnixNano())
-			}
+
+		ret, err = authClient(params[0])
+		if err == nil {
+			this.Client.SetClient()
+			// set token
+			this.Client.initToken(params[0], time.Now().UnixNano())
+			return fmt.Sprintf("%d %s", CODE_SUCCESS, ret), nil
 		}
+		return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
 
 	case CMD_SETUUID:
 		params := strings.Split(this.Params, " ")
 		if len(params) < 2 || params[1] == "" {
-			return "", errors.New("Lack uuid")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 		this.uuid = params[1]
 		// 具体聊天环境初始化在另一个GO ROUTINE中来完成,目的是及早让客户端准备好
 		go this.Client.initChatEnv(params[1])
 		// TODO 新启动的GO routine 在本命令响应返回前完成，会引发一些问题（如：其他用户发来消息，概率非常小），该如何处理
 		// TODO 考虑一种办法来close掉之前的client，目前做法是不做任何处理，超时后自动清理
-		return "uuid saved", nil
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_PING:
 		return OUTPUT_PONG, nil
 
 	default:
-		return "", errors.New(fmt.Sprintf("Cmd not found: %s\n", this.Cmd))
+		return fmt.Sprintf("%d Cmd not found: %s\n", CODE_FAILED, this.Cmd), nil
 	}
 
 	return
