@@ -197,7 +197,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		offpush.CheckAndPush(channel, msg, this.Client.uuid)
 		Publish(channel, msg, this.Client.uuid, msgId, false)
 
-		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
+		return fmt.Sprintf("%d %d %d", CODE_SUCCESS, msgId, time.Now().UnixNano()), nil
 
 	case CMD_VIDO_CHAT:
 		len := 0
