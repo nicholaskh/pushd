@@ -75,50 +75,51 @@ func (this *Client) Close() {
 func (this *Client) clearFrameChat(){
 	var result interface{}
 	err0 := db.MgoSession().DB("pushd").C("user_info").FindId(this.uuid).Select(bson.M{"frame_chat":1,"_id":0}).One(&result)
-	if err0 == nil {
-		frame_chat := result.(bson.M)["frame_chat"].([]interface{})
-		if len(frame_chat) != 0 {
-			collection := db.MgoSession().DB("pushd").C("unstable_info")
-			for _, id := range frame_chat {
-				objectId := id.(bson.ObjectId)
-				channelId := objectId.Hex()
-				_, exist := this.Channels[channelId]
-				if exist {
-					change := mgo.Change{
-						Update:bson.M{"$pull": bson.M{"activeUser": this.uuid}},
-						ReturnNew: true,
-					}
-					var result interface{}
-					_, err0 := collection.Find(bson.M{"_id": objectId}).Apply(change, &result)
-					if err0 != nil {
-						continue
-					}
-
-					// 通过删除的方式来检测是否临时聊天已经结束
-					err0 = collection.Remove(bson.M{"_id": objectId, "activeUser": []string{}})
-					if err0 == nil {
-						// 如果结束清楚相关用户与此临时群聊相关的数据信息
-						unstableInfo := result.(bson.M)
-						realChannelId := unstableInfo["channelId"].(string)
-						UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
-						var documents []interface{}
-						for _, userId := range UUIDs {
-							documents = append(documents, bson.M{"_id": userId})
-							documents = append(documents, bson.M{"$pull": bson.M{"frame_chat": objectId}})
-						}
-
-						bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
-						bulk.Upsert(documents...)
-						bulk.Run()
-
-					}
-
-				}
-
-			}
+	if err0 != nil {
+		return
+	}
+	frame_chat := result.(bson.M)["frame_chat"].([]interface{})
+	if len(frame_chat) == 0 {
+		return
+	}
+	collection := db.MgoSession().DB("pushd").C("unstable_info")
+	for _, id := range frame_chat {
+		objectId := id.(bson.ObjectId)
+		channelId := objectId.Hex()
+		change := mgo.Change{
+			Update:bson.M{"$pull": bson.M{"activeUser": this.uuid}},
+			ReturnNew: true,
+		}
+		var result interface{}
+		_, err0 := collection.Find(bson.M{"_id": objectId}).Apply(change, &result)
+		if err0 != nil {
+			continue
 		}
 
+		// 通过删除的方式来检测是否临时聊天已经结束
+		err0 = collection.Remove(bson.M{"_id": objectId, "activeUser": []string{}})
+		if err0 != nil {
+			continue
+		}
+
+		// 如果结束清楚相关用户与此临时群聊相关的数据信息
+		unstableInfo := result.(bson.M)
+		realChannelId := unstableInfo["channelId"].(string)
+		UUIDs := storage.FetchUuidsAboutChannel(realChannelId)
+		var documents []interface{}
+		for _, userId := range UUIDs {
+			documents = append(documents, bson.M{"_id": userId})
+			documents = append(documents, bson.M{"$pull": bson.M{"frame_chat": objectId}})
+		}
+
+		bulk := db.MgoSession().DB("pushd").C("user_info").Bulk()
+		bulk.Upsert(documents...)
+		bulk.Run()
+
+		notice := fmt.Sprintf("%s %s2 %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.uuid, channelId)
+		Publish2(realChannelId, notice, this.uuid, true)
 	}
+
 }
 
 
