@@ -42,6 +42,9 @@ type ConfigPushd struct {
 	OffSenderPoolNum int
 	MsgQueueAddrs []string
 
+	JpushAppKey string
+	JpushSecretKey string
+
 	MetricsLogfile      string
 	StatsOutputInterval time.Duration
 
@@ -102,6 +105,15 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 		}
 		this.MsgStorageWriteBufferSize = cf.Int("msg_storage_write_buffer_size", 10000)
 		this.MaxCacheMsgsEveryChannel = cf.Int("max_cache_msgs_every_channel", 3000)
+	}
+
+	this.JpushAppKey = cf.String("jpushAppKey", "")
+	if this.JpushAppKey == "" {
+		panic("jpushAppkey not set")
+	}
+	this.JpushSecretKey = cf.String("jpushSecretKey", "")
+	if this.JpushSecretKey == "" {
+		panic("jpushSecretKey not set")
 	}
 
 	this.Redis = new(ConfigRedis)

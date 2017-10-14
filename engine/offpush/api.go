@@ -60,7 +60,8 @@ func CheckAndPush(channel, message, ownerId string) {
 
 				tPushId, ok := info["pushId"]
 				if !ok {
-					tPushId = ""
+					// 如果没有设置pushId，默认用户Id为pushId
+					tPushId = uId
 				}
 				pushId := tPushId.(string)
 				tisAllowNotify, ok := info["isAllowNotify"]
@@ -92,7 +93,7 @@ func CheckAndPush(channel, message, ownerId string) {
 		return
 	}
 
-	go senderPool.ObtainOneOffSender().send(pushIds, message, ownerId)
+	go senderPool.ObtainOneOffSender().send(pushIds, message, ownerId, channel)
 
 }
 

@@ -28,3 +28,12 @@ func MgoSession() *mgo.Session {
 
 	return mgoSession
 }
+
+
+func UserCollection() *mgo.Collection {
+	return mgoSession.DB("mongo").C("user")
+}
+
+func ChatRoomCollection() *mgo.Collection {
+	return mgoSession.DB("mongo").C("chatroom")
+}

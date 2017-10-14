@@ -4,22 +4,19 @@ import (
 	"sync/atomic"
 	"errors"
 	"jpushclient"
-	log "github.com/nicholaskh/log4go"
 	"fmt"
+	"github.com/nicholaskh/pushd/db"
+	"gopkg.in/mgo.v2/bson"
+	"github.com/nicholaskh/pushd/config"
 )
 
-const (
-	appKey = "3119b423cd31a4827d9a53cf"
-        secret = "2da5c85573ff4e490d3d5d6f"
-)
 
 var (
 	senderPool *OffSenderPool
 )
 
-
 type IOffSender interface {
-	send(pushIds []string, message, ownerId string) error
+	send(pushIds []string, message, ownerId, channelId string) error
 }
 
 type OffSenderPool struct {
@@ -48,47 +45,91 @@ type Sender struct {
 }
 
 func newSender(address string) (*Sender, error) {
+
 	sender := new(Sender)
 	// TODO 检测是否是http长连接
-	sender.pushClient = jpushclient.NewPushClient(secret, appKey)
+	sender.pushClient = jpushclient.NewPushClient(config.PushdConf.JpushSecretKey, config.PushdConf.JpushAppKey)
 	return sender, nil
 
 }
 
-func (this *Sender) send(pushIds []string, message, ownerId string) error {
+func (this *Sender) send(pushIds []string, message, ownerId , channelId string) error {
 
 	if len(pushIds) == 0 {
 		return nil
 	}
-
-	//Platform
 	pf := jpushclient.Platform{}
 	pf.Add(jpushclient.ANDROID)
 
-	//Audience
 	ad := jpushclient.Audience{}
-	ad.SetID(pushIds)
+	ad.SetAlias(pushIds)
 
-	//Notice
+	if !bson.IsObjectIdHex(channelId) {
+		return errors.New("channelId is invalid ObjectIdHex")
+	}
+	var result interface{}
+
+	err := db.ChatRoomCollection().
+		FindId(bson.ObjectIdHex(channelId)).
+		Select(bson.M{"type":1, "_id":0, "name":1}).
+		One(&result)
+
+	if err != nil {
+		return err
+	}
+	chatRoomInfo := result.(bson.M)
+	temp, exists := chatRoomInfo["type"]
+	if !exists {
+		return errors.New("collection chatroom has no field of type")
+	}
+
+	// TODO 为何是float64而不能用int32
+	mType, ok := temp.(float64)
+	if !ok {
+		return errors.New("field type in collection chatroom is not a int")
+	}
+	if !bson.IsObjectIdHex(ownerId){
+		return errors.New("ownerId is invalid ObjectIdHex")
+	}
+	err = db.UserCollection().
+		FindId(bson.ObjectIdHex(ownerId)).
+		Select(bson.M{"userName":1,"_id":0}).
+		One(&result)
+
+	if err != nil {
+		return err
+	}
+	userName, exists := result.(bson.M)["userName"]
+	if !exists {
+		return errors.New("collection user has no field of userName")
+	}
+
 	var notice jpushclient.Notice
-	notice.SetAlert("alert_test")
-	notice.SetAndroidNotice(&jpushclient.AndroidNotice{Alert: "AndroidNotice"})
+	androidNotice := jpushclient.AndroidNotice{}
+	notice.SetAndroidNotice(&androidNotice)
+	if mType == 1 {
+		androidNotice.Title = userName.(string)
+		androidNotice.Alert = message
+	}else{
+		temp, exists = chatRoomInfo["name"]
+		if !exists {
+			return errors.New("collection chatroom has no field of name")
+		}
+		roomName, ok := temp.(string)
+		if !ok {
+			return errors.New("field name in collection chatroom is not a string")
+		}
 
-	var msg jpushclient.Message
-	msg.Title = ""
-	msg.Content = message
-
+		androidNotice.Title = roomName
+		androidNotice.Alert = fmt.Sprintf("%s:%s", userName, message)
+	}
 	payload := jpushclient.NewPushPayLoad()
 	payload.SetPlatform(&pf)
 	payload.SetAudience(&ad)
-	payload.SetMessage(&msg)
 	payload.SetNotice(&notice)
 
 	bytes, _ := payload.ToBytes()
-
-	log.Info(fmt.Sprintf("offpush: %s", string(bytes)))
-
-	_, err := this.pushClient.Send(bytes)
+	_, err = this.pushClient.Send(bytes)
 
 	// TODO 处理pushId不合法的情况
 	return err
