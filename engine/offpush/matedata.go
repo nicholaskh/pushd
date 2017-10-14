@@ -3,6 +3,7 @@ package offpush
 import (
 	"sync"
 	"github.com/nicholaskh/golib/set"
+	"github.com/nicholaskh/golib/concurrent/map"
 )
 
 var (
@@ -119,34 +120,31 @@ type UserInfoEntity struct {
 
 // 存储用户Id到用户信息的映射
 type UserInfoCollection struct{
-	m map[string]*UserInfoEntity
-	// TODO 锁机制优化
-	mutex sync.RWMutex
+	cmap.ConcurrentMap
 }
 
 func newUserInfoCollection() (t *UserInfoCollection) {
 	t = new(UserInfoCollection)
-	t.m = make(map[string]*UserInfoEntity)
-	t.mutex = sync.RWMutex{}
+	t.ConcurrentMap = cmap.New()
 	return
 }
 
 func (this *UserInfoCollection) getUserInfo(userId string) (*UserInfoEntity, bool) {
-	this.mutex.RLock()
-	defer this.mutex.RUnlock()
 
-	entity, exists := this.m[userId]
-	return entity, exists
+	entity, exists := this.Get(userId)
+	if exists {
+		return entity.(*UserInfoEntity), exists
+	}
+	return nil, exists
 }
 
 // pushId, 是否离线且允许推送， 用户信息是否存在
 func (this *UserInfoCollection)checkAndFetchPushId(userId string) (string, bool, bool){
-
 	entity, exists := this.getUserInfo(userId)
 	if !exists {
 		return "", true, false
 	}
-	if !entity.isOnline && entity.isAllowNotify{
+	if entity.isOnline && entity.isAllowNotify{
 		// 如果pushId为空，默认他的userId为pushId
 		if entity.pushId == ""{
 			return userId, true, true
@@ -159,33 +157,28 @@ func (this *UserInfoCollection)checkAndFetchPushId(userId string) (string, bool,
 }
 
 func (this *UserInfoCollection) addUserInfo(userId, pushId string, isOnline, isAllowNotify bool) *UserInfoEntity {
-
-	// 先加锁后再判断是否存在，防止后面的添加覆盖前面的
-	this.mutex.Lock()
-	defer this.mutex.Unlock()
-
-	entity, exists := this.m[userId]
+	entity, exists := this.getUserInfo(userId)
 	if exists {
 		return entity
 	}
 	entity = new(UserInfoEntity)
 	entity.pushId = pushId
 	entity.isAllowNotify = isAllowNotify
-	this.m[userId] = entity
+	entity.isOnline = true
+	this.Set(userId, entity)
 
 	return entity
 }
 
 func (this *UserInfoCollection)updateOrAddUserInfo(userId, pushId string, isOnline, isAllowNotify bool){
-
-	entity, exists := this.m[userId]
+	entity, exists := this.getUserInfo(userId)
 	if !exists {
 		entity = this.addUserInfo(userId, pushId, isOnline, isAllowNotify)
 	}
 
 	entity.isOnline = isOnline
 	entity.isAllowNotify = isAllowNotify
-
+	entity.pushId = pushId
 }
 
 func initBasicData(){

@@ -41,41 +41,12 @@ func CheckAndPush(channel, message, ownerId string) {
 		}
 
 		tempUserIds := t.([]interface{})
-		coll := db.MgoSession().DB("pushd").C("user_info")
 
-		userIds = make([]string, len(tempUserIds))
+		userIds = make([]string, 0, len(tempUserIds))
 		// 将用户信息缓存在内存中
 		for _, value := range tempUserIds {
 			uId := value.(string)
 			userIds = append(userIds, uId)
-			_, exists = userInfoCollection.getUserInfo(uId)
-			if !exists {
-				// 从MONGODB中加载用户的信息
-				err = coll.FindId(uId).
-					Select(bson.M{"isAllowNotify":1, "pushId":1,"_id":0}).
-					One(&result)
-
-				if err != nil {
-					continue
-				}
-				info, _ := result.(bson.M)
-
-				tPushId, ok := info["pushId"]
-				if !ok {
-					// 如果没有设置pushId，默认用户Id为pushId
-					tPushId = ""
-				}
-				pushId := tPushId.(string)
-				tisAllowNotify, ok := info["isAllowNotify"]
-				var isAllowNotify bool
-				if !ok {
-					isAllowNotify = true
-				}else{
-					isAllowNotify = tisAllowNotify.(bool)
-				}
-				userInfoCollection.addUserInfo(uId, pushId, false, isAllowNotify)
-
-			}
 		}
 		// 缓存群中所有用户id
 		channelToUserIds.addAllUserIds(channel, userIds...)

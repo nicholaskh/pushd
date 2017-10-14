@@ -179,15 +179,13 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 	// 获取用户基本信息
 	var result interface{}
 	coll := db.MgoSession().DB("pushd").C("user_info")
-	err := coll.FindId(this.uuid).Select(bson.M{"isAllowNotify":1, "pushId":1,"_id":0}).One(&result)
+	err := coll.FindId(this.uuid).Select(bson.M{"pushId":1,"_id":0}).One(&result)
 	if err != nil {
 		return err
 	}
 
 	info, _ := result.(bson.M)
-
 	var pushId string
-
 	tPushId, ok := info["pushId"]
 	if !ok {
 		pushId = ""
@@ -195,24 +193,8 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 		pushId = tPushId.(string)
 	}
 
-	tisAllowNotify, ok := info["isAllowNotify"]
-	var isAllowNotify bool
-	if !ok {
-		isAllowNotify = true
-	}else{
-		isAllowNotify = tisAllowNotify.(bool)
-	}
 	// 更新本地缓存表
-	offpush.UpdateOrAddUserInfo(this.uuid, pushId, true, isAllowNotify)
-
-	var msg string
-	if isAllowNotify {
-		msg = fmt.Sprintf("%s %s 1", this.uuid, pushId, isAllowNotify)
-	} else {
-		msg = fmt.Sprintf("%s %s 0", this.uuid, pushId, isAllowNotify)
-	}
-	// 同步更新其他服务器缓存表
-	forwardToAllOtherServer(S2S_ADD_USER_INFO, msg)
+	offpush.UpdateOrAddUserInfo(this.uuid, pushId, true, false)
 	return nil
 }
 
@@ -220,7 +202,6 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 // 修改用户全局状态信息缓存表
 func (this *Client) clearGlobalCacheUserInfo(){
 	offpush.ChangeUserStatus(this.uuid, false)
-	forwardToAllOtherServer(S2S_USER_OFFLINE, this.uuid)
 }
 
 // 更新用户Id到Client映射表
