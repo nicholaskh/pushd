@@ -4,6 +4,8 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
+	log "github.com/nicholaskh/log4go"
+	"fmt"
 )
 
 func InitOffPushService() error {
@@ -97,7 +99,12 @@ func CheckAndPush(channel, message, ownerId string) {
 		return
 	}
 
-	go senderPool.ObtainOneOffSender().send(pushIds, message, ownerId, channel)
+	go func() {
+		err := senderPool.ObtainOneOffSender().send(pushIds, message, ownerId, channel)
+		if err != nil {
+			log.Info(fmt.Sprint("offline push error: %s", err.Error()))
+		}
+	}()
 
 }
 
