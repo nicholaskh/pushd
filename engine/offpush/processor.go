@@ -8,6 +8,8 @@ import (
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
 	"github.com/nicholaskh/pushd/config"
+	"github.com/nicholaskh/log4go"
+	"reflect"
 )
 
 
@@ -84,10 +86,12 @@ func (this *Sender) send(pushIds []string, message, ownerId , channelId string) 
 	}
 
 	// TODO 为何是float64而不能用int32
-	mType, ok := temp.(float64)
+	log4go.Info(reflect.TypeOf(temp))
+	mType, ok := temp.(int)
 	if !ok {
 		return errors.New("field type in collection chatroom is not a int")
 	}
+
 	if !bson.IsObjectIdHex(ownerId){
 		return errors.New("ownerId is invalid ObjectIdHex")
 	}
