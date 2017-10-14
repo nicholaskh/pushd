@@ -11,7 +11,6 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"gopkg.in/mgo.v2"
 	"github.com/nicholaskh/pushd/engine/storage"
-	"errors"
 	"github.com/nicholaskh/pushd/engine/offpush"
 )
 
@@ -187,11 +186,15 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 
 	info, _ := result.(bson.M)
 
+	var pushId string
+
 	tPushId, ok := info["pushId"]
 	if !ok {
-		return errors.New("this user has no pushId")
+		pushId = ""
+	}else {
+		pushId = tPushId.(string)
 	}
-	pushId := tPushId.(string)
+
 	tisAllowNotify, ok := info["isAllowNotify"]
 	var isAllowNotify bool
 	if !ok {

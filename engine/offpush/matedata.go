@@ -146,7 +146,11 @@ func (this *UserInfoCollection)checkAndFetchPushId(userId string) (string, bool,
 	if !exists {
 		return "", true, false
 	}
-	if !entity.isOnline && entity.isAllowNotify && entity.pushId != ""{
+	if !entity.isOnline && entity.isAllowNotify{
+		// 如果pushId为空，默认他的userId为pushId
+		if entity.pushId == ""{
+			return userId, true, true
+		}
 		return entity.pushId, true, true
 	}
 

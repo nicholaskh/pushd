@@ -61,7 +61,7 @@ func CheckAndPush(channel, message, ownerId string) {
 				tPushId, ok := info["pushId"]
 				if !ok {
 					// 如果没有设置pushId，默认用户Id为pushId
-					tPushId = uId
+					tPushId = ""
 				}
 				pushId := tPushId.(string)
 				tisAllowNotify, ok := info["isAllowNotify"]
@@ -83,6 +83,10 @@ func CheckAndPush(channel, message, ownerId string) {
 	// 筛选符合离线推送条件的用户，提取出相应的pushId
 	pushIds := make([]string, 0, len(userIds))
 	for _, uId := range userIds {
+		if uId == ownerId {
+			continue
+		}
+
 		pushId, isValid, exists := userInfoCollection.checkAndFetchPushId(uId)
 		if !exists || !isValid {
 			continue
