@@ -20,35 +20,37 @@ var (
 )
 
 type ConfigPushd struct {
-	TcpListenAddr           string
-	SessionTimeout          time.Duration
-	ServInitialGoroutineNum int
+	TcpListenAddr             string
+	SessionTimeout            time.Duration
+	ServInitialGoroutineNum   int
 
 	LongPollingListenAddr     string
 	LongPollingSessionTimeout time.Duration
 
-	StatsListenAddr string
-	ProfListenAddr  string
+	StatsListenAddr           string
+	ProfListenAddr            string
 
-	S2sListenAddr         string
-	S2sSessionTimeout     time.Duration
-	S2sIntialGoroutineNum int
+	S2sListenAddr             string
+	S2sSessionTimeout         time.Duration
+	S2sIntialGoroutineNum     int
 
-	S2sChannelPeersMaxItems int
+	S2sChannelPeersMaxItems   int
 
-	EtcServers []string
+	EtcServers                []string
 
 
-	OffSenderPoolNum int
-	MsgQueueAddrs []string
+	OffSenderPoolNum          int
+	MsgQueueAddrs             []string
 
-	JpushAppKey string
-	JpushSecretKey string
+	ChannelInfoCacheNum       int
 
-	MetricsLogfile      string
-	StatsOutputInterval time.Duration
+	JpushAppKey               string
+	JpushSecretKey            string
 
-	PubsubChannelMaxItems int
+	MetricsLogfile            string
+	StatsOutputInterval       time.Duration
+
+	PubsubChannelMaxItems     int
 
 	MsgStorage                string
 	MaxStorageOutstandingMsg  int
@@ -56,8 +58,8 @@ type ConfigPushd struct {
 	MsgStorageWriteBufferSize int
 	MaxCacheMsgsEveryChannel  int
 
-	Redis *ConfigRedis
-	Mongo *ConfigMongo
+	Redis                     *ConfigRedis
+	Mongo                     *ConfigMongo
 }
 
 func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
@@ -78,6 +80,8 @@ func (this *ConfigPushd) LoadConfig(cf *conf.Conf) {
 	this.S2sIntialGoroutineNum = cf.Int("s2s_initial_goroutine_num", 8)
 
 	this.S2sChannelPeersMaxItems = cf.Int("s2s_channel_peers_max_items", 200000)
+
+	this.ChannelInfoCacheNum = cf.Int("channel_info_cache_num", 100000)
 
 	this.EtcServers = cf.StringList("etc_servers", nil)
 	if len(this.EtcServers) == 0 {

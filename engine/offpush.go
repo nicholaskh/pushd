@@ -12,6 +12,7 @@ import (
 	"sync"
 	"github.com/nicholaskh/golib/set"
 
+	"github.com/nicholaskh/golib/cache"
 )
 
 
@@ -159,35 +160,27 @@ func newUserIdCollection() *UserIdCollection {
 
 // 存储群聊Id到群聊中用户集合的映射
 type ChannelToUserIds struct {
-	rwMutex sync.RWMutex
-	m map[string]*UserIdCollection
+	*cache.LruCache
 }
 
-func newChannelToUserIds() *ChannelToUserIds{
+func newChannelToUserIds(maxChannelCache int) *ChannelToUserIds{
 	temp := new(ChannelToUserIds)
-	temp.rwMutex = sync.RWMutex{}
-	temp.m = make(map[string]*UserIdCollection)
+	temp.LruCache = cache.NewLruCache(maxChannelCache)
 	return temp
 }
 
 // 线程安全添加一个key和空的value
-func (this *ChannelToUserIds) addNewKeyEmptyValue(channel string) (collection *UserIdCollection) {
-	this.rwMutex.Lock()
-	defer this.rwMutex.Unlock()
-	collection, exists := this.m[channel]
-	if exists {
-		return
-	}
-	collection = newUserIdCollection()
-	this.m[channel] = collection
-	return
+func (this *ChannelToUserIds) addNewKeyEmptyValue(channel string) (*UserIdCollection) {
+	value := this.LruCache.GetOrAdd(channel, newUserIdCollection())
+	return value.(*UserIdCollection)
 }
 
 func (this *ChannelToUserIds) getValue(channel string) (*UserIdCollection, bool) {
-	this.rwMutex.RLock()
-	defer this.rwMutex.RUnlock()
-	t, exists := this.m[channel]
-	return t, exists
+	t, exists := this.LruCache.Get(channel)
+	if exists {
+		return t.(*UserIdCollection), true
+	}
+	return nil, exists
 }
 
 func (this *ChannelToUserIds)AddUserId(channel, userId string){
@@ -244,11 +237,6 @@ func (this *ChannelToUserIds) GetUserIdsByChannel(channel string) ([]string, boo
 	return items, true
 }
 
-
-func initBasicCacheData(){
-	channelToUserIds = newChannelToUserIds()
-}
-
 func initOffSenderPool(capacity int, addrs []string) error {
 	if len(addrs) < 1 {
 		return errors.New("地址为空")
@@ -284,7 +272,7 @@ func initOffSenderPool(capacity int, addrs []string) error {
 
 
 func InitOffPushService() error {
-	initBasicCacheData()
+	channelToUserIds = newChannelToUserIds(config.PushdConf.ChannelInfoCacheNum)
 	err := initOffSenderPool(config.PushdConf.OffSenderPoolNum, config.PushdConf.MsgQueueAddrs)
 	if err != nil {
 		return err
@@ -300,6 +288,7 @@ func CheckAndPush(channel, message, ownerId string) {
 
 	userIds, exists := channelToUserIds.GetUserIdsByChannel(channel)
 	if !exists {
+		log.Info(fmt.Sprintf("load %s.........", channel))
 		var result interface{}
 		err := db.MgoSession().DB("pushd").C("channel_uuids").
 			Find(bson.M{"_id":channel}).
