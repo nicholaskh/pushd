@@ -745,6 +745,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 		}
 
+		channelToUserIds.AddAllUserIds(channelId, params[1:]...)
+
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
     //subs: subscribe from server
@@ -796,6 +798,10 @@ func (this *Cmdline) Process() (ret string, err error) {
 		err = leaveRoom(params[0], params[1:]...)
 		if err != nil {
 			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
+		}
+
+		for _, userId := range params[1:] {
+			channelToUserIds.RemoveUserId(params[0], userId)
 		}
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
