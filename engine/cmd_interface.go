@@ -15,7 +15,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"gopkg.in/mgo.v2"
-	"github.com/nicholaskh/pushd/engine/offpush"
 )
 
 type Cmdline struct {
@@ -194,7 +193,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		}
 
-		offpush.CheckAndPush(channel, msg, this.Client.uuid)
+		CheckAndPush(channel, msg, this.Client.uuid)
 		Publish(channel, msg, this.Client.uuid, msgId, false)
 
 		return fmt.Sprintf("%d %d %d", CODE_SUCCESS, msgId, time.Now().UnixNano()), nil
@@ -351,7 +350,10 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return fmt.Sprintf("%d server error", CODE_SERVER_ERROR), nil
 		}
 
-		offpush.UpdateUserPushId(userId, pushId)
+		client, exists := UuidToClient.GetClient(userId)
+		if exists {
+			client.PushId = pushId
+		}
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
@@ -364,10 +366,13 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 
-		if isAllowNotify == "1" {
-			offpush.ValidUser(userId)
-		} else {
-			offpush.InvalidUser(userId)
+		client, exists := UuidToClient.GetClient(userId)
+		if exists {
+			if isAllowNotify == "1" {
+				client.IsAllowForceNotify = true
+			} else {
+				client.IsAllowForceNotify = false
+			}
 		}
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil

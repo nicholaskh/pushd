@@ -14,7 +14,6 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine"
 	"github.com/nicholaskh/pushd/engine/storage"
-	"github.com/nicholaskh/pushd/engine/offpush"
 )
 
 var (
@@ -51,7 +50,7 @@ func main() {
 		shutdown()
 	}()
 
-	err := offpush.InitOffPushService()
+	err := engine.InitOffPushService()
 	if err != nil {
 		panic(err.Error())
 	}

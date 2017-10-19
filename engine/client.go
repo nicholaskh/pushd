@@ -11,7 +11,6 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"gopkg.in/mgo.v2"
 	"github.com/nicholaskh/pushd/engine/storage"
-	"github.com/nicholaskh/pushd/engine/offpush"
 )
 
 const (
@@ -20,18 +19,20 @@ const (
 )
 
 type Client struct {
-	Channels map[string]int
-	Type     uint8
+	Channels           map[string]int
+	Type               uint8
 	*server.Client
-	uuid string
-	ackList *AckList
-	tokenInfo TokenInfo
+	uuid               string
+	ackList            *AckList
+	tokenInfo          TokenInfo
+	PushId             string
+	IsAllowForceNotify bool
 }
 
 func NewClient() (this *Client) {
 	this = new(Client)
 	this.Channels = make(map[string]int)
-	this.ackList = NewAckList()
+	this.ackList = newAckList()
 	return
 }
 
@@ -61,7 +62,6 @@ func (this *Client) Close() {
 
 	if this.IsClient() {
 		this.clearFrameChat()
-		this.clearGlobalCacheUserInfo()
 		UnsubscribeAllChannels(this)
 		UuidToClient.Remove(this.uuid, this)
 	}
@@ -168,14 +168,13 @@ func (this *Client) updateTokenExpire(expire int64) {
 }
 
 func (this *Client) initChatEnv(uuid string) {
-	this.updateGlobalUserCacheInfo()
+	this.loadUserInfo()
 	this.updateUserIdToClientMappingTable()
 	this.subAllAssociateChannels()
 }
 
 // 更新用户全局状态信息缓存表
-func (this *Client) updateGlobalUserCacheInfo() error {
-
+func (this *Client) loadUserInfo() error {
 	// 获取用户基本信息
 	var result interface{}
 	coll := db.MgoSession().DB("pushd").C("user_info")
@@ -185,23 +184,14 @@ func (this *Client) updateGlobalUserCacheInfo() error {
 	}
 
 	info, _ := result.(bson.M)
-	var pushId string
 	tPushId, ok := info["pushId"]
 	if !ok {
-		pushId = ""
+		this.PushId = this.uuid
 	}else {
-		pushId = tPushId.(string)
+		this.PushId = tPushId.(string)
 	}
-
-	// 更新本地缓存表
-	offpush.UpdateOrAddUserInfo(this.uuid, pushId, true, false)
+	this.IsAllowForceNotify = false
 	return nil
-}
-
-
-// 修改用户全局状态信息缓存表
-func (this *Client) clearGlobalCacheUserInfo(){
-	offpush.ChangeUserStatus(this.uuid, false)
 }
 
 // 更新用户Id到Client映射表
@@ -251,7 +241,7 @@ type AckList struct {
 	listLock sync.Mutex
 }
 
-func NewAckList() (acklist *AckList) {
+func newAckList() (acklist *AckList) {
 	acklist = new(AckList)
 	acklist.List = list.New()
 	return
