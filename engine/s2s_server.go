@@ -10,8 +10,10 @@ import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
-	"strconv"
 	"github.com/nicholaskh/pushd/db"
+	"errors"
+	"bytes"
+	"encoding/binary"
 )
 
 type S2sClientProcessor struct {
@@ -27,10 +29,8 @@ func (this *S2sClientProcessor) OnAccept(client *server.Client) {
 		if this.server.SessTimeout.Nanoseconds() > int64(0) {
 			client.SetReadDeadline(time.Now().Add(this.server.SessTimeout))
 		}
-		input := make([]byte, 1460)
-		n, err := client.Conn.Read(input)
 
-		input = input[:n]
+		input, err := client.Proto.Read()
 
 		if err != nil {
 			if err == io.EOF {
@@ -50,85 +50,156 @@ func (this *S2sClientProcessor) OnAccept(client *server.Client) {
 			}
 		}
 
-		this.OnRead(client, input)
+		if this.OnRead(client, input) != nil {
+			client.Close()
+			break
+		}
 	}
 }
 
-func (this *S2sClientProcessor) OnRead(client *server.Client, input []byte) {
-	cl, err := NewCmdline(input, nil)
+func (this *S2sClientProcessor) OnRead(client *server.Client, input []byte) error {
+	cl, err := NewServerCmdline(input, nil)
 	if err != nil {
-		return
+		return err
 	}
 
 	err = this.processCmd(cl, client)
 
 	if err != nil {
 		log.Debug("Process peer cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-		go client.WriteMsg(err.Error())
 	}
+
+	return err
 }
 
-func (this *S2sClientProcessor) processCmd(cl *Cmdline, client *server.Client) error {
+type ServerCmdline struct {
+	Cmd    string
+	Params []byte
+	*server.Client
+}
+
+func NewServerCmdline(input []byte, cli *server.Client) (this *ServerCmdline, err error) {
+
+	var headerLength int32
+	if len(input) < 4 {
+		this = nil
+		err = errors.New("message has been damaged")
+		return
+	}
+
+	bodyLenBuffer := bytes.NewBuffer(input[:4])
+	binary.Read(bodyLenBuffer, binary.BigEndian, &headerLength)
+	headLen := int(headerLength)
+
+	if headLen <= 0 {
+		this = nil
+		err = errors.New("message has been damaged")
+		return
+	}
+
+	if len(input) < headLen +4 {
+		this = nil
+		err = errors.New("message has damaged")
+		return
+	}
+
+	this = new(ServerCmdline)
+	this.Cmd = string(input[4: headLen +4])
+
+	if len(input) <= 4 + headLen + 4 {
+		this = nil
+		err = errors.New("message has damaged")
+		return
+	}
+
+	var bodyLength int32
+	bodyLenBuffer = bytes.NewBuffer(input[headLen +4: headLen +4+4])
+	binary.Read(bodyLenBuffer, binary.BigEndian, &bodyLength)
+	bodyLen := int(bodyLength)
+
+	if len(input) != 4 + headLen + 4 + bodyLen {
+		this = nil
+		err = errors.New("message has damaged")
+		return
+	}
+
+	this.Params = input[4 + headLen + 4: 4 + headLen + 4 + bodyLen]
+
+	this.Client = cli
+	return
+}
+
+func (this *S2sClientProcessor) processCmd(cl *ServerCmdline, client *server.Client) error {
+
+	if len(cl.Params) == 0 {
+		return errors.New("param wrong")
+	}
+
 	switch cl.Cmd {
-	case S2S_PUB_CMD:
-		params := strings.SplitN(cl.Params, " ", 2)
-		this.processChildCmdOfPub(params[0], params[1])
 
 	case S2S_SUB_CMD:
-		log.Debug("Remote addr %s sub: %s", client.RemoteAddr(), cl.Params)
-
-		_, exists := Proxy.Router.LookupPeersByChannel(cl.Params)
-		if exists {
-			return nil
-		}
-		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params)
-
-		_, exists = PubsubChannels.Get(cl.Params)
+		channelId := string(cl.Params)
+		_, exists := Proxy.Router.LookupPeersByChannel(channelId)
 		if exists {
 			return nil
 		}
 
-		// force local clients to join in this channel
+		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), channelId)
+		_, exists = PubsubChannels.Get(channelId)
+		if exists {
+			return nil
+		}
+
+		// 将属于此channel的所有的在线client，注册到这个channel中
 		var result interface{}
 		err := db.MgoSession().DB("pushd").C("channel_uuids").
-			Find(bson.M{"_id": cl.Params}).
+			Find(bson.M{"_id": channelId}).
 			Select(bson.M{"uuids":1, "_id":0}).
 			One(&result)
 
 		if err == nil {
-			uuids := result.(bson.M)["uuids"].([]interface{})
-			for _, uuid := range uuids {
-				tclient, exists := UuidToClient.GetClient(uuid.(string))
+			userIds := result.(bson.M)["uuids"].([]interface{})
+			for _, userId := range userIds {
+				tempClient, exists := UuidToClient.GetClient(userId.(string))
 				if exists {
-					Subscribe(tclient, cl.Params)
+					Subscribe(tempClient, channelId)
 				}
 			}
 		}
 
 	case S2S_UNSUB_CMD:
-		log.Debug("Remote addr %s unsub: %s", client.RemoteAddr(), cl.Params)
-		Proxy.Router.RemovePeerFromChannel(config.GetS2sAddr(client.RemoteAddr().String()), cl.Params)
+		channelId := string(cl.Params)
+		Proxy.Router.RemovePeerFromChannel(config.GetS2sAddr(client.RemoteAddr().String()), channelId)
+
+	case S2S_PUSH_BINARY_MESSAGE:
+		// 提取channelId
+		index1 := 0
+		for i, value := range cl.Params {
+			if value == ' ' {
+				index1 = i
+				break
+			}
+		}
+		if index1 == 0 {
+			return errors.New("param wrong")
+		}
+
+		channelId := string(cl.Params[: index1])
+		binMsg := cl.Params[index1+1:]
+
+		PublishBinMsg(channelId, "", binMsg, false)
+
+	case S2S_PUSH_STRING_MESSAGE:
+		params := strings.SplitN(string(cl.Params), " ", 2)
+		if len(params) != 2 {
+			return errors.New("param error")
+		}
+		channelId := params[0]
+		message := params[1]
+		PublishStrMsg(channelId, message, "", false)
 	}
 
 	return nil
 }
 
-func (this *S2sClientProcessor)processChildCmdOfPub(cmd, params string) {
-	switch cmd {
-	case S2S_PUSH_CMD:
-		/**
-			params:	   "channel message"
-		 */
-		params2 := strings.SplitN(params, " ", 2)
-		Publish2(params2[0], params2[1], "", false)
 
-	default:
-		// TODO 为其指定一个命令标志
-		params := strings.SplitN(params, " ", 5)
-		msgId, err := strconv.ParseInt(params[3], 10, 64)
-		if err != nil {
-			return
-		}
-		Publish(params[0], params[4], params[1], msgId, true)
-	}
-}

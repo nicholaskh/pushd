@@ -130,3 +130,27 @@ func (this *Peer) writeMsg(msg string) {
 		}
 	}
 }
+
+func (this *Peer) writeFormatMsg(op string, msg []byte) {
+	var err error
+
+	if this.Conn != nil {
+
+	}
+	if err != nil || this.Conn == nil {
+		// retry
+		for i := 0; i < RETRY_CNT; i++ {
+			err = this.connect()
+			if err != nil {
+				log.Warn("write to peer %s error: %s", this.addr, err.Error())
+			} else {
+				if this.Conn != nil {
+					_, err = this.Write([]byte(msg))
+					if err == nil {
+						break
+					}
+				}
+			}
+		}
+	}
+}

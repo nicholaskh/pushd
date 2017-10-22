@@ -3,10 +3,8 @@ package engine
 import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
-	"container/list"
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
-	"sync"
 	"fmt"
 	"github.com/nicholaskh/pushd/config"
 	"gopkg.in/mgo.v2"
@@ -23,7 +21,6 @@ type Client struct {
 	Type               uint8
 	*server.Client
 	uuid               string
-	ackList            *AckList
 	tokenInfo          TokenInfo
 	PushId             string
 	IsAllowForceNotify bool
@@ -32,7 +29,6 @@ type Client struct {
 func NewClient() (this *Client) {
 	this = new(Client)
 	this.Channels = make(map[string]int)
-	this.ackList = newAckList()
 	return
 }
 
@@ -116,39 +112,19 @@ func (this *Client) clearFrameChat(){
 		bulk.Run()
 
 		notice := fmt.Sprintf("%s %s2 %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.uuid, channelId)
-		Publish2(realChannelId, notice, this.uuid, true)
+		PublishStrMsg(realChannelId, notice, this.uuid, true)
 	}
 
 }
 
-
-func (this *Client) PushMsg(op, msg , channelId string, msgId, ts int64) {
-	err := this.WriteFormatMsg(op, msg)
-
-	if err == nil {
-		this.ackList.push(channelId, ts, msgId)
-	}
-}
-
-func (this *Client) AckMsg(msgId int64, channelId string) {
-	this.ackList.listLock.Lock()
-	defer this.ackList.listLock.Unlock()
-
-	log.Info(fmt.Sprintf("log ack:channel:%s msgid:%d", channelId, msgId))
-	for e := this.ackList.Front(); e != nil; e = e.Next() {
-		element := e.Value.(*AckListElement)
-		if element.msgId != msgId || element.channelId != channelId{
-			continue
-		}
-
-		this.ackList.List.Remove(e)
-		channelKey := fmt.Sprintf("channel_stat.%s", channelId)
-		db.MgoSession().DB("pushd").
-			C("user_info").
-			Update(
-			bson.M{"_id": this.uuid, channelKey: bson.M{"$lt": element.ts}},
-			bson.M{"$set": bson.M{channelKey: element.ts}})
-	}
+func (this *Client) AckMsg(msgId, ts int64, ownerId, channelId string) {
+	log.Info(fmt.Sprintf("log ack:channel:%s msgid:%d ownerId: %s", channelId, msgId, ownerId))
+	channelKey := fmt.Sprintf("channel_stat.%s", channelId)
+	db.MgoSession().DB("pushd").
+		C("user_info").
+		Update(
+		bson.M{"_id": this.uuid, channelKey: bson.M{"$lt": ts}},
+		bson.M{"$set": bson.M{channelKey: ts}})
 }
 
 func (this *Client) initToken(token string, expire int64) {
@@ -228,33 +204,6 @@ func (this *Client) subAllAssociateChannels(){
 			}
 		}
 	}
-}
-
-type AckListElement struct {
-	msgId int64
-	channelId string
-	ts int64
-}
-
-type AckList struct {
-	*list.List
-	listLock sync.Mutex
-}
-
-func newAckList() (acklist *AckList) {
-	acklist = new(AckList)
-	acklist.List = list.New()
-	return
-}
-
-func (this *AckList)push(channelId string, ts, msgId int64) {
-	ele := new(AckListElement)
-	ele.msgId = msgId
-	ele.channelId = channelId
-	ele.ts = ts
-	this.listLock.Lock()
-	defer this.listLock.Unlock()
-	this.PushBack(ele)
 }
 
 type TokenInfo struct {

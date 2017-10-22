@@ -199,55 +199,53 @@ func (this *Cmdline) Process() (ret string, err error) {
 		return fmt.Sprintf("%d %d %d", CODE_SUCCESS, msgId, time.Now().UnixNano()), nil
 
 	case CMD_VIDO_CHAT:
-		len := 0
+		index := 0
 		for i, value := range this.Params2 {
 			if value == ' ' {
-				len = i
+				index = i
 				break
 			}
 		}
-		if len == 0 {
+		if index == 0 {
 			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
-		channelId := string(this.Params2[: len])
+		channelId := string(this.Params2[: index])
 
 		_, exists := this.Client.Channels[channelId]
 		if !exists {
 			Subscribe(this.Client, channelId)
-
-			// force other related online clients to join in this channel
-			var result interface{}
-			err := db.MgoSession().DB("pushd").C("channel_uuids").
-				Find(bson.M{"_id": channelId}).
-				Select(bson.M{"uuids":1, "_id":0}).
-				One(&result)
-
-			if err == nil {
-				uuids := result.(bson.M)["uuids"].([]interface{})
-				for _, uuid := range uuids {
-					tclient, exists := UuidToClient.GetClient(uuid.(string))
-					if exists {
-						Subscribe(tclient, channelId)
-					}
-				}
-			}
-
 		}
 
-		Forward(channelId, this.Client.uuid, this.Params2[len+1:], false)
+		// 构造用于最终推送给其他client的消息体
+		ownerIdByte := []byte(this.Client.uuid)
+		buff := bytes.NewBuffer(make([]byte, 0, len(ownerIdByte) + 1 + len(this.Params2)))
+		buff.Write(ownerIdByte)
+		buff.WriteByte(' ')
+		buff.Write(this.Params2)
+		msgPush := buff.Bytes()
+
+		PublishBinMsg(channelId, this.Client.uuid, msgPush, true)
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_ACK_MSG:
-		params := strings.SplitN(this.Params, " ", 2)
-		if len(params) != 2 {
+		params := strings.SplitN(this.Params, " ", 4)
+		if len(params) != 4 {
 			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
+
+		channelId := params[0]
 		msgId, err := strconv.ParseInt(params[1], 10, 64)
 		if err != nil {
 			return fmt.Sprintf("%d param error, msgId cannot be parse", CODE_PARAM_ERROR), nil
 		}
-		this.Client.AckMsg(msgId, params[0])
+		ts, err := strconv.ParseInt(params[2], 10, 64)
+		if err != nil {
+			return fmt.Sprintf("%d param error, ts cannot be parse", CODE_PARAM_ERROR), nil
+		}
+		ownerId := params[3]
+
+		this.Client.AckMsg(msgId, ts, ownerId, channelId)
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_SUBSCRIBE:
@@ -498,7 +496,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		// force notify all relevant online users
 		notice := fmt.Sprintf("%s %s %d %s %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_APPLY, mainType, this.Client.uuid, newChannelId, oldChannelId)
-		Publish2(oldChannelId, notice, this.Client.uuid, true)
+		PublishStrMsg(oldChannelId, notice, this.Client.uuid, true)
 		ret = newChannelId
 		return fmt.Sprintf("%d %s", CODE_SUCCESS, newChannelId), nil
 
@@ -525,7 +523,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		// notify other users that I have join in
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_JOIN, -1, this.Client.uuid, channelId)
-		Publish2(channelId, notice, this.Client.uuid, false)
+		PublishStrMsg(channelId, notice, this.Client.uuid, true)
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_ACCEPT:
@@ -548,7 +546,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		// notify another user that I agree
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_ACCEPT, -1, this.Client.uuid, channelId)
-		Publish2(channelId, notice, this.Client.uuid, false)
+		PublishStrMsg(channelId, notice, this.Client.uuid, true)
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_OUT:
@@ -589,7 +587,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 				bulk.Run()
 
 				notice := fmt.Sprintf("%s %s2 %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
-				Publish2(realChannelId, notice, this.Client.uuid, true)
+				PublishStrMsg(realChannelId, notice, this.Client.uuid, true)
 				Unsubscribe(this.Client, channelId)
 				return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
@@ -601,7 +599,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		// notify other users that I have quit
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_OUT, -1, this.Client.uuid, channelId)
-		Publish2(channelId, notice, this.Client.uuid, false)
+		PublishStrMsg(channelId, notice, this.Client.uuid, true)
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_REFUSE:
@@ -609,7 +607,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_REFUSE, -1, this.Client.uuid, this.Params)
-		Publish2(this.Params, notice, this.Client.uuid, false)
+		PublishStrMsg(this.Params, notice, this.Client.uuid, true)
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_DISMISS:
@@ -653,7 +651,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 				bulk.Run()
 
 				notice := fmt.Sprintf("%s %s2 %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
-				Publish2(realChannelId, notice, this.Client.uuid, true)
+				PublishStrMsg(realChannelId, notice, this.Client.uuid, true)
 				return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 			}
 		}
@@ -663,7 +661,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		// notify other users that I have quit
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
-		Publish2(channelId, notice, this.Client.uuid, false)
+		PublishStrMsg(channelId, notice, this.Client.uuid, true)
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_INFO:
@@ -856,19 +854,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 			if len(hisRet) > 0 {
 				data[channel] = hisRet
-				for _, msg := range hisRet {
-					msgInfo := msg.(bson.M)
-					msgid := msgInfo["msgid"].(int64)
-					ts := msgInfo["ts"].(int64)
-					this.Client.ackList.push(channel, ts, msgid)
-				}
 			}
 		}
 
 		var retBytes []byte
 		retBytes, err = json.Marshal(data)
 		ret = string(retBytes)
-
 
 	case CMD_HISTORY:
 		//		if !this.Client.IsClient() {

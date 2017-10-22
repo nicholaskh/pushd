@@ -10,11 +10,9 @@ import (
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/engine/storage"
-	"strconv"
 	"bytes"
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
-	"encoding/binary"
 )
 
 var (
@@ -86,13 +84,12 @@ func Subscribe(cli *Client, channel string) string {
 		if exists {
 			clients.Set(cli.RemoteAddr().String(), cli)
 		} else {
-			clients = cmap.New()
+			temp := PubsubChannels.GetOrAdd(channel, cmap.New())
+			clients = temp.(cmap.ConcurrentMap)
 			clients.Set(cli.RemoteAddr().String(), cli)
-			//s2s
-			if config.PushdConf.IsDistMode() {
-				Proxy.SubMsgChan <- channel
-			}
-			PubsubChannels.Set(channel, clients)
+
+			// TODO 两个GOROUTINE同时subscribe，可能导致两次广播
+			forwardToAllOtherServer(S2S_SUB_CMD, []byte(channel))
 		}
 
 		return fmt.Sprintf("%s %s", OUTPUT_SUBSCRIBED, channel)
@@ -112,11 +109,7 @@ func Unsubscribe(cli *Client, channel string) string {
 
 		if clients.Count() == 0 {
 			PubsubChannels.Del(channel)
-
-			//s2s
-			if config.PushdConf.IsDistMode() {
-				Proxy.UnsubMsgChan <- channel
-			}
+			forwardToAllOtherServer(S2S_UNSUB_CMD, []byte(channel))
 		}
 
 		return fmt.Sprintf("%s %s", OUTPUT_UNSUBSCRIBED, channel)
@@ -131,159 +124,96 @@ func UnsubscribeAllChannels(cli *Client) {
 		clients.Remove(cli.RemoteAddr().String())
 		if clients.Count() == 0 {
 			PubsubChannels.Del(channel)
-
-			//s2s
-			if config.PushdConf.IsDistMode() {
-				Proxy.UnsubMsgChan <- channel
-			}
+			forwardToAllOtherServer(S2S_UNSUB_CMD, []byte(channel))
 		}
 	}
 	cli.Channels = nil
 }
 
-func Publish(channel, msg , uuid string, msgId int64, fromS2s bool) string {
-
-	clients, exists := PubsubChannels.Get(channel)
+func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
+	// 执行推送到客户端和转发到其他服务器
 	ts := time.Now().UnixNano()
-	if exists {
-		log.Debug("channel %s subscribed by %d clients", channel, clients.Count())
-		for ele := range clients.Iter() {
-			cli := ele.Val.(*Client)
-			if cli.uuid == uuid {
-				continue
-			}
-			log.Info(fmt.Sprintf("log push: %s -> %s, channle:%s msgId:%d content:%s", uuid, cli.uuid, channel, msgId, msg))
-			go cli.PushMsg(OUTPUT_RCIV, fmt.Sprintf("%s %s %d %d %s", channel, uuid, ts, msgId, msg),
-				channel, msgId, ts)
-		}
-	}
+	clientMsg := fmt.Sprintf("%s %s %d %d %s", channel, userId, ts, msgId, msg)
+	PublishStrMsg(channel, clientMsg, userId, !fromS2s)
 
-	storage.MsgCache.Store(&storage.MsgTuple{Channel: channel, Msg: msg, Ts: ts, Uuid: uuid})
+	// 保存到数据库
+	storage.MsgCache.Store(&storage.MsgTuple{Channel: channel, Msg: msg, Ts: ts, Uuid: userId})
 	if !fromS2s && config.PushdConf.EnableStorage() {
-		storage.EnqueueMsg(channel, msg, uuid, ts, msgId)
+		storage.EnqueueMsg(channel, msg, userId, ts, msgId)
 	}
 
+	// 更新自己的群聊时间状态表
 	channelKey := fmt.Sprintf("channel_stat.%s", channel)
 	db.MgoSession().DB("pushd").
 		C("user_info").
 		Update(
-		bson.M{"_id": uuid},
+		bson.M{"_id": userId},
 		bson.M{"$set": bson.M{channelKey: ts}})
 
-	if !fromS2s {
-		//s2s
-		if config.PushdConf.IsDistMode() {
-			peers, exists := Proxy.Router.LookupPeersByChannel(channel)
-			log.Debug("now peers %s", peers)
+	return ""
+}
 
-			if exists {
-				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts, msgId)
-			} else {
-				// boradcast to every node
-				peers = set.NewSet()
-				for _, v := range Proxy.Router.Peers {
-					peers.Add(v)
-				}
-				Proxy.PubMsgChan <- NewPubTuple(peers, msg, channel, uuid, ts, msgId)
-			}
-		}
-
-		return fmt.Sprintf("%s %d", strconv.FormatInt(msgId, 10), ts);
-	} else {
-		return ""
+// 推送和转发字符类型消息
+func PublishStrMsg(channel, msg, ownerId string, isToOtherServer bool) {
+	pushToNativeClient(OUTPUT_RCIV, channel, ownerId, []byte(msg))
+	if isToOtherServer {
+		msg2 := fmt.Sprintf("%s %s", channel, msg)
+		forwardToAllOtherServer(S2S_PUSH_STRING_MESSAGE, []byte(msg2))
 	}
 }
 
-// 直接推送msg消息，不做任何判断
-func Publish2(channel, msg, skipUserId string, forceToOtherNode bool) {
-	clients, exists := PubsubChannels.Get(channel)
-	if exists {
-		for ele := range clients.Iter() {
-			cli := ele.Val.(*Client)
-			if cli.uuid == skipUserId {
-				continue
-			}
-			go cli.WriteFormatMsg(OUTPUT_RCIV, msg)
-		}
-	}
-
-	if config.PushdConf.IsDistMode() {
-		peers, exists := Proxy.Router.LookupPeersByChannel(channel)
-		msg2 := fmt.Sprintf("%s %s %s %s", S2S_PUB_CMD, S2S_PUSH_CMD, channel, msg)
-		if exists {
-			Proxy.PubMsgChan2 <- NewPubTuple2(peers, msg2)
-		} else if forceToOtherNode {
-			// boradcast to every node
-			peers = set.NewSet()
-			for _, v := range Proxy.Router.Peers {
-				peers.Add(v)
-			}
-			Proxy.PubMsgChan2 <- NewPubTuple2(peers, msg2)
-		}
+// 推送和转发二进制类型消息
+func PublishBinMsg(channel, ownerId string, msg []byte, isToOtherServer bool) {
+	pushToNativeClient(CMD_VIDO_CHAT, channel, ownerId, msg)
+	if isToOtherServer {
+		channelByte := []byte(channel)
+		buff := bytes.NewBuffer(make([]byte, 0, len(channelByte) + 1 + len(msg)))
+		buff.Write(channelByte)
+		buff.WriteByte(' ')
+		buff.Write(msg)
+		forwardToAllOtherServer(CMD_VIDO_CHAT, buff.Bytes())
 	}
 }
 
-func Forward(channel, uuid string, msg []byte, fromS2s bool) {
-	clients, exists := PubsubChannels.Get(channel)
-	if exists {
-		// generate binary msg
-		data := bytes.NewBuffer([]byte{})
-
-		opBytes := []byte(CMD_VIDO_CHAT)
-		// write op to data
-		buf := bytes.NewBuffer([]byte{})
-		binary.Write(buf, binary.BigEndian, int32(len(opBytes)))
-		data.Write(buf.Bytes())
-
-		buf.Reset()
-		binary.Write(buf, binary.BigEndian, opBytes)
-		data.Write(buf.Bytes())
-
-		// write body to data
-		body := bytes.NewBuffer([]byte{})
-		body.WriteString(uuid)
-		body.WriteByte(' ')
-		body.WriteString(channel)
-		body.WriteByte(' ')
-		body.Write(msg)
-
-		buf.Reset()
-		binary.Write(buf, binary.BigEndian, int32(body.Len()))
-		data.Write(buf.Bytes())
-
-		buf.Reset()
-		binary.Write(buf, binary.BigEndian, body.Bytes())
-		data.Write(buf.Bytes())
-
-		resMsg := data.Bytes()
-
-		// send to clients
-		for ele := range clients.Iter() {
-			cli := ele.Val.(*Client)
-			if cli.uuid == uuid {
-				continue
-			}
-			go cli.WriteBinMsg(resMsg)
-		}
-	}
-
-	//TODO 多节点转发
-
-}
-
-// TODO 整理规范此文件中的所有方法
-
-// 向其他所有服务器发送某条消息
-func forwardToAllOtherServer(cmd, message string){
-	if !config.PushdConf.IsDistMode() || cmd == "" || message == ""{
+// 推送给本地连接的客户端
+func pushToNativeClient(op, channelId, ownerId string, msg []byte){
+	clients, exists := PubsubChannels.Get(channelId)
+	if !exists {
 		return
 	}
 
-	msg := fmt.Sprintf("%s %s", cmd, message)
+	for ele := range clients.Iter() {
+		cli := ele.Val.(*Client)
+		log.Info(cli.uuid)
+		if cli.uuid == ownerId {
+			continue
+		}
+		go cli.WriteFormatBinMsg(op, msg)
+	}
+}
+
+// 转发给所有其他节点
+func forwardToAllOtherServer(cmd string, message []byte){
+	if !config.PushdConf.IsDistMode() || cmd == "" || len(message) == 0{
+		return
+	}
 
 	peers := set.NewSet()
 	for _, v := range Proxy.Router.Peers {
 		peers.Add(v)
 	}
-	Proxy.PubMsgChan2 <- NewPubTuple2(peers, msg)
+	Proxy.ForwardTuple <- NewForwardTuple(peers, message, cmd)
+}
+
+// 根据channel转发给相应的节点
+func forwardToOtherServerInChannel(cmd , channelId string, message []byte){
+	if !config.PushdConf.IsDistMode() || cmd == "" || channelId == "" || len(message) == 0{
+		return
+	}
+
+	peers := set.NewSet()
+	for _, v := range Proxy.Router.Peers {
+		peers.Add(v)
+	}
+	Proxy.ForwardTuple <- NewForwardTuple(peers, message, cmd)
 }
