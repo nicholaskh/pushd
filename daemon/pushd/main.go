@@ -50,6 +50,8 @@ func main() {
 		shutdown()
 	}()
 
+	engine.InitAclEnv()
+
 	err := engine.InitOffPushService()
 	if err != nil {
 		panic(err.Error())
