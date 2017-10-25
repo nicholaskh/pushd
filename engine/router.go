@@ -8,6 +8,8 @@ import (
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
+	"github.com/nicholaskh/golib/server"
+	"fmt"
 )
 
 type Router struct {
@@ -68,17 +70,18 @@ func (this *Router) connectPeer(server string) {
 
 type Peer struct {
 	addr string
-	net.Conn
+	client *server.Client
 }
 
 func NewPeer(addr string) (this *Peer) {
 	this = new(Peer)
 	this.addr = addr
-	this.connect()
+
+	this.initClientConn()
 	return
 }
 
-func (this *Peer) connect() (err error) {
+func (this *Peer) initClientConn() (err error) {
 	//bind local addr since we will use this for peer addr on remote server
 	laddr, err := net.ResolveTCPAddr("tcp", config.PushdConf.TcpListenAddr)
 	if err != nil {
@@ -87,70 +90,46 @@ func (this *Peer) connect() (err error) {
 	laddr.Port = 0
 	dialer := &net.Dialer{LocalAddr: laddr}
 
-	this.Conn, err = dialer.Dial("tcp", this.addr)
+	conn, err := dialer.Dial("tcp", this.addr)
 	if err != nil {
 		log.Warn("s2s connect to %s error: %s", this.addr, err.Error())
+		return
 	}
-	if this.Conn != nil {
-		// just wait for s2s server close the connection
-		go func() {
-			for {
-				input := make([]byte, 1460)
-				_, err = this.Conn.Read(input)
-				if err != nil {
-					this.Conn.Close()
-					return
-				}
+
+	this.client = server.NewClient(conn, server.CONN_TYPE_TCP, server.NewFixedLengthProtocol())
+
+	// just wait for s2s server close the connection
+	go func() {
+		for {
+			input := make([]byte, 1460)
+			_, err = this.client.Read(input)
+			if err != nil {
+				this.client.Close()
+				return
 			}
-		}()
-	}
+		}
+	}()
+
 	return
 }
 
-func (this *Peer) writeMsg(msg string) {
-	var err error
-
-	if this.Conn != nil {
-		_, err = this.Write([]byte(msg))
-	}
-	if err != nil || this.Conn == nil {
-		// retry
-		for i := 0; i < RETRY_CNT; i++ {
-			err = this.connect()
-			if err != nil {
-				log.Warn("write to peer %s error: %s", this.addr, err.Error())
-			} else {
-				if this.Conn != nil {
-					_, err = this.Write([]byte(msg))
-					if err == nil {
-						break
-					}
-				}
-			}
-		}
-	}
-}
-
-func (this *Peer) writeFormatMsg(op string, msg []byte) {
-	var err error
-
-	if this.Conn != nil {
-
-	}
-	if err != nil || this.Conn == nil {
-		// retry
-		for i := 0; i < RETRY_CNT; i++ {
-			err = this.connect()
-			if err != nil {
-				log.Warn("write to peer %s error: %s", this.addr, err.Error())
-			} else {
-				if this.Conn != nil {
-					_, err = this.Write([]byte(msg))
-					if err == nil {
-						break
-					}
-				}
-			}
-		}
-	}
+func (this *Peer) WriteFormatMsg(op string, msg []byte) {
+       if this.client.IsConnected() {
+		err := this.client.WriteFormatBinMsg(op, msg)
+	       if err == nil {
+		       return
+	       }
+       }
+       for i := 0; i < RETRY_CNT; i++ {
+	       err := this.initClientConn()
+	       if err == nil {
+		       err = this.client.WriteFormatBinMsg(op, msg)
+		       if err == nil {
+			       log.Info("do reconnect peer(%s) success", this.addr)
+			       return
+		       }
+	       }
+       }
+       log.Info(fmt.Sprintf("do reconnect peer(%s) failed, times retry is: %d %s", this.addr, RETRY_CNT))
+       return
 }

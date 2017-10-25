@@ -52,8 +52,7 @@ func (this *S2sProxy) WaitMsg() {
 				log.Debug("peer was %s %s", peerInterface, reflect.TypeOf(peerInterface))
 				peer, _ := peerInterface.(*Peer)
 				log.Debug("peer is %s %s", peer, reflect.TypeOf(peer))
-
-				go peer.writeFormatMsg(tuple.cmd, tuple.msg)
+				go peer.WriteFormatMsg(tuple.cmd, tuple.msg)
 			}
 		}
 
