@@ -32,14 +32,10 @@ type S2sProxy struct {
 func NewS2sProxy() (this *S2sProxy) {
 	this = new(S2sProxy)
 	this.ForwardTuple = make(chan *ForwardTuple, 100)
-
-	go watchPeers(this)
-
 	this.Router = NewRouter(config.PushdConf.S2sChannelPeersMaxItems)
-
 	this.Stats = newProxyStats()
 	this.Stats.registerMetrics()
-
+	go watchPeers(this)
 	return
 }
 
