@@ -139,33 +139,7 @@ func (this *S2sClientProcessor) processCmd(cl *ServerCmdline, client *server.Cli
 
 	case S2S_SUB_CMD:
 		channelId := string(cl.Params)
-		_, exists := Proxy.Router.LookupPeersByChannel(channelId)
-		if exists {
-			return nil
-		}
-
-		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), channelId)
-		_, exists = PubsubChannels.Get(channelId)
-		if exists {
-			return nil
-		}
-
-		// 将属于此channel的所有的在线client，注册到这个channel中
-		var result interface{}
-		err := db.MgoSession().DB("pushd").C("channel_uuids").
-			Find(bson.M{"_id": channelId}).
-			Select(bson.M{"uuids":1, "_id":0}).
-			One(&result)
-
-		if err == nil {
-			userIds := result.(bson.M)["uuids"].([]interface{})
-			for _, userId := range userIds {
-				tempClient, exists := UuidToClient.GetClient(userId.(string))
-				if exists {
-					Subscribe(tempClient, channelId)
-				}
-			}
-		}
+		checkAndSetLocalChannel(channelId, client)
 
 	case S2S_UNSUB_CMD:
 		channelId := string(cl.Params)
@@ -187,6 +161,8 @@ func (this *S2sClientProcessor) processCmd(cl *ServerCmdline, client *server.Cli
 		channelId := string(cl.Params[: index1])
 		binMsg := cl.Params[index1+1:]
 
+		checkAndSetLocalChannel(channelId, client)
+
 		PublishBinMsg(channelId, "", binMsg, false)
 
 	case S2S_PUSH_STRING_MESSAGE:
@@ -196,10 +172,46 @@ func (this *S2sClientProcessor) processCmd(cl *ServerCmdline, client *server.Cli
 		}
 		channelId := params[0]
 		message := params[1]
+
+		checkAndSetLocalChannel(channelId, client)
+
 		PublishStrMsg(channelId, message, "", false)
 	}
 
 	return nil
+}
+
+// 检查本地是否已存在此channel的订阅，如果没有则设置订阅此channel，并将所有关心此channel的client，强制注册到此channel
+func checkAndSetLocalChannel(channelId string, client *server.Client) {
+	_, exists := Proxy.Router.LookupPeersByChannel(channelId)
+	if exists {
+		return
+	}
+	Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), channelId)
+
+	_, exists = PubsubChannels.Get(channelId)
+	if exists {
+		return
+	}
+
+	// 将属于此channel的所有的在线client，注册到这个channel中
+	var result interface{}
+	err := db.MgoSession().DB("pushd").C("channel_uuids").
+		Find(bson.M{"_id": channelId}).
+		Select(bson.M{"uuids":1, "_id":0}).
+		One(&result)
+
+	if err != nil {
+		return
+	}
+
+	userIds := result.(bson.M)["uuids"].([]interface{})
+	for _, userId := range userIds {
+		tempClient, exists := UuidToClient.GetClient(userId.(string))
+		if exists {
+			Subscribe(tempClient, channelId)
+		}
+	}
 }
 
 

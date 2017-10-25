@@ -88,8 +88,9 @@ func Subscribe(cli *Client, channel string) string {
 			clients = temp.(cmap.ConcurrentMap)
 			clients.Set(cli.RemoteAddr().String(), cli)
 
-			// TODO 两个GOROUTINE同时subscribe，可能导致两次广播
-			forwardToAllOtherServer(S2S_SUB_CMD, []byte(channel))
+			// subscribe只在本节点进行
+			//// TODO 两个GOROUTINE同时subscribe，可能导致两次广播
+			//forwardToAllOtherServer(S2S_SUB_CMD, []byte(channel))
 		}
 
 		return fmt.Sprintf("%s %s", OUTPUT_SUBSCRIBED, channel)
