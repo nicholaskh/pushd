@@ -315,6 +315,11 @@ func CheckAndPush(channel, message, ownerId string) {
 		// 缓存群中所有用户id
 		channelToUserIds.AddAllUserIds(channel, userIds...)
 	}
+
+	if  len(userIds) < 1 {
+		return
+	}
+
 	// 筛选符合离线推送条件的用户，提取出相应的pushId
 	pushIds := make([]string, 0, len(userIds)-1)
 	for _, uId := range userIds {
