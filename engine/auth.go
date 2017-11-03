@@ -40,15 +40,15 @@ func checkServerToken(token string) bool {
 		return false;
 	}
 
-	tempExpire, exists := result.(bson.M)["expire"]
+	_, exists := result.(bson.M)["expire"]
 	if !exists {
 		return false
 	}
-	expire := tempExpire.(int64)
-	if time.Now().Unix() - expire > 7200 {
-		db.MgoSession().DB("pushd").C("server_token").Remove(bson.M{"tk": token})
-		return false;
-	}
+	//expire := tempExpire.(int64)
+	//if time.Now().Unix() - expire > 7200 {
+	//	db.MgoSession().DB("pushd").C("server_token").Remove(bson.M{"tk": token})
+	//	return false;
+	//}
 
 	return true
 }

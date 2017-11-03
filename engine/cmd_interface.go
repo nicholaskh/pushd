@@ -889,17 +889,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if this.Params == "" {
 			return "", errors.New("Invalid Params for auth_server")
 		}
-		if this.Client.IsServer() {
-			ret = "Already authed server"
-			err = nil
-		} else {
-			ret, err = authServer(this.Params)
-			if err == nil {
-				this.Client.SetServer()
-				ret = fmt.Sprintf("%s %s", OUTPUT_AUTH_SERVER, ret)
-			}
-			return ret, err
+		ret, err = authServer(this.Params)
+		if err == nil {
+			this.Client.SetServer()
+			ret = fmt.Sprintf("%s %s", OUTPUT_AUTH_SERVER, ret)
 		}
+		return ret, err
 
 	//TODO CMD_TOKEN修改为code码形式
 	case CMD_TOKEN:
