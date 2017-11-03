@@ -183,14 +183,20 @@ func (this *S2sClientProcessor) processCmd(cl *ServerCmdline, client *server.Cli
 
 // 检查本地是否已存在此channel的订阅，如果没有则设置订阅此channel，并将所有关心此channel的client，强制注册到此channel
 func checkAndSetLocalChannel(channelId string, client *server.Client) {
+	isLoadFromDatabase := false
+
 	_, exists := Proxy.Router.LookupPeersByChannel(channelId)
-	if exists {
-		return
+	if !exists {
+		isLoadFromDatabase = true
+		Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), channelId)
 	}
-	Proxy.Router.AddPeerToChannel(config.GetS2sAddr(client.RemoteAddr().String()), channelId)
 
 	_, exists = PubsubChannels.Get(channelId)
 	if exists {
+		return
+	}
+
+	if !isLoadFromDatabase {
 		return
 	}
 
