@@ -9,11 +9,17 @@ import (
 	"github.com/nicholaskh/pushd/config"
 	"gopkg.in/mgo.v2"
 	"github.com/nicholaskh/pushd/engine/storage"
+	"sync"
 )
 
 const (
 	TYPE_CLIENT = 1
 	TYPE_SERVER = 2
+
+	CLIENT_STATE_CREATE = 0
+	CLIENT_STATE_INIT_DOEN = 1
+	CLIENT_STATE_DEAD = 2
+
 )
 
 type Client struct {
@@ -24,11 +30,15 @@ type Client struct {
 	tokenInfo          TokenInfo
 	PushId             string
 	IsAllowForceNotify bool
+	clientLock *sync.Mutex
+	state int
 }
 
 func NewClient() (this *Client) {
 	this = new(Client)
 	this.Channels = make(map[string]int)
+	this.clientLock = &sync.Mutex{}
+	this.state = CLIENT_STATE_CREATE
 	return
 }
 
@@ -56,6 +66,10 @@ func (this *Client) Close() {
 	log.Debug("client channels: %s", this.Channels)
 	log.Debug("pubsub channels: %s", PubsubChannels)
 
+	this.clientLock.Lock()
+	defer this.clientLock.Unlock()
+
+	this.state = CLIENT_STATE_DEAD
 	if this.IsClient() {
 		this.clearFrameChat()
 		UnsubscribeAllChannels(this)
@@ -144,9 +158,18 @@ func (this *Client) updateTokenExpire(expire int64) {
 }
 
 func (this *Client) initChatEnv(uuid string) {
+	this.clientLock.Lock()
+	this.clientLock.Unlock()
+
+	if this.state != CLIENT_STATE_CREATE{
+		return
+	}
+
 	this.loadUserInfo()
 	this.updateUserIdToClientMappingTable()
 	this.subAllAssociateChannels()
+
+	this.state = CLIENT_STATE_INIT_DOEN
 }
 
 // 更新用户全局状态信息缓存表
