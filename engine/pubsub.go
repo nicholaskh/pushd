@@ -134,7 +134,7 @@ func UnsubscribeAllChannels(cli *Client) {
 func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
 	// 执行推送到客户端和转发到其他服务器
 	ts := time.Now().UnixNano()
-	clientMsg := fmt.Sprintf("%s %s %d %d %s", channel, userId, ts, msgId, msg)
+	clientMsg := fmt.Sprintf("%d %s %s %d %d %s",MESSAGE_TYPE_NORMAL, channel, userId, ts, msgId, msg)
 	PublishStrMsg(channel, clientMsg, userId, !fromS2s)
 
 	// 保存到数据库
@@ -143,6 +143,7 @@ func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
 		storage.EnqueueMsg(channel, msg, userId, ts, msgId)
 	}
 
+	// TODO 是否没有必要更新， 可以在查找离线消息的时候过滤掉自己发的消息
 	// 更新自己的群聊时间状态表
 	channelKey := fmt.Sprintf("channel_stat.%s", channel)
 	db.MgoSession().DB("pushd").
@@ -185,7 +186,6 @@ func pushToNativeClient(op, channelId, ownerId string, msg []byte){
 
 	for ele := range clients.Iter() {
 		cli := ele.Val.(*Client)
-		log.Info(cli.uuid)
 		if cli.uuid == ownerId {
 			continue
 		}

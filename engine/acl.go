@@ -28,6 +28,7 @@ func InitAclEnv(){
 	skipAclCmd.Add(CMD_LEAVEROOM)
 	skipAclCmd.Add(CMD_UPDATE_OR_ADD_PUSH_ID)
 	skipAclCmd.Add(CMD_SET_OFF_NOTIFY)
+	skipAclCmd.Add(CMD_PUBLISH_NOTIFICATION_IN_CHAT_ROOM)
 }
 
 func AclCheck(cli *Client, cmd string) (err error) {

@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"gopkg.in/mgo.v2"
+	"github.com/nicholaskh/pushd/config"
 )
 
 type Cmdline struct {
@@ -58,6 +59,7 @@ const (
 	CMD_RETRACT_MESSAGE	= "retract_msg"
 	CMD_UPDATE_OR_ADD_PUSH_ID = "up_ad_pushId"
 	CMD_SET_OFF_NOTIFY = "set_notify"
+	CMD_PUBLISH_NOTIFICATION_IN_CHAT_ROOM = "pnicr"
 
 
 	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
@@ -419,6 +421,70 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if err != nil {
 			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
 		}
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
+
+	case CMD_PUBLISH_NOTIFICATION_IN_CHAT_ROOM:
+		//params格式 [type chatRoomId ts message]
+		params := strings.SplitN(this.Params, " ", 4)
+		if len(params) < 4 {
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
+		}
+
+		ts, err := strconv.ParseInt(params[2], 10, 64)
+		if err != nil {
+			return fmt.Sprintf("%d ts can not parse to long", CODE_PARAM_ERROR), nil
+		}
+
+		mtype , err := strconv.ParseInt(params[0], 10, 32)
+		if err != nil {
+			return fmt.Sprintf("%d type can not parse to int32", CODE_PARAM_ERROR), nil
+		}
+
+		chatRoomId := params[1]
+		message := params[3]
+
+		err = db.MgoSession().DB("pushd").C("channel_uuids").
+			Find(bson.M{"_id": chatRoomId}).
+			Select(bson.M{"uuids":1, "_id":0}).
+			One(nil)
+
+		if err != nil {
+			return fmt.Sprintf("%d chatRoomId is not exists", CODE_PARAM_ERROR), nil
+		}
+
+		_, exists := PubsubChannels.Get(chatRoomId)
+		if !exists {
+			var result interface{}
+			err := db.MgoSession().DB("pushd").C("channel_uuids").
+				Find(bson.M{"_id": chatRoomId}).
+				Select(bson.M{"uuids":1, "_id":0}).
+				One(&result)
+
+			if err == nil {
+				userIds := result.(bson.M)["uuids"].([]interface{})
+				for _, userId := range userIds {
+					tclient, exists := UuidToClient.GetClient(userId.(string))
+					if exists {
+						Subscribe(tclient, chatRoomId)
+					}
+				}
+			}
+		}
+
+		if config.PushdConf.EnableStorage() {
+			db.MgoSession().
+				DB("pushd").
+				C("msg_log").
+				Insert(
+				bson.M{"channel": chatRoomId,
+					"msg": message,
+					"ts": ts,
+					"type": mtype})
+		}
+
+		clientMsg := fmt.Sprintf("%d %s %d %s",mtype, chatRoomId, ts, message)
+		PublishStrMsg(chatRoomId, clientMsg, "", true)
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
