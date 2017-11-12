@@ -425,66 +425,92 @@ func (this *Cmdline) Process() (ret string, err error) {
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_PUBLISH_NOTIFICATION_IN_CHAT_ROOM:
-		//params格式 [type chatRoomId ts message]
-		params := strings.SplitN(this.Params, " ", 4)
-		if len(params) < 4 {
-			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
+		//params格式 [type chatRoomId message]
+		params := strings.SplitN(this.Params, " ", 3)
+		if len(params) < 3 {
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), errors.New("1")
 		}
 
-		ts, err := strconv.ParseInt(params[2], 10, 64)
+		mtype , err := strconv.Atoi(params[0])
 		if err != nil {
-			return fmt.Sprintf("%d ts can not parse to long", CODE_PARAM_ERROR), nil
-		}
-
-		mtype , err := strconv.ParseInt(params[0], 10, 32)
-		if err != nil {
-			return fmt.Sprintf("%d type can not parse to int32", CODE_PARAM_ERROR), nil
+			return fmt.Sprintf("%d type can not parse to int32", CODE_PARAM_ERROR), errors.New("1")
 		}
 
 		chatRoomId := params[1]
-		message := params[3]
+		message := params[2]
 
-		err = db.MgoSession().DB("pushd").C("channel_uuids").
-			Find(bson.M{"_id": chatRoomId}).
-			Select(bson.M{"uuids":1, "_id":0}).
-			One(nil)
-
-		if err != nil {
-			return fmt.Sprintf("%d chatRoomId is not exists", CODE_PARAM_ERROR), nil
-		}
-
-		_, exists := PubsubChannels.Get(chatRoomId)
-		if !exists {
-			var result interface{}
-			err := db.MgoSession().DB("pushd").C("channel_uuids").
+		notifyInChatRoom := func(chatRoomId, message string, mtype int) (string, error){
+			err = db.MgoSession().DB("pushd").C("channel_uuids").
 				Find(bson.M{"_id": chatRoomId}).
 				Select(bson.M{"uuids":1, "_id":0}).
-				One(&result)
+				One(nil)
 
-			if err == nil {
-				userIds := result.(bson.M)["uuids"].([]interface{})
-				for _, userId := range userIds {
-					tclient, exists := UuidToClient.GetClient(userId.(string))
-					if exists {
-						Subscribe(tclient, chatRoomId)
+			if err != nil {
+				return fmt.Sprintf("%d chatRoomId is not exists", CODE_PARAM_ERROR), err
+			}
+
+			_, exists := PubsubChannels.Get(chatRoomId)
+			if !exists {
+				var result interface{}
+				err := db.MgoSession().DB("pushd").C("channel_uuids").
+					Find(bson.M{"_id": chatRoomId}).
+					Select(bson.M{"uuids":1, "_id":0}).
+					One(&result)
+
+				if err == nil {
+					userIds := result.(bson.M)["uuids"].([]interface{})
+					for _, userId := range userIds {
+						tclient, exists := UuidToClient.GetClient(userId.(string))
+						if exists {
+							Subscribe(tclient, chatRoomId)
+						}
 					}
 				}
 			}
+
+			ts := time.Now().UnixNano()
+
+			if config.PushdConf.EnableStorage() {
+				db.MgoSession().
+					DB("pushd").
+					C("msg_log").
+					Insert(
+					bson.M{"channel": chatRoomId,
+						"msg": message,
+						"ts": ts,
+						"type": mtype})
+			}
+
+			clientMsg := fmt.Sprintf("%d %s %d %s",mtype, chatRoomId, ts, message)
+			PublishStrMsg(chatRoomId, clientMsg, "", true)
+
+			return "", nil
 		}
 
-		if config.PushdConf.EnableStorage() {
-			db.MgoSession().
-				DB("pushd").
-				C("msg_log").
-				Insert(
-				bson.M{"channel": chatRoomId,
-					"msg": message,
-					"ts": ts,
-					"type": mtype})
-		}
+		/**
+		 record
+		 群聊msg_log不能删除，因为我们的离线消息是基于msg_log做的
+		  */
+		switch mtype {
+		case SOME_ONE_BE_INVITED_OT_CHAT_ROOM,
+			SOME_ONE_JOIN_CHAT_ROOM,
+			SOME_ONE_MODIFY_NAME_OF_CHAT_ROOM,
+			SOME_ONE_QUIT_CHAT_ROOM:
+			res, err := notifyInChatRoom(chatRoomId, message, mtype)
+			if err != nil {
+				return res, nil
+			}
 
-		clientMsg := fmt.Sprintf("%d %s %d %s",mtype, chatRoomId, ts, message)
-		PublishStrMsg(chatRoomId, clientMsg, "", true)
+		// 某人被踢出群聊
+		case SOME_ONE_EXPELLED_FROM_CHAT_ROOM:
+			res, err := notifyInChatRoom(chatRoomId, message, mtype)
+			if err != nil {
+				return res, nil
+			}
+			// TODO 通知被踢出的人
+		default:
+			log.Info("dddd", mtype)
+		}
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 

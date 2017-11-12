@@ -13,9 +13,6 @@ const (
 	// 正常消息
 	MESSAGE_TYPE_NORMAL = 0
 
-	// 撤回消息
-	MESSAGE_TYPE_RETRACT = 1
-
 	// 某人创建群聊
 	CREATE_CHAT_ROOM =2;
 
@@ -33,5 +30,11 @@ const (
 
 	// 某人修改了群名称
 	SOME_ONE_MODIFY_NAME_OF_CHAT_ROOM = 7;
+
+	// 某人被邀请加入群聊
+	SOME_ONE_BE_INVITED_OT_CHAT_ROOM = 8;
+
+	// 群聊解散
+	SOME_ONE_DISMISS_CHAT_ROOM = 9;
 
 )
