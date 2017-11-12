@@ -159,7 +159,7 @@ func (this *Client) updateTokenExpire(expire int64) {
 
 func (this *Client) initChatEnv(uuid string) {
 	this.clientLock.Lock()
-	this.clientLock.Unlock()
+	defer this.clientLock.Unlock()
 
 	if this.state != CLIENT_STATE_CREATE{
 		return
