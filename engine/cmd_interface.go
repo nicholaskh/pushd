@@ -482,6 +482,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 
 			clientMsg := fmt.Sprintf("%d %s %d %s",mtype, chatRoomId, ts, message)
+			log.Info(fmt.Sprintf("chatRoom:%s notify:%s", chatRoomId, clientMsg));
 			PublishStrMsg(chatRoomId, clientMsg, "", true)
 
 			return "", nil

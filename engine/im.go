@@ -32,6 +32,13 @@ func createRoom(userId, channelId string) (err error) {
 	_, err = db.MgoSession().DB("pushd").
 		C("uuid_channels").
 		UpsertId(userId, bson.M{"$addToSet": bson.M{"channels": channelId}})
+
+
+	client, exists := UuidToClient.GetClient(userId)
+	if exists{
+		Subscribe(client, channelId)
+	}
+
 	return
 }
 
