@@ -449,21 +449,18 @@ func (this *Cmdline) Process() (ret string, err error) {
 				return fmt.Sprintf("%d chatRoomId is not exists", CODE_PARAM_ERROR), err
 			}
 
-			_, exists := PubsubChannels.Get(chatRoomId)
-			if !exists {
-				var result interface{}
-				err := db.MgoSession().DB("pushd").C("channel_uuids").
-					Find(bson.M{"_id": chatRoomId}).
-					Select(bson.M{"uuids":1, "_id":0}).
-					One(&result)
+			var result interface{}
+			err := db.MgoSession().DB("pushd").C("channel_uuids").
+				Find(bson.M{"_id": chatRoomId}).
+				Select(bson.M{"uuids":1, "_id":0}).
+				One(&result)
 
-				if err == nil {
-					userIds := result.(bson.M)["uuids"].([]interface{})
-					for _, userId := range userIds {
-						tclient, exists := UuidToClient.GetClient(userId.(string))
-						if exists {
-							Subscribe(tclient, chatRoomId)
-						}
+			if err == nil {
+				userIds := result.(bson.M)["uuids"].([]interface{})
+				for _, userId := range userIds {
+					tclient, exists := UuidToClient.GetClient(userId.(string))
+					if exists {
+						Subscribe(tclient, chatRoomId)
 					}
 				}
 			}
@@ -493,14 +490,6 @@ func (this *Cmdline) Process() (ret string, err error) {
 		 群聊msg_log不能删除，因为我们的离线消息是基于msg_log做的
 		  */
 		switch mtype {
-		case SOME_ONE_BE_INVITED_OT_CHAT_ROOM,
-			SOME_ONE_JOIN_CHAT_ROOM,
-			SOME_ONE_MODIFY_NAME_OF_CHAT_ROOM,
-			SOME_ONE_QUIT_CHAT_ROOM:
-			res, err := notifyInChatRoom(chatRoomId, message, mtype)
-			if err != nil {
-				return res, nil
-			}
 
 		// 某人被踢出群聊
 		case SOME_ONE_EXPELLED_FROM_CHAT_ROOM:
@@ -510,7 +499,10 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 			// TODO 通知被踢出的人
 		default:
-			log.Info("dddd", mtype)
+			res, err := notifyInChatRoom(chatRoomId, message, mtype)
+			if err != nil {
+				return res, nil
+			}
 		}
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil

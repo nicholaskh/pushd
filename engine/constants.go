@@ -34,7 +34,10 @@ const (
 	// 某人被邀请加入群聊
 	SOME_ONE_BE_INVITED_OT_CHAT_ROOM = 8;
 
-	// 群聊解散
-	SOME_ONE_DISMISS_CHAT_ROOM = 9;
+	// 面对面群中某人加入群聊
+	FACE_TO_FACE_SOME_ONE_JOIN_CHAT_ROOM = 9;
+
+	// 群主变更
+	MASTER_CHANGE_CHAT_ROOM = 11;
 
 )
