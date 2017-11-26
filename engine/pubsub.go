@@ -147,15 +147,6 @@ func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
 		storage.EnqueueMsg(channel, msg, userId, ts, msgId)
 	}
 
-	// TODO 是否没有必要更新， 可以在查找离线消息的时候过滤掉自己发的消息
-	// 更新自己的群聊时间状态表
-	channelKey := fmt.Sprintf("channel_stat.%s", channel)
-	db.MgoSession().DB("pushd").
-		C("user_info").
-		Update(
-		bson.M{"_id": userId},
-		bson.M{"$set": bson.M{channelKey: ts}})
-
 	return ""
 }
 
