@@ -74,61 +74,63 @@ func (this *UuidClientMap) Remove(uuid string, client *Client) {
 }
 
 func Subscribe(cli *Client, channel string) string {
-	log.Debug("%x", channel)
-	_, exists := cli.Channels[channel]
-	if exists {
-		return fmt.Sprintf("%s %s", OUTPUT_ALREADY_SUBSCRIBED, channel)
-	} else {
-		cli.Channels[channel] = 1
-		clients, exists := PubsubChannels.Get(channel)
-		if exists {
-			clients.Set(cli.RemoteAddr().String(), cli)
-		} else {
-			temp := PubsubChannels.GetOrAdd(channel, cmap.New())
-			clients = temp.(cmap.ConcurrentMap)
-			clients.Set(cli.RemoteAddr().String(), cli)
-
-			// subscribe只在本节点进行
-			//// TODO 两个GOROUTINE同时subscribe，可能导致两次广播
-			//forwardToAllOtherServer(S2S_SUB_CMD, []byte(channel))
-		}
-
-		return fmt.Sprintf("%s %s", OUTPUT_SUBSCRIBED, channel)
-	}
+	//log.Debug("%x", channel)
+	//_, exists := cli.Channels[channel]
+	//if exists {
+	//	return fmt.Sprintf("%s %s", OUTPUT_ALREADY_SUBSCRIBED, channel)
+	//} else {
+	//	cli.Channels[channel] = 1
+	//	clients, exists := PubsubChannels.Get(channel)
+	//	if exists {
+	//		clients.Set(cli.RemoteAddr().String(), cli)
+	//	} else {
+	//		temp := PubsubChannels.GetOrAdd(channel, cmap.New())
+	//		clients = temp.(cmap.ConcurrentMap)
+	//		clients.Set(cli.RemoteAddr().String(), cli)
+	//
+	//		// subscribe只在本节点进行
+	//		//// TODO 两个GOROUTINE同时subscribe，可能导致两次广播
+	//		//forwardToAllOtherServer(S2S_SUB_CMD, []byte(channel))
+	//	}
+	//
+	//	return fmt.Sprintf("%s %s", OUTPUT_SUBSCRIBED, channel)
+	//}
+	return ""
 
 }
 
 func Unsubscribe(cli *Client, channel string) string {
-	_, exists := cli.Channels[channel]
-	if exists {
-		delete(cli.Channels, channel)
-		clients, exists := PubsubChannels.Get(channel)
-		if exists {
-			clients.Remove(cli.RemoteAddr().String())
-		}
-		clients, exists = PubsubChannels.Get(channel)
-
-		if clients.Count() == 0 {
-			PubsubChannels.Del(channel)
-			forwardToAllOtherServer(S2S_UNSUB_CMD, []byte(channel))
-		}
-
-		return fmt.Sprintf("%s %s", OUTPUT_UNSUBSCRIBED, channel)
-	} else {
-		return fmt.Sprintf("%s %s", OUTPUT_NOT_SUBSCRIBED, channel)
-	}
+	//_, exists := cli.Channels[channel]
+	//if exists {
+	//	delete(cli.Channels, channel)
+	//	clients, exists := PubsubChannels.Get(channel)
+	//	if exists {
+	//		clients.Remove(cli.RemoteAddr().String())
+	//	}
+	//	clients, exists = PubsubChannels.Get(channel)
+	//
+	//	if clients.Count() == 0 {
+	//		PubsubChannels.Del(channel)
+	//		forwardToAllOtherServer(S2S_UNSUB_CMD, []byte(channel))
+	//	}
+	//
+	//	return fmt.Sprintf("%s %s", OUTPUT_UNSUBSCRIBED, channel)
+	//} else {
+	//	return fmt.Sprintf("%s %s", OUTPUT_NOT_SUBSCRIBED, channel)
+	//}
+	return ""
 }
 
 func UnsubscribeAllChannels(cli *Client) {
-	for channel, _ := range cli.Channels {
-		clients, _ := PubsubChannels.Get(channel)
-		clients.Remove(cli.RemoteAddr().String())
-		if clients.Count() == 0 {
-			PubsubChannels.Del(channel)
-			forwardToAllOtherServer(S2S_UNSUB_CMD, []byte(channel))
-		}
-	}
-	cli.Channels = nil
+	//for channel, _ := range cli.Channels {
+	//	clients, _ := PubsubChannels.Get(channel)
+	//	clients.Remove(cli.RemoteAddr().String())
+	//	if clients.Count() == 0 {
+	//		PubsubChannels.Del(channel)
+	//		forwardToAllOtherServer(S2S_UNSUB_CMD, []byte(channel))
+	//	}
+	//}
+	//cli.Channels = nil
 }
 
 func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
@@ -136,6 +138,8 @@ func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
 	ts := time.Now().UnixNano()
 	clientMsg := fmt.Sprintf("%d %s %s %d %d %s",MESSAGE_TYPE_NORMAL, channel, userId, ts, msgId, msg)
 	PublishStrMsg(channel, clientMsg, userId, !fromS2s)
+
+
 
 	// 保存到数据库
 	storage.MsgCache.Store(&storage.MsgTuple{Channel: channel, Msg: msg, Ts: ts, Uuid: userId})
@@ -177,20 +181,42 @@ func PublishBinMsg(channel, ownerId string, msg []byte, isToOtherServer bool) {
 	}
 }
 
+/**
+	获取所有在群聊channelId中并且在线的Client集合
+ */
+func fetchAllMatchUserIds(channelId string) ([]interface{}, error){
+
+	var result interface{}
+	var userIds []interface{}
+
+	err := db.MgoSession().DB("pushd").C("channel_uuids").
+		Find(bson.M{"_id": channelId}).
+		Select(bson.M{"uuids":1, "_id":0}).
+		One(&result)
+
+	if err == nil {
+		userIds = result.(bson.M)["uuids"].([]interface{})
+	}
+
+	return userIds, err
+}
+
 // 推送给本地连接的客户端
 func pushToNativeClient(op, channelId, ownerId string, msg []byte){
-	clients, exists := PubsubChannels.Get(channelId)
-	if !exists {
+	userIds, err := fetchAllMatchUserIds(channelId)
+	if err != nil {
+		log.Error(fmt.Sprintf("chatRoom(id: %s) has no userIds", channelId))
 		return
 	}
 
-	for ele := range clients.Iter() {
-		cli := ele.Val.(*Client)
-		if cli.uuid == ownerId {
+	for _, ele := range userIds {
+		cli, exists := UuidToClient.GetClient(ele.(string))
+		if !exists || cli.uuid == ownerId{
 			continue
 		}
 		go cli.WriteFormatBinMsg(op, msg)
 	}
+
 }
 
 // 转发给所有其他节点

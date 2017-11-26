@@ -60,6 +60,7 @@ const (
 	CMD_UPDATE_OR_ADD_PUSH_ID = "up_ad_pushId"
 	CMD_SET_OFF_NOTIFY = "set_notify"
 	CMD_PUBLISH_NOTIFICATION_IN_CHAT_ROOM = "pnicr"
+	CMD_PUSH_NOTIFY_TO_USERS = "pntus"
 
 
 	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
@@ -172,30 +173,31 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 		}
 
-		_, exists := this.Client.Channels[channel]
-		if !exists {
-			Subscribe(this.Client, channel)
-
-			// force other related online clients to join in this channel
-			var result interface{}
-			err := db.MgoSession().DB("pushd").C("channel_uuids").
-				Find(bson.M{"_id": channel}).
-				Select(bson.M{"uuids":1, "_id":0}).
-				One(&result)
-
-			if err == nil {
-				uuids := result.(bson.M)["uuids"].([]interface{})
-				for _, uuid := range uuids {
-					tclient, exists := UuidToClient.GetClient(uuid.(string))
-					if exists {
-						Subscribe(tclient, channel)
-					}
-				}
-			}
-
-		}
+		//_, exists := this.Client.Channels[channel]
+		//if !exists {
+		//	Subscribe(this.Client, channel)
+		//
+		//	// force other related online clients to join in this channel
+		//	var result interface{}
+		//	err := db.MgoSession().DB("pushd").C("channel_uuids").
+		//		Find(bson.M{"_id": channel}).
+		//		Select(bson.M{"uuids":1, "_id":0}).
+		//		One(&result)
+		//
+		//	if err == nil {
+		//		uuids := result.(bson.M)["uuids"].([]interface{})
+		//		for _, uuid := range uuids {
+		//			tclient, exists := UuidToClient.GetClient(uuid.(string))
+		//			if exists {
+		//				Subscribe(tclient, channel)
+		//			}
+		//		}
+		//	}
+		//
+		//}
 
 		CheckAndPush(channel, msg, this.Client.uuid)
+
 		Publish(channel, msg, this.Client.uuid, msgId, false)
 
 		return fmt.Sprintf("%d %d %d", CODE_SUCCESS, msgId, time.Now().UnixNano()), nil
@@ -424,6 +426,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
+	case CMD_PUSH_NOTIFY_TO_USERS:
+		return "", nil
 	case CMD_PUBLISH_NOTIFICATION_IN_CHAT_ROOM:
 		//params格式 [type chatRoomId message]
 		params := strings.SplitN(this.Params, " ", 3)
@@ -440,30 +444,30 @@ func (this *Cmdline) Process() (ret string, err error) {
 		message := params[2]
 
 		notifyInChatRoom := func(chatRoomId, message string, mtype int) (string, error){
-			err = db.MgoSession().DB("pushd").C("channel_uuids").
-				Find(bson.M{"_id": chatRoomId}).
-				Select(bson.M{"uuids":1, "_id":0}).
-				One(nil)
-
-			if err != nil {
-				return fmt.Sprintf("%d chatRoomId is not exists", CODE_PARAM_ERROR), err
-			}
-
-			var result interface{}
-			err := db.MgoSession().DB("pushd").C("channel_uuids").
-				Find(bson.M{"_id": chatRoomId}).
-				Select(bson.M{"uuids":1, "_id":0}).
-				One(&result)
-
-			if err == nil {
-				userIds := result.(bson.M)["uuids"].([]interface{})
-				for _, userId := range userIds {
-					tclient, exists := UuidToClient.GetClient(userId.(string))
-					if exists {
-						Subscribe(tclient, chatRoomId)
-					}
-				}
-			}
+			//err = db.MgoSession().DB("pushd").C("channel_uuids").
+			//	Find(bson.M{"_id": chatRoomId}).
+			//	Select(bson.M{"uuids":1, "_id":0}).
+			//	One(nil)
+			//
+			//if err != nil {
+			//	return fmt.Sprintf("%d chatRoomId is not exists", CODE_PARAM_ERROR), err
+			//}
+			//
+			//var result interface{}
+			//err := db.MgoSession().DB("pushd").C("channel_uuids").
+			//	Find(bson.M{"_id": chatRoomId}).
+			//	Select(bson.M{"uuids":1, "_id":0}).
+			//	One(&result)
+			//
+			//if err == nil {
+			//	userIds := result.(bson.M)["uuids"].([]interface{})
+			//	for _, userId := range userIds {
+			//		tclient, exists := UuidToClient.GetClient(userId.(string))
+			//		if exists {
+			//			Subscribe(tclient, chatRoomId)
+			//		}
+			//	}
+			//}
 
 			ts := time.Now().UnixNano()
 
