@@ -139,8 +139,6 @@ func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
 	clientMsg := fmt.Sprintf("%d %s %s %d %d %s",MESSAGE_TYPE_NORMAL, channel, userId, ts, msgId, msg)
 	PublishStrMsg(channel, clientMsg, userId, !fromS2s)
 
-
-
 	// 保存到数据库
 	storage.MsgCache.Store(&storage.MsgTuple{Channel: channel, Msg: msg, Ts: ts, Uuid: userId})
 	if !fromS2s && config.PushdConf.EnableStorage() {
@@ -148,6 +146,16 @@ func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
 	}
 
 	return ""
+}
+
+func PushToClients(msg string, isToOtherServer bool, userIds ...string){
+	for _, ele := range userIds {
+		cli, exists := UuidToClient.GetClient(ele)
+		if !exists {
+			continue
+		}
+		go cli.WriteFormatBinMsg(OUTPUT_RCIV, []byte(msg))
+	}
 }
 
 // 推送和转发字符类型消息

@@ -16,6 +16,7 @@ import (
 	"encoding/binary"
 	"gopkg.in/mgo.v2"
 	"github.com/nicholaskh/pushd/config"
+	"github.com/nicholaskh/pushd/engine/mail"
 )
 
 type Cmdline struct {
@@ -61,6 +62,8 @@ const (
 	CMD_SET_OFF_NOTIFY = "set_notify"
 	CMD_PUBLISH_NOTIFICATION_IN_CHAT_ROOM = "pnicr"
 	CMD_PUSH_NOTIFY_TO_USERS = "pntus"
+	CMD_ACK_SERVER_NOTIFY = "asn"
+	CMD_PEEK_SERVER_NOTIFY = "psn"
 
 
 	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
@@ -426,18 +429,96 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
+	case CMD_PEEK_SERVER_NOTIFY:
+		letters, err := mail.GetLettersByType(this.uuid, MESSAGE_FOR_PERSON)
+		if err != nil {
+			return "", err
+		}
+
+		data, err := json.Marshal(letters)
+		if err != nil {
+			return "", err
+		}
+
+		return string(data), nil
+
+	case CMD_ACK_SERVER_NOTIFY:
+		notifyIds := strings.Split(this.Params, " ")
+		err := mail.RemoveLetter(this.uuid, notifyIds)
+		if err != nil {
+			return fmt.Sprintf("%d %s", CODE_PARAM_ERROR, err.Error()), nil
+		}
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
+
 	case CMD_PUSH_NOTIFY_TO_USERS:
-		return "", nil
+		var temp1 interface{}
+		err := json.Unmarshal([]byte(this.Params), &temp1)
+		if err!= nil {
+			return fmt.Sprintf("%d param error1", CODE_PARAM_ERROR), nil
+		}
+
+		temp2, ok := temp1.(map[string]interface{})
+		if !ok {
+			return fmt.Sprintf("%d param error2", CODE_PARAM_ERROR), nil
+		}
+
+		temp4, exists := temp2["type"]
+		if !exists {
+			return fmt.Sprintf("%d param error3", CODE_PARAM_ERROR), nil
+		}
+
+		temp41, err := strconv.ParseInt(temp4.(string), 10, 32)
+		if err != nil {
+			return fmt.Sprintf("%d param error4", CODE_PARAM_ERROR), nil
+		}
+
+		mtype := int(temp41)
+
+		// 提取userIds
+		temp5, exists := temp2["userIds"]
+		if !exists {
+			return fmt.Sprintf("%d param error5", CODE_PARAM_ERROR), nil
+		}
+		temp6 := temp5.([]interface{})
+		userIds := make([]string, 0, len(temp6))
+		for _, ele := range temp6 {
+			userIds = append(userIds, ele.(string))
+		}
+
+		message := temp2["message"].(string)
+
+		ts := time.Now().UnixNano()
+		msgId := bson.NewObjectId().Hex()
+		clientMsg := fmt.Sprintf("%d %d %s %d %s",MESSAGE_FOR_PERSON, mtype, msgId, ts, message)
+
+		// store message to mail of users
+		letter := mail.Letter{}
+		letter.Id = msgId
+		letter.Ts = ts
+		letter.Type = mtype
+		letter.Data = message
+
+		err = mail.SendLetterToMail(userIds, &letter)
+		if err != nil {
+			log.Error(fmt.Sprintf("sendLetterToMailError: %s, %s", clientMsg, err.Error()))
+		}
+		PushToClients(clientMsg, true, userIds...)
+
+		log.Info(fmt.Sprintf("push to users: %s", clientMsg));
+
+		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
+
 	case CMD_PUBLISH_NOTIFICATION_IN_CHAT_ROOM:
 		//params格式 [type chatRoomId message]
 		params := strings.SplitN(this.Params, " ", 3)
 		if len(params) < 3 {
-			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), errors.New("1")
+			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 
 		mtype , err := strconv.Atoi(params[0])
 		if err != nil {
-			return fmt.Sprintf("%d type can not parse to int32", CODE_PARAM_ERROR), errors.New("1")
+			return fmt.Sprintf("%d type can not parse to int32", CODE_PARAM_ERROR), nil
 		}
 
 		chatRoomId := params[1]

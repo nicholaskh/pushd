@@ -90,12 +90,12 @@ func (this *PushdClientProcessor) OnRead(client *Client, input []byte) (res erro
 	}
 
 	ret, err := cl.Process()
-	if cl.Cmd == CMD_VIDO_CHAT || cl.Cmd == CMD_ACK_MSG || cl.Cmd == CMD_INVOKE_FRAME_ACTION {
+	if cl.Cmd == CMD_VIDO_CHAT || cl.Cmd == CMD_ACK_MSG || cl.Cmd == CMD_INVOKE_FRAME_ACTION ||
+		cl.Cmd == CMD_ACK_SERVER_NOTIFY{
 		return
 	}
 	if err != nil {
-		log.Debug("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
-		go client.WriteFormatMsg(cl.Cmd, fmt.Sprintf("%s\n", err.Error()))
+		log.Error("Process cmd[%s %s] error: %s", cl.Cmd, cl.Params, err.Error())
 		return
 	}
 
