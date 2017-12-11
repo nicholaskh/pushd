@@ -199,7 +199,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		//
 		//}
 
-		CheckAndPush(channel, msg, this.Client.uuid)
+		// CheckAndPush(channel, msg, this.Client.uuid)
 
 		Publish(channel, msg, this.Client.uuid, msgId, false)
 
@@ -1018,10 +1018,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 		data := make(map[string][]interface{})
 		for channel, va := range channelStat {
 			ts := va.(int64)
-			hisRet, err := fullHistory(channel, ts)
-			if err != nil {
-				continue
-			}
+			var hisRet []interface{}
+			err = db.MgoSession().DB("pushd").C("msg_log").Find(
+				bson.M{"ts": bson.M{"$gt": ts},"channel": channel,"uuid":bson.M{"$ne":this.uuid}}).
+				Select(bson.M{"_id": 0}).All(&hisRet)
+
 			if len(hisRet) > 0 {
 				data[channel] = hisRet
 			}
