@@ -9,10 +9,9 @@ import (
 	"github.com/nicholaskh/golib/set"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
-	"github.com/nicholaskh/pushd/engine/storage"
+	//"github.com/nicholaskh/pushd/engine/storage"
 	"bytes"
-	"github.com/nicholaskh/pushd/db"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/nicholaskh/pushd/engine/storage"
 )
 
 var (
@@ -181,23 +180,10 @@ func PublishBinMsg(channel, ownerId string, msg []byte, isToOtherServer bool) {
 }
 
 /**
-	获取所有在群聊channelId中并且在线的Client集合
+	获取所有在群聊channelId中并且在线的userId集合
  */
-func fetchAllMatchUserIds(channelId string) ([]interface{}, error){
-
-	var result interface{}
-	var userIds []interface{}
-
-	err := db.MgoSession().DB("pushd").C("channel_uuids").
-		Find(bson.M{"_id": channelId}).
-		Select(bson.M{"uuids":1, "_id":0}).
-		One(&result)
-
-	if err == nil {
-		userIds = result.(bson.M)["uuids"].([]interface{})
-	}
-
-	return userIds, err
+func fetchAllMatchUserIds(channelId string) ([]string, error){
+	return LoadUserIdsByChannel(channelId), nil
 }
 
 // 推送给本地连接的客户端
@@ -209,7 +195,7 @@ func pushToNativeClient(op, channelId, ownerId string, msg []byte){
 	}
 
 	for _, ele := range userIds {
-		cli, exists := UuidToClient.GetClient(ele.(string))
+		cli, exists := UuidToClient.GetClient(ele)
 		if !exists || cli.uuid == ownerId{
 			continue
 		}

@@ -280,12 +280,7 @@ func InitOffPushService() error {
 	return nil
 }
 
-func CheckAndPush(channel, message, ownerId string) {
-
-	if senderPool == nil {
-		panic("offpush模块未执行初始化")
-	}
-
+func LoadUserIdsByChannel(channel string) ([]string) {
 	userIds, exists := channelToUserIds.GetUserIdsByChannel(channel)
 	if !exists {
 		log.Info(fmt.Sprintf("load %s.........", channel))
@@ -296,12 +291,12 @@ func CheckAndPush(channel, message, ownerId string) {
 			One(&result)
 
 		if err != nil {
-			return
+			return make([]string,0)
 		}
 
 		t, exists := result.(bson.M)["uuids"]
 		if !exists {
-			return
+			return make([]string,0)
 		}
 
 		tempUserIds := t.([]interface{})
@@ -315,6 +310,16 @@ func CheckAndPush(channel, message, ownerId string) {
 		// 缓存群中所有用户id
 		channelToUserIds.AddAllUserIds(channel, userIds...)
 	}
+	return userIds
+}
+
+func CheckAndPush(channel, message, ownerId string) {
+
+	if senderPool == nil {
+		panic("offpush模块未执行初始化")
+	}
+
+	userIds := LoadUserIdsByChannel(channel)
 
 	if  len(userIds) < 1 {
 		return

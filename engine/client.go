@@ -145,15 +145,15 @@ func (this *Client) initToken(token string, expire int64) {
 	this.tokenInfo.token = token
 	this.tokenInfo.expire = expire
 
-	//TODO is it neccesary to synchronize to database
-	db.MgoSession().DB("pushd").C("client_token").
-		Update(bson.M{"tk": token}, bson.M{"$set": bson.M{"uuid": this.uuid, "expire": expire}})
+	////TODO is it neccesary to synchronize to database
+	//db.MgoSession().DB("pushd").C("client_token").
+	//	Update(bson.M{"tk": token}, bson.M{"$set": bson.M{"uuid": this.uuid, "expire": expire}})
 }
 
 func (this *Client) updateTokenExpire(expire int64) {
 	this.tokenInfo.expire = expire
 	//TODO is it neccesary to synchronize to database
-	db.MgoSession().DB("pushd").C("client_token").UpdateId(this.uuid, bson.M{"expire": expire})
+	//db.MgoSession().DB("pushd").C("client_token").UpdateId(this.uuid, bson.M{"expire": expire})
 
 }
 
@@ -167,7 +167,7 @@ func (this *Client) initChatEnv(uuid string) {
 
 	this.loadUserInfo()
 	this.updateUserIdToClientMappingTable()
-	this.subAllAssociateChannels()
+	//this.subAllAssociateChannels()
 
 	this.state = CLIENT_STATE_INIT_DOEN
 }
