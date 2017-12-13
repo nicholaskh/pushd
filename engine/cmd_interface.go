@@ -29,8 +29,8 @@ type Cmdline struct {
 const (
 	CMD_OFFLINE_MSG	= "ofli_msg"
 	CMD_CREATE_USER	= "user_create"
-	CMD_ACK_MSG	= "ack"
 	CMD_VIDO_CHAT	= "vido"
+	CMD_ACK_MSG	= "ack"
 	CMD_DISOLVE	= "disolve"
 	CMD_UNSUBS 	= "unsubs"
 	CMD_SUBS	= "subs"
@@ -913,7 +913,14 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 		}
 
-		channelToUserIds.AddAllUserIds(channelId, params[1:]...)
+
+		if channelToUserIds.Exists(channelId) {
+			channelToUserIds.AddAllUserIds(channelId, params[1:]...)
+		} else {
+			// 在执行Exists过程中，可能别的Goroutine后来执行了AddAllUserIds（此时放进内存中的可能是旧数据）
+			// 所以为了保险起见，强制刷新
+			LoadUserIdsFromDatabase(channelId)
+		}
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
@@ -968,8 +975,13 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
 		}
 
-		for _, userId := range params[1:] {
-			channelToUserIds.RemoveUserId(params[0], userId)
+		if channelToUserIds.Exists(params[0]) {
+			for _, userId := range params[1:] {
+				channelToUserIds.RemoveUserId(params[0], userId)
+			}
+		} else {
+			// TODO 如果此时已经有其他Goroutine拿到了旧数据，正要加载到channelToUserIds，如何处理？
+			// 概率非常小
 		}
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
@@ -983,6 +995,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if err != nil {
 			return fmt.Sprintf("%d %s", CODE_FAILED, err.Error()), nil
 		}
+
+		channelToUserIds.Del(channelId)
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 

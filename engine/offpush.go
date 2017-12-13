@@ -183,6 +183,11 @@ func (this *ChannelToUserIds) getValue(channel string) (*UserIdCollection, bool)
 	return nil, exists
 }
 
+func (this *ChannelToUserIds)Exists(channel string) (exists bool) {
+	_, exists = this.GetUserIdsByChannel(channel)
+	return
+}
+
 func (this *ChannelToUserIds)AddUserId(channel, userId string){
 	collection, exists := this.getValue(channel)
 	if !exists {
@@ -283,34 +288,45 @@ func InitOffPushService() error {
 func LoadUserIdsByChannel(channel string) ([]string) {
 	userIds, exists := channelToUserIds.GetUserIdsByChannel(channel)
 	if !exists {
-		log.Info(fmt.Sprintf("load %s.........", channel))
-		var result interface{}
-		err := db.MgoSession().DB("pushd").C("channel_uuids").
-			Find(bson.M{"_id":channel}).
-			Select(bson.M{"uuids":1,"_id":0}).
-			One(&result)
-
+		userIds, err := LoadUserIdsFromDatabase(channel)
 		if err != nil {
-			return make([]string,0)
+			return make([]string, 0)
 		}
 
-		t, exists := result.(bson.M)["uuids"]
-		if !exists {
-			return make([]string,0)
-		}
-
-		tempUserIds := t.([]interface{})
-
-		userIds = make([]string, 0, len(tempUserIds))
-		// 将用户信息缓存在内存中
-		for _, value := range tempUserIds {
-			uId := value.(string)
-			userIds = append(userIds, uId)
-		}
-		// 缓存群中所有用户id
-		channelToUserIds.AddAllUserIds(channel, userIds...)
+		return userIds
 	}
 	return userIds
+}
+
+func LoadUserIdsFromDatabase(channel string) ([]string, error) {
+	log.Info(fmt.Sprintf("load %s.........", channel))
+	var result interface{}
+	err := db.MgoSession().DB("pushd").C("channel_uuids").
+		Find(bson.M{"_id":channel}).
+		Select(bson.M{"uuids":1,"_id":0}).
+		One(&result)
+
+	if err != nil {
+		return nil, errors.New("database error")
+	}
+
+	t, exists := result.(bson.M)["uuids"]
+	if !exists {
+		return nil, errors.New("no uuids")
+	}
+
+	tempUserIds := t.([]interface{})
+
+	userIds := make([]string, 0, len(tempUserIds))
+	// 将用户信息缓存在内存中
+	for _, value := range tempUserIds {
+		uId := value.(string)
+		userIds = append(userIds, uId)
+	}
+	// 缓存群中所有用户id
+	channelToUserIds.AddAllUserIds(channel, userIds...)
+
+	return userIds, nil
 }
 
 func CheckAndPush(channel, message, ownerId string) {
