@@ -132,7 +132,7 @@ func (this *Client) clearFrameChat(){
 }
 
 func (this *Client) AckMsg(msgId, ts int64, ownerId, channelId string) {
-	log.Info(fmt.Sprintf("log ack:channel:%s msgid:%d ownerId: %s", channelId, msgId, ownerId))
+	log.Info(fmt.Sprintf("log ack: who:%s channel:%s msgid:%d ownerId: %s", this.uuid, channelId, msgId, ownerId))
 	channelKey := fmt.Sprintf("channel_stat.%s", channelId)
 	db.MgoSession().DB("pushd").
 		C("user_info").
