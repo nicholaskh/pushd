@@ -652,17 +652,18 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return
 		}
 
-		Subscribe(this.Client, oldChannelId)
-		for _, uuid := range uuids {
-			tclient, exists := UuidToClient.GetClient(uuid)
-			if exists {
-				Subscribe(tclient, oldChannelId)
-			}
-		}
+		//Subscribe(this.Client, oldChannelId)
+		//for _, uuid := range uuids {
+		//	tclient, exists := UuidToClient.GetClient(uuid)
+		//	if exists {
+		//		Subscribe(tclient, oldChannelId)
+		//	}
+		//}
 
 		newChannelId := objectId.Hex()
 		// subscribe self to channel
-		Subscribe(this.Client, newChannelId)
+		// Subscribe(this.Client, newChannelId)
+		channelToUserIds.AddUserId(newChannelId, this.Client.uuid)
 
 		// force notify all relevant online users
 		notice := fmt.Sprintf("%s %s %d %s %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_APPLY, mainType, this.Client.uuid, newChannelId, oldChannelId)
@@ -689,7 +690,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		// join in this channel
-		Subscribe(this.Client, channelId)
+		//Subscribe(this.Client, channelId)
+		channelToUserIds.AddUserId(channelId, this.Client.uuid)
 
 		// notify other users that I have join in
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_JOIN, -1, this.Client.uuid, channelId)
@@ -712,7 +714,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		// join in this channel
-		Subscribe(this.Client, channelId)
+		// Subscribe(this.Client, channelId)
+		channelToUserIds.AddUserId(channelId, this.Client.uuid)
 
 		// notify another user that I agree
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_ACCEPT, -1, this.Client.uuid, channelId)
@@ -758,14 +761,16 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 				notice := fmt.Sprintf("%s %s2 %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
 				PublishStrMsg(realChannelId, notice, this.Client.uuid, true)
-				Unsubscribe(this.Client, channelId)
+				// Unsubscribe(this.Client, channelId)
+				channelToUserIds.RemoveUserId(channelId, this.Client.uuid)
 				return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 			}
 		}
 
 		// quit out from this channel
-		Unsubscribe(this.Client, channelId)
+		// Unsubscribe(this.Client, channelId)
+		channelToUserIds.RemoveUserId(channelId, this.Client.uuid)
 
 		// notify other users that I have quit
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_OUT, -1, this.Client.uuid, channelId)
@@ -827,7 +832,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		// quit out from this channel
-		Unsubscribe(this.Client, channelId)
+		//Unsubscribe(this.Client, channelId)
+		channelToUserIds.RemoveUserId(channelId, this.Client.uuid)
 
 		// notify other users that I have quit
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_DISMISS, -1, this.Client.uuid, channelId)
