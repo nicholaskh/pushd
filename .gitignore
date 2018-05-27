@@ -37,3 +37,5 @@ etc/pushd*.cf
 .DS_Store
 
 *.class
+
+bin

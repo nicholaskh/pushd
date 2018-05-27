@@ -1,23 +1,22 @@
 package engine
 
 import (
-	"sync/atomic"
 	"errors"
-	"jpushclient"
 	"fmt"
-	"github.com/nicholaskh/pushd/db"
-	"gopkg.in/mgo.v2/bson"
-	"github.com/nicholaskh/pushd/config"
-	log "github.com/nicholaskh/log4go"
-	"sync"
 	"github.com/nicholaskh/golib/set"
+	log "github.com/nicholaskh/log4go"
+	"github.com/nicholaskh/pushd/config"
+	"github.com/nicholaskh/pushd/db"
+	"github.com/ylywyn/jpush-api-go-client"
+	"gopkg.in/mgo.v2/bson"
+	"sync"
+	"sync/atomic"
 
 	"github.com/nicholaskh/golib/cache"
 )
 
-
 var (
-	senderPool *OffSenderPool
+	senderPool       *OffSenderPool
 	channelToUserIds *ChannelToUserIds
 )
 
@@ -26,19 +25,19 @@ type IOffSender interface {
 }
 
 type OffSenderPool struct {
-	pool []IOffSender
+	pool  []IOffSender
 	baton int32
-	size int32
+	size  int32
 }
 
-func (this *OffSenderPool)ObtainOneOffSender() IOffSender {
+func (this *OffSenderPool) ObtainOneOffSender() IOffSender {
 	var now int32
 	var hitLoc int32
-	for ;; {
+	for {
 		now = atomic.LoadInt32(&this.baton)
 		now = senderPool.baton
 
-		hitLoc = (now+1) % this.size
+		hitLoc = (now + 1) % this.size
 		if atomic.CompareAndSwapInt32(&this.baton, now, hitLoc) {
 			break
 		}
@@ -59,7 +58,7 @@ func newSender(address string) (*Sender, error) {
 
 }
 
-func (this *Sender) send(pushIds []string, message, ownerId , channelId string) error {
+func (this *Sender) send(pushIds []string, message, ownerId, channelId string) error {
 
 	if len(pushIds) == 0 {
 		return nil
@@ -77,7 +76,7 @@ func (this *Sender) send(pushIds []string, message, ownerId , channelId string) 
 
 	err := db.ChatRoomCollection().
 		FindId(bson.ObjectIdHex(channelId)).
-		Select(bson.M{"type":1, "_id":0, "name":1}).
+		Select(bson.M{"type": 1, "_id": 0, "name": 1}).
 		One(&result)
 
 	if err != nil {
@@ -94,12 +93,12 @@ func (this *Sender) send(pushIds []string, message, ownerId , channelId string) 
 		return errors.New("field type in collection chatroom is not a int")
 	}
 
-	if !bson.IsObjectIdHex(ownerId){
+	if !bson.IsObjectIdHex(ownerId) {
 		return errors.New("ownerId is invalid ObjectIdHex")
 	}
 	err = db.UserCollection().
 		FindId(bson.ObjectIdHex(ownerId)).
-		Select(bson.M{"userName":1,"_id":0}).
+		Select(bson.M{"userName": 1, "_id": 0}).
 		One(&result)
 
 	if err != nil {
@@ -116,7 +115,7 @@ func (this *Sender) send(pushIds []string, message, ownerId , channelId string) 
 	if mType == 1 {
 		androidNotice.Title = userName.(string)
 		androidNotice.Alert = message
-	}else{
+	} else {
 		temp, exists = chatRoomInfo["name"]
 		if !exists {
 			return errors.New("collection chatroom has no field of name")
@@ -141,7 +140,7 @@ func (this *Sender) send(pushIds []string, message, ownerId , channelId string) 
 	return err
 }
 
-func (this *Sender) close(){
+func (this *Sender) close() {
 	// TODO 实现
 }
 
@@ -163,14 +162,14 @@ type ChannelToUserIds struct {
 	*cache.LruCache
 }
 
-func newChannelToUserIds(maxChannelCache int) *ChannelToUserIds{
+func newChannelToUserIds(maxChannelCache int) *ChannelToUserIds {
 	temp := new(ChannelToUserIds)
 	temp.LruCache = cache.NewLruCache(maxChannelCache)
 	return temp
 }
 
 // 线程安全添加一个key和空的value
-func (this *ChannelToUserIds) addNewKeyEmptyValue(channel string) (*UserIdCollection) {
+func (this *ChannelToUserIds) addNewKeyEmptyValue(channel string) *UserIdCollection {
 	value := this.LruCache.GetOrAdd(channel, newUserIdCollection())
 	return value.(*UserIdCollection)
 }
@@ -183,12 +182,12 @@ func (this *ChannelToUserIds) getValue(channel string) (*UserIdCollection, bool)
 	return nil, exists
 }
 
-func (this *ChannelToUserIds)Exists(channel string) (exists bool) {
+func (this *ChannelToUserIds) Exists(channel string) (exists bool) {
 	_, exists = this.GetUserIdsByChannel(channel)
 	return
 }
 
-func (this *ChannelToUserIds)AddUserId(channel, userId string){
+func (this *ChannelToUserIds) AddUserId(channel, userId string) {
 	collection, exists := this.getValue(channel)
 	if !exists {
 		collection = this.addNewKeyEmptyValue(channel)
@@ -198,7 +197,7 @@ func (this *ChannelToUserIds)AddUserId(channel, userId string){
 	collection.rwMutex.Unlock()
 }
 
-func (this *ChannelToUserIds)AddAllUserIds(channel string, freshUserIds ...string) {
+func (this *ChannelToUserIds) AddAllUserIds(channel string, freshUserIds ...string) {
 	collection, exists := this.getValue(channel)
 	if !exists {
 		collection = this.addNewKeyEmptyValue(channel)
@@ -222,7 +221,7 @@ func (this *ChannelToUserIds) RemoveUserId(channel, userId string) {
 	collection.rwMutex.Unlock()
 }
 
-func (this *ChannelToUserIds) GetUserIdsByChannel(channel string) ([]string, bool){
+func (this *ChannelToUserIds) GetUserIdsByChannel(channel string) ([]string, bool) {
 	collection, exists := this.getValue(channel)
 	if !exists {
 		return nil, false
@@ -253,8 +252,8 @@ func initOffSenderPool(capacity int, addrs []string) error {
 	senderPool.pool = make([]IOffSender, capacity)
 
 	length := len(addrs)
-	for i:= 0; i<capacity; i++ {
-		address := addrs[i % length]
+	for i := 0; i < capacity; i++ {
+		address := addrs[i%length]
 		t, err := newSender(address)
 		if err != nil {
 			// 关掉所有建立好的连接
@@ -275,7 +274,6 @@ func initOffSenderPool(capacity int, addrs []string) error {
 
 }
 
-
 func InitOffPushService() error {
 	channelToUserIds = newChannelToUserIds(config.PushdConf.ChannelInfoCacheNum)
 	err := initOffSenderPool(config.PushdConf.OffSenderPoolNum, config.PushdConf.MsgQueueAddrs)
@@ -285,7 +283,7 @@ func InitOffPushService() error {
 	return nil
 }
 
-func LoadUserIdsByChannel(channel string) ([]string) {
+func LoadUserIdsByChannel(channel string) []string {
 	userIds, exists := channelToUserIds.GetUserIdsByChannel(channel)
 	if !exists {
 		userIds, err := LoadUserIdsFromDatabase(channel)
@@ -302,8 +300,8 @@ func LoadUserIdsFromDatabase(channel string) ([]string, error) {
 	log.Info(fmt.Sprintf("load %s.........", channel))
 	var result interface{}
 	err := db.MgoSession().DB("pushd").C("channel_uuids").
-		Find(bson.M{"_id":channel}).
-		Select(bson.M{"uuids":1,"_id":0}).
+		Find(bson.M{"_id": channel}).
+		Select(bson.M{"uuids": 1, "_id": 0}).
 		One(&result)
 
 	if err != nil {
@@ -337,7 +335,7 @@ func CheckAndPush(channel, message, ownerId string) {
 
 	userIds := LoadUserIdsByChannel(channel)
 
-	if  len(userIds) < 1 {
+	if len(userIds) < 1 {
 		return
 	}
 
@@ -348,7 +346,7 @@ func CheckAndPush(channel, message, ownerId string) {
 			continue
 		}
 		client, exists := UuidToClient.GetClient(uId)
-		if exists && client.IsAllowForceNotify{
+		if exists && client.IsAllowForceNotify {
 			pushIds = append(pushIds, client.PushId)
 		}
 	}
