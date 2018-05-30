@@ -18,6 +18,7 @@
 		conn_timeout: "5s"
 		sync_timeout: "5s"
 		operation_timeout: "5s"
+        database: "pushd"
 	}
 	
 	tcp_listen_addr: "127.0.0.1:2222"

@@ -19,16 +19,16 @@ func MgoSession() *mgo.Session {
 			panic(fmt.Sprintf("Connect to mongo error: %s", err.Error()))
 		}
 		database := mgoSession.DB(config.PushdConf.Mongo.Database)
-		err = database.Login(config.PushdConf.Mongo.UserName, config.PushdConf.Mongo.Password)
-		if err != nil {
-			panic("database auth faild")
+		if config.PushdConf.Mongo.UserName != "" && config.PushdConf.Mongo.Password != "" {
+			err = database.Login(config.PushdConf.Mongo.UserName, config.PushdConf.Mongo.Password)
+			if err != nil {
+				panic("database auth faild")
+			}
 		}
-
 	}
 
 	return mgoSession
 }
-
 
 func UserCollection() *mgo.Collection {
 	return mgoSession.DB("mongo").C("user")

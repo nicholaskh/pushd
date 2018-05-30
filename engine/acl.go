@@ -2,15 +2,15 @@ package engine
 
 import (
 	"errors"
-	"strings"
 	"github.com/nicholaskh/golib/set"
+	"strings"
 )
 
 var (
 	skipAclCmd set.Set
 )
 
-func InitAclEnv(){
+func InitAclEnv() {
 	skipAclCmd = set.NewSet()
 	skipAclCmd.Add(CMD_VIDO_CHAT)
 	skipAclCmd.Add(CMD_PING)
@@ -32,15 +32,14 @@ func InitAclEnv(){
 }
 
 func AclCheck(cli *Client, cmd string) (err error) {
-	if !cli.IsClient() && !cli.IsServer() && !skipAclCmd.Contains(cmd){
+	if !cli.IsClient() && !cli.IsServer() && !skipAclCmd.Contains(cmd) {
 		return errors.New("Need Auth first")
 	}
 	return nil
 }
 
 func TokenCheck(cli *Cmdline) error {
-
-	if cli.Cmd == CMD_PING  ||
+	if cli.Cmd == CMD_PING ||
 		cli.Cmd == CMD_VIDO_CHAT ||
 		cli.Cmd == CMD_AUTH_CLIENT ||
 		cli.Cmd == CMD_AUTH_SERVER ||
@@ -51,7 +50,7 @@ func TokenCheck(cli *Cmdline) error {
 	}
 
 	temp := strings.SplitN(cli.Params, " ", 2)
-	if len(temp) == 2{
+	if len(temp) == 2 {
 		cli.Params = temp[1]
 	}
 
@@ -63,7 +62,7 @@ func TokenCheck(cli *Cmdline) error {
 		}
 
 	} else {
-		if !checkServerToken(temp[0]){
+		if !checkServerToken(temp[0]) {
 			return errors.New("token error")
 		}
 	}

@@ -3,16 +3,17 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"github.com/nicholaskh/golib/set"
-	log "github.com/nicholaskh/log4go"
-	"github.com/nicholaskh/pushd/config"
-	"github.com/nicholaskh/pushd/db"
-	"github.com/ylywyn/jpush-api-go-client"
-	"gopkg.in/mgo.v2/bson"
 	"sync"
 	"sync/atomic"
 
 	"github.com/nicholaskh/golib/cache"
+	"github.com/nicholaskh/golib/set"
+	log "github.com/nicholaskh/log4go"
+	"github.com/ylywyn/jpush-api-go-client"
+	"gopkg.in/mgo.v2/bson"
+
+	"github.com/nicholaskh/pushd/config"
+	"github.com/nicholaskh/pushd/db"
 )
 
 var (
@@ -50,7 +51,6 @@ type Sender struct {
 }
 
 func newSender(address string) (*Sender, error) {
-
 	sender := new(Sender)
 	// TODO 检测是否是http长连接
 	sender.pushClient = jpushclient.NewPushClient(config.PushdConf.JpushSecretKey, config.PushdConf.JpushAppKey)
@@ -59,7 +59,6 @@ func newSender(address string) (*Sender, error) {
 }
 
 func (this *Sender) send(pushIds []string, message, ownerId, channelId string) error {
-
 	if len(pushIds) == 0 {
 		return nil
 	}
@@ -328,7 +327,6 @@ func LoadUserIdsFromDatabase(channel string) ([]string, error) {
 }
 
 func CheckAndPush(channel, message, ownerId string) {
-
 	if senderPool == nil {
 		panic("offpush模块未执行初始化")
 	}
