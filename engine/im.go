@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
+
 	"github.com/nicholaskh/pushd/db"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
 func createRoom(userId, channelId string) (err error) {
@@ -22,8 +23,8 @@ func createRoom(userId, channelId string) (err error) {
 	ts := time.Now().UnixNano()
 	channelKey := fmt.Sprintf("channel_stat.%s", channelId)
 	_, err = db.MgoSession().DB("pushd").
-			C("user_info").
-			Upsert(bson.M{"_id": userId}, bson.M{"$set": bson.M{channelKey: ts}})
+		C("user_info").
+		Upsert(bson.M{"_id": userId}, bson.M{"$set": bson.M{channelKey: ts}})
 	if err != nil {
 		return err
 	}
@@ -33,9 +34,8 @@ func createRoom(userId, channelId string) (err error) {
 		C("uuid_channels").
 		UpsertId(userId, bson.M{"$addToSet": bson.M{"channels": channelId}})
 
-
 	client, exists := UuidToClient.GetClient(userId)
-	if exists{
+	if exists {
 		Subscribe(client, channelId)
 	}
 
@@ -80,7 +80,7 @@ func joinRoom(channelId string, userIds ...string) (err error) {
 
 	for _, userId := range userIds {
 		client, exists := UuidToClient.GetClient(userId)
-		if exists{
+		if exists {
 			Subscribe(client, channelId)
 		}
 	}
@@ -97,7 +97,7 @@ func leaveRoom(channelId string, userIds ...string) (err error) {
 
 	// 如果群聊中一个人也没有了，就将聊天室也删除
 	var emptyUserIds []string
-	db.MgoSession().DB("pushd").C("channel_uuids").Remove(bson.M{"_id":channelId, "uuids": emptyUserIds})
+	db.MgoSession().DB("pushd").C("channel_uuids").Remove(bson.M{"_id": channelId, "uuids": emptyUserIds})
 
 	// 更新用户信息表user_info
 	bulk2 := db.MgoSession().DB("pushd").C("user_info").Bulk()
@@ -135,7 +135,7 @@ func disolveRoom(channelId string) (err error) {
 	var result interface{}
 	err = db.MgoSession().DB("pushd").C("channel_uuids").
 		Find(bson.M{"_id": channelId}).
-		Select(bson.M{"uuids":1, "_id":0}).
+		Select(bson.M{"uuids": 1, "_id": 0}).
 		One(&result)
 	if err != nil {
 		return err

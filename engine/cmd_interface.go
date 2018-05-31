@@ -7,69 +7,77 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/nicholaskh/log4go"
-	"github.com/nicholaskh/pushd/engine/storage"
-	"github.com/nicholaskh/pushd/db"
-	"gopkg.in/mgo.v2/bson"
-	"time"
 	"bytes"
 	"encoding/binary"
-	"gopkg.in/mgo.v2"
+	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
+	"github.com/nicholaskh/pushd/db"
 	"github.com/nicholaskh/pushd/engine/mail"
+	"github.com/nicholaskh/pushd/engine/storage"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+	"time"
 )
 
 type Cmdline struct {
-	Cmd    string
-	Params string
+	Cmd     string
+	Params  string
 	Params2 []byte
 	*Client
 }
 
 const (
-	CMD_OFFLINE_MSG	= "ofli_msg"
-	CMD_CREATE_USER	= "user_create"
-	CMD_VIDO_CHAT	= "vido"
-	CMD_ACK_MSG	= "ack"
-	CMD_DISOLVE	= "disolve"
-	CMD_UNSUBS 	= "unsubs"
-	CMD_SUBS	= "subs"
+	CMD_OFFLINE_MSG = "ofli_msg"
+	CMD_CREATE_USER = "user_create"
+
+	CMD_ACK_MSG            = "ack"
+	CMD_DISOLVE            = "disolve"
+	CMD_UNSUBS             = "unsubs"
+	CMD_SUBS               = "subs"
 	CMD_ADD_USER_INTO_ROOM = "add_into_room"
-	CMD_APPKEY    = "getappkey"
-	CMD_SENDMSG   = "sendmsg"
-	CMD_SETUUID	= "setuuid"
-	CMD_SUBSCRIBE   = "sub"
-	CMD_PUBLISH     = "pub"
-	CMD_UNSUBSCRIBE = "unsub"
-	CMD_HISTORY     = "his"
-	CMD_TOKEN       = "gettoken"
-	CMD_AUTH_CLIENT = "auth_client"
-	CMD_AUTH_SERVER = "auth_server"
-	CMD_PING        = "ping"
-	CMD_CREATEROOM  = "create_room"
-	CMD_JOINROOM = "join_room"
-	CMD_LEAVEROOM = "leave_room"
-	CMD_FRAME_APPLY = "frame_apply"
-	CMD_FRAME_JOIN = "frame_join"
-	CMD_FRAME_OUT = "frame_out"
-	CMD_FRAME_ACCEPT = "frame_accept"
-	CMD_FRAME_DISMISS = "frame_dismiss"
-	CMD_FRAME_REFUSE = "frame_refuse"
-	CMD_FRAME_INFO	= "frame_info"
+	CMD_APPKEY             = "getappkey"
+	CMD_SENDMSG            = "sendmsg"
+	CMD_SETUUID            = "setuuid"
+	CMD_SUBSCRIBE          = "sub"
+	CMD_PUBLISH            = "pub"
+	CMD_UNSUBSCRIBE        = "unsub"
+	CMD_HISTORY            = "his"
+	CMD_TOKEN              = "gettoken"
+	CMD_AUTH_CLIENT        = "auth_client"
+	CMD_AUTH_SERVER        = "auth_server"
+	CMD_PING               = "ping"
+	CMD_CREATEROOM         = "create_room"
+	CMD_JOINROOM           = "join_room"
+	CMD_LEAVEROOM          = "leave_room"
+
+	// 发送二进制，如语音单聊
+	CMD_VIDO_CHAT = "vido"
+
+	// 语音、视频聊天相关（发起视频对话，接受对话，拒绝对话，发起多对多，一对一，加入视频对话）
+	CMD_FRAME_APPLY         = "frame_apply"
+	CMD_FRAME_JOIN          = "frame_join"
+	CMD_FRAME_OUT           = "frame_out"
+	CMD_FRAME_ACCEPT        = "frame_accept"
+	CMD_FRAME_DISMISS       = "frame_dismiss"
+	CMD_FRAME_REFUSE        = "frame_refuse"
+	CMD_FRAME_INFO          = "frame_info"
 	CMD_INVOKE_FRAME_ACTION = "frame_action"
-	CMD_RETRACT_MESSAGE	= "retract_msg"
+
+	CMD_RETRACT_MESSAGE = "retract_msg" // 撤回消息
+
 	CMD_UPDATE_OR_ADD_PUSH_ID = "up_ad_pushId"
-	CMD_SET_OFF_NOTIFY = "set_notify"
+
+	// app server通过im往客户端推送消息
+	CMD_SET_OFF_NOTIFY                    = "set_notify"
 	CMD_PUBLISH_NOTIFICATION_IN_CHAT_ROOM = "pnicr"
-	CMD_PUSH_NOTIFY_TO_USERS = "pntus"
-	CMD_ACK_SERVER_NOTIFY = "asn"
-	CMD_PEEK_SERVER_NOTIFY = "psn"
+	CMD_PUSH_NOTIFY_TO_USERS              = "pntus"
+	CMD_ACK_SERVER_NOTIFY                 = "asn"
+	CMD_PEEK_SERVER_NOTIFY                = "psn"
 
-
-	OUTPUT_FRAME_CHAT	= "FRAMECHAT"
-	OUTPUT_TOKEN 	           = "TOKEN"
+	OUTPUT_FRAME_CHAT         = "FRAMECHAT"
+	OUTPUT_TOKEN              = "TOKEN"
 	OUTPUT_AUTH_SERVER        = "AUTHSERVER"
-	OUTPUT_RCIV	            = "RCIV"
+	OUTPUT_RCIV               = "RCIV"
 	OUTPUT_APPKEY             = "APPKEY"
 	OUTPUT_SUBSCRIBED         = "SUBSCRIBED"
 	OUTPUT_ALREADY_SUBSCRIBED = "ALREADY SUBSCRIBED"
@@ -84,18 +92,18 @@ const (
 
 // TODO 思考定义了这些常量，为什么没有用上
 const (
- TYPE_SINGLE_VOICE  = 1
- TYPE_MUL_VOICE  = 2
- TYPE_SINGLE_VIDEO  = 3
- TYPE_MUL_VIDEO  = 4
+	TYPE_SINGLE_VOICE = 1
+	TYPE_MUL_VOICE    = 2
+	TYPE_SINGLE_VIDEO = 3
+	TYPE_MUL_VIDEO    = 4
 )
 
 // TODO 所有响应消息，修改为使用code码来区别类型
 const (
-	CODE_SUCCESS = 200
-	CODE_PARAM_ERROR = 202
-	CODE_SERVER_ERROR = 500
-	CODE_FAILED = 400
+	CODE_SUCCESS             = 200
+	CODE_PARAM_ERROR         = 202
+	CODE_SERVER_ERROR        = 500
+	CODE_FAILED              = 400
 	CODE_TOKEN_OR_TERM_ERROR = 508
 )
 
@@ -125,21 +133,21 @@ func NewCmdline(input []byte, cli *Client) (this *Cmdline, err error) {
 	}
 
 	this = new(Cmdline)
-	this.Cmd = string(input[4: headL+4])
+	this.Cmd = string(input[4 : headL+4])
 
-	if len(input) > headL + 4 + 4 {
-		b_buf = bytes.NewBuffer(input[headL+4: headL+4+4])
+	if len(input) > headL+4+4 {
+		b_buf = bytes.NewBuffer(input[headL+4 : headL+4+4])
 		binary.Read(b_buf, binary.BigEndian, &headerLen)
 		bodyL := int(headerLen)
-		if len(input) != headL + 4 + 4 + bodyL {
+		if len(input) != headL+4+4+bodyL {
 			this = nil
 			err = errors.New("message has damaged")
 			return
 		}
 		if this.Cmd == CMD_VIDO_CHAT {
-			this.Params2 = input[headL+4+4: headL+4+4+bodyL]
+			this.Params2 = input[headL+4+4 : headL+4+4+bodyL]
 		} else {
-			this.Params = string(input[headL+4+4: headL+4+4+bodyL])
+			this.Params = string(input[headL+4+4 : headL+4+4+bodyL])
 		}
 	}
 
@@ -168,9 +176,9 @@ func (this *Cmdline) Process() (ret string, err error) {
 		// check if this message has been sent
 		if isResend == "Y" {
 			isHit := db.MgoSession().DB("pushd").C("msg_log").
-					Find(bson.M{"channel": channel,
-						"uuid": this.Client.uuid,
-						"msgid": msgId}).One(nil)
+				Find(bson.M{"channel": channel,
+					"uuid":  this.Client.uuid,
+					"msgid": msgId}).One(nil)
 			if isHit == nil {
 				return fmt.Sprintf("%d %d %d", CODE_SUCCESS, msgId, time.Now().UnixNano()), nil
 			}
@@ -216,7 +224,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		if index == 0 {
 			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
-		channelId := string(this.Params2[: index])
+		channelId := string(this.Params2[:index])
 
 		_, exists := this.Client.Channels[channelId]
 		if !exists {
@@ -225,7 +233,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		// 构造用于最终推送给其他client的消息体
 		ownerIdByte := []byte(this.Client.uuid)
-		buff := bytes.NewBuffer(make([]byte, 0, len(ownerIdByte) + 1 + len(this.Params2)))
+		buff := bytes.NewBuffer(make([]byte, 0, len(ownerIdByte)+1+len(this.Params2)))
 		buff.Write(ownerIdByte)
 		buff.WriteByte(' ')
 		buff.Write(this.Params2)
@@ -318,7 +326,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		if err != nil {
 			if realError, ok := err.(interface{}).(*mgo.LastError); ok {
-				return fmt.Sprintf("%d %s",CODE_SERVER_ERROR, realError.Error()), nil
+				return fmt.Sprintf("%d %s", CODE_SERVER_ERROR, realError.Error()), nil
 			}
 
 			if err == mgo.ErrNotFound {
@@ -454,7 +462,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 	case CMD_PUSH_NOTIFY_TO_USERS:
 		var temp1 interface{}
 		err := json.Unmarshal([]byte(this.Params), &temp1)
-		if err!= nil {
+		if err != nil {
 			return fmt.Sprintf("%d param error1", CODE_PARAM_ERROR), nil
 		}
 
@@ -490,7 +498,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		ts := time.Now().UnixNano()
 		msgId := bson.NewObjectId().Hex()
-		clientMsg := fmt.Sprintf("%d %d %s %d %s",MESSAGE_FOR_PERSON, mtype, msgId, ts, message)
+		clientMsg := fmt.Sprintf("%d %d %s %d %s", MESSAGE_FOR_PERSON, mtype, msgId, ts, message)
 
 		// store message to mail of users
 		letter := mail.Letter{}
@@ -505,7 +513,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 		PushToClients(clientMsg, true, userIds...)
 
-		log.Info(fmt.Sprintf("push to users: %s", clientMsg));
+		log.Info(fmt.Sprintf("push to users: %s", clientMsg))
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
@@ -516,7 +524,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
 
-		mtype , err := strconv.Atoi(params[0])
+		mtype, err := strconv.Atoi(params[0])
 		if err != nil {
 			return fmt.Sprintf("%d type can not parse to int32", CODE_PARAM_ERROR), nil
 		}
@@ -524,7 +532,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		chatRoomId := params[1]
 		message := params[2]
 
-		notifyInChatRoom := func(chatRoomId, message string, mtype int) (string, error){
+		notifyInChatRoom := func(chatRoomId, message string, mtype int) (string, error) {
 			//err = db.MgoSession().DB("pushd").C("channel_uuids").
 			//	Find(bson.M{"_id": chatRoomId}).
 			//	Select(bson.M{"uuids":1, "_id":0}).
@@ -557,23 +565,23 @@ func (this *Cmdline) Process() (ret string, err error) {
 					DB("pushd").
 					C("msg_log").
 					Insert(
-					bson.M{"channel": chatRoomId,
-						"msg": message,
-						"ts": ts,
-						"type": mtype})
+						bson.M{"channel": chatRoomId,
+							"msg":  message,
+							"ts":   ts,
+							"type": mtype})
 			}
 
-			clientMsg := fmt.Sprintf("%d %s %d %s",mtype, chatRoomId, ts, message)
-			log.Info(fmt.Sprintf("chatRoom:%s notify:%s", chatRoomId, clientMsg));
+			clientMsg := fmt.Sprintf("%d %s %d %s", mtype, chatRoomId, ts, message)
+			log.Info(fmt.Sprintf("chatRoom:%s notify:%s", chatRoomId, clientMsg))
 			PublishStrMsg(chatRoomId, clientMsg, "", true)
 
 			return "", nil
 		}
 
 		/**
-		 record
-		 群聊msg_log不能删除，因为我们的离线消息是基于msg_log做的
-		  */
+		record
+		群聊msg_log不能删除，因为我们的离线消息是基于msg_log做的
+		*/
 		switch mtype {
 
 		// 某人被踢出群聊
@@ -599,7 +607,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		}
 
 		oldChannelId := params[1]
-		mainType, err0 :=  strconv.Atoi(params[0])
+		mainType, err0 := strconv.Atoi(params[0])
 		if err0 != nil {
 			return fmt.Sprintf("%d param number is lacked", CODE_PARAM_ERROR), nil
 		}
@@ -608,11 +616,11 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		// check if channel has been applied
 		var result interface{}
-		err0 = collection.Find(bson.M{"channelId": oldChannelId}).Select(bson.M{"_id":0, "proposer":1}).One(&result)
+		err0 = collection.Find(bson.M{"channelId": oldChannelId}).Select(bson.M{"_id": 0, "proposer": 1}).One(&result)
 		if err0 == nil {
 			if result.(bson.M)["proposer"].(string) == this.Client.uuid {
 				return fmt.Sprintf("%d 10002", CODE_FAILED), nil
-			}else{
+			} else {
 				return fmt.Sprintf("%d 10001", CODE_FAILED), nil
 			}
 			return
@@ -623,12 +631,12 @@ func (this *Cmdline) Process() (ret string, err error) {
 		objectId := bson.NewObjectId()
 
 		err0 = collection.Insert(bson.M{"type": UNSTABLE_INFO_TYPE_FRAME_CHAT,
-					"subtype": mainType,
-					"proposer": this.Client.uuid,
-					"channelId": oldChannelId,
-					"time": time.Now().Unix(),
-					"activeUser": activeUser,
-					"_id": objectId})
+			"subtype":    mainType,
+			"proposer":   this.Client.uuid,
+			"channelId":  oldChannelId,
+			"time":       time.Now().Unix(),
+			"activeUser": activeUser,
+			"_id":        objectId})
 
 		// this happens when another user apply on the channel at the same time
 		if err0 != nil {
@@ -671,9 +679,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 		ret = newChannelId
 		return fmt.Sprintf("%d %s", CODE_SUCCESS, newChannelId), nil
 
-
 	case CMD_FRAME_JOIN:
-		if !bson.IsObjectIdHex(this.Params){
+		if !bson.IsObjectIdHex(this.Params) {
 			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
@@ -699,7 +706,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_ACCEPT:
-		if !bson.IsObjectIdHex(this.Params){
+		if !bson.IsObjectIdHex(this.Params) {
 			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
@@ -723,7 +730,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_OUT:
-		if !bson.IsObjectIdHex(this.Params){
+		if !bson.IsObjectIdHex(this.Params) {
 			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
@@ -732,7 +739,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		collection := db.MgoSession().DB("pushd").C("unstable_info")
 		change := mgo.Change{
-			Update:bson.M{"$pull": bson.M{"activeUser": this.Client.uuid}},
+			Update:    bson.M{"$pull": bson.M{"activeUser": this.Client.uuid}},
 			ReturnNew: true,
 		}
 		var result interface{}
@@ -778,7 +785,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
 	case CMD_FRAME_REFUSE:
-		if !bson.IsObjectIdHex(this.Params){
+		if !bson.IsObjectIdHex(this.Params) {
 			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 		notice := fmt.Sprintf("%s %s %d %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_REFUSE, -1, this.Client.uuid, this.Params)
@@ -787,7 +794,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 	case CMD_FRAME_DISMISS:
 
-		if !bson.IsObjectIdHex(this.Params){
+		if !bson.IsObjectIdHex(this.Params) {
 			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
@@ -796,9 +803,8 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		collection := db.MgoSession().DB("pushd").C("unstable_info")
 
-
 		change := mgo.Change{
-			Update:bson.M{"$pull": bson.M{"activeUser": this.Client.uuid}},
+			Update:    bson.M{"$pull": bson.M{"activeUser": this.Client.uuid}},
 			ReturnNew: true,
 		}
 		var result interface{}
@@ -842,7 +848,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 	case CMD_FRAME_INFO:
 
-		if !bson.IsObjectIdHex(this.Params){
+		if !bson.IsObjectIdHex(this.Params) {
 			return fmt.Sprintf("%d 500", CODE_FAILED), nil
 		}
 
@@ -859,7 +865,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 	case CMD_INVOKE_FRAME_ACTION:
 		var result interface{}
-		err0 := db.MgoSession().DB("pushd").C("user_info").FindId(this.Client.uuid).Select(bson.M{"frame_chat":1, "_id":0}).One(&result)
+		err0 := db.MgoSession().DB("pushd").C("user_info").FindId(this.Client.uuid).Select(bson.M{"frame_chat": 1, "_id": 0}).One(&result)
 		if err0 != nil {
 			return
 		}
@@ -901,7 +907,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			return fmt.Sprintf("%d %s", CODE_SERVER_ERROR, err.Error()), nil
 		}
 
-		for _, tempUserId := range params[1:]{
+		for _, tempUserId := range params[1:] {
 			err := db.MgoSession().DB("pushd").C("user_info").FindId(tempUserId).One(nil)
 			if err != nil {
 				if err == mgo.ErrNotFound {
@@ -919,7 +925,6 @@ func (this *Cmdline) Process() (ret string, err error) {
 			}
 		}
 
-
 		if channelToUserIds.Exists(channelId) {
 			channelToUserIds.AddAllUserIds(channelId, params[1:]...)
 		} else {
@@ -930,7 +935,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 
 		return fmt.Sprintf("%d success", CODE_SUCCESS), nil
 
-    //subs: subscribe from server
+		//subs: subscribe from server
 	case CMD_SUBS:
 		params := strings.Split(this.Params, " ")
 		if len(params) < 3 {
@@ -941,7 +946,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 		channelId := params[1]
 		// channelName := params[0]
 
-		for _, tempUserId := range params[2:]{
+		for _, tempUserId := range params[2:] {
 			err := db.MgoSession().DB("pushd").C("user_info").FindId(tempUserId).One(nil)
 			if err != nil {
 				if err == mgo.ErrNotFound {
@@ -1028,7 +1033,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 	case CMD_OFFLINE_MSG:
 		coll := db.MgoSession().DB("pushd").C("user_info")
 		var result interface{}
-		coll.FindId(this.Client.uuid).Select(bson.M{"_id":0, "channel_stat":1}).One(&result)
+		coll.FindId(this.Client.uuid).Select(bson.M{"_id": 0, "channel_stat": 1}).One(&result)
 		if result == nil {
 			return "{}", nil
 		}
@@ -1040,7 +1045,7 @@ func (this *Cmdline) Process() (ret string, err error) {
 			ts := va.(int64)
 			var hisRet []interface{}
 			err = db.MgoSession().DB("pushd").C("msg_log").Find(
-				bson.M{"ts": bson.M{"$gt": ts},"channel": channel,"uuid":bson.M{"$ne":this.uuid}}).
+				bson.M{"ts": bson.M{"$gt": ts}, "channel": channel, "uuid": bson.M{"$ne": this.uuid}}).
 				Select(bson.M{"_id": 0}).All(&hisRet)
 
 			if len(hisRet) > 0 {
