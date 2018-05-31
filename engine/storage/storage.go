@@ -3,25 +3,25 @@ package storage
 import (
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/pushd/config"
 	"github.com/nicholaskh/pushd/db"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type MsgTuple struct {
 	Channel string `json:"channel"`
 	Msg     string `json:"msg"`
 	Ts      int64  `json:"ts"`
-	Uuid	string `json:"uuid"`
+	Uuid    string `json:"uuid"`
 	MsgId   int64  `json:"msgid"`
 }
 
 type ChanUuidsTuple struct {
-	ChannelId string
+	ChannelId   string
 	ChannelName string
-	Uuids []string
-	IsDel bool
+	Uuids       []string
+	IsDel       bool
 }
 
 type storageDriver interface {
@@ -33,9 +33,9 @@ type storageDriver interface {
 }
 
 var (
-	msgQueue    chan *MsgTuple
-	driver      storageDriver
-	writeBuffer chan *MsgTuple
+	msgQueue       chan *MsgTuple
+	driver         storageDriver
+	writeBuffer    chan *MsgTuple
 	chanUuidsQueue chan *ChanUuidsTuple
 )
 
@@ -116,7 +116,7 @@ func Serv() {
 	}
 }
 
-func EnqueueMsg(channel, msg , uuid string, ts, msgId int64) {
+func EnqueueMsg(channel, msg, uuid string, ts, msgId int64) {
 	msgQueue <- &MsgTuple{channel, msg, ts, uuid, msgId}
 }
 
@@ -127,12 +127,11 @@ func FetchHistory(channel string, ts int64) (result []interface{}, err error) {
 func EnqueueChanUuids(channelName, channelId string, isDel bool, uuids []string) {
 	chanUuidsQueue <- &ChanUuidsTuple{channelId, channelName, uuids, isDel}
 }
-func FetchUuidsAboutChannel(channelId string) []string{
-
+func FetchUuidsAboutChannel(channelId string) []string {
 	var result interface{}
 	err := db.MgoSession().DB("pushd").C("channel_uuids").
 		Find(bson.M{"_id": channelId}).
-		Select(bson.M{"uuids":1, "_id":0}).
+		Select(bson.M{"uuids": 1, "_id": 0}).
 		One(&result)
 
 	if err == nil {
@@ -145,5 +144,4 @@ func FetchUuidsAboutChannel(channelId string) []string{
 	}
 
 	return nil
-
 }

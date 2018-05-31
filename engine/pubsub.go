@@ -16,7 +16,7 @@ import (
 
 var (
 	PubsubChannels *PubsubChans
-	UuidToClient *UuidClientMap
+	UuidToClient   *UuidClientMap
 )
 
 type PubsubChans struct {
@@ -132,10 +132,10 @@ func UnsubscribeAllChannels(cli *Client) {
 	//cli.Channels = nil
 }
 
-func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
+func Publish(channel, msg, userId string, msgId int64, fromS2s bool) string {
 	// 执行推送到客户端和转发到其他服务器
 	ts := time.Now().UnixNano()
-	clientMsg := fmt.Sprintf("%d %s %s %d %d %s",MESSAGE_TYPE_NORMAL, channel, userId, ts, msgId, msg)
+	clientMsg := fmt.Sprintf("%d %s %s %d %d %s", MESSAGE_TYPE_NORMAL, channel, userId, ts, msgId, msg)
 	PublishStrMsg(channel, clientMsg, userId, !fromS2s)
 
 	// 保存到数据库
@@ -147,7 +147,7 @@ func Publish(channel, msg , userId string, msgId int64, fromS2s bool) string {
 	return ""
 }
 
-func PushToClients(msg string, isToOtherServer bool, userIds ...string){
+func PushToClients(msg string, isToOtherServer bool, userIds ...string) {
 	for _, ele := range userIds {
 		cli, exists := UuidToClient.GetClient(ele)
 		if !exists {
@@ -171,7 +171,7 @@ func PublishBinMsg(channel, ownerId string, msg []byte, isToOtherServer bool) {
 	pushToNativeClient(CMD_VIDO_CHAT, channel, ownerId, msg)
 	if isToOtherServer {
 		channelByte := []byte(channel)
-		buff := bytes.NewBuffer(make([]byte, 0, len(channelByte) + 1 + len(msg)))
+		buff := bytes.NewBuffer(make([]byte, 0, len(channelByte)+1+len(msg)))
 		buff.Write(channelByte)
 		buff.WriteByte(' ')
 		buff.Write(msg)
@@ -180,14 +180,14 @@ func PublishBinMsg(channel, ownerId string, msg []byte, isToOtherServer bool) {
 }
 
 /**
-	获取所有在群聊channelId中并且在线的userId集合
- */
-func fetchAllMatchUserIds(channelId string) ([]string, error){
+获取所有在群聊channelId中并且在线的userId集合
+*/
+func fetchAllMatchUserIds(channelId string) ([]string, error) {
 	return LoadUserIdsByChannel(channelId), nil
 }
 
 // 推送给本地连接的客户端
-func pushToNativeClient(op, channelId, ownerId string, msg []byte){
+func pushToNativeClient(op, channelId, ownerId string, msg []byte) {
 	userIds, err := fetchAllMatchUserIds(channelId)
 	if err != nil {
 		log.Error(fmt.Sprintf("chatRoom(id: %s) has no userIds", channelId))
@@ -196,7 +196,7 @@ func pushToNativeClient(op, channelId, ownerId string, msg []byte){
 
 	for _, ele := range userIds {
 		cli, exists := UuidToClient.GetClient(ele)
-		if !exists || cli.uuid == ownerId{
+		if !exists || cli.uuid == ownerId {
 			continue
 		}
 		go cli.WriteFormatBinMsg(op, msg)
@@ -205,8 +205,8 @@ func pushToNativeClient(op, channelId, ownerId string, msg []byte){
 }
 
 // 转发给所有其他节点
-func forwardToAllOtherServer(cmd string, message []byte){
-	if !config.PushdConf.IsDistMode() || cmd == "" || len(message) == 0{
+func forwardToAllOtherServer(cmd string, message []byte) {
+	if !config.PushdConf.IsDistMode() || cmd == "" || len(message) == 0 {
 		return
 	}
 
@@ -218,8 +218,8 @@ func forwardToAllOtherServer(cmd string, message []byte){
 }
 
 // 根据channel转发给相应的节点
-func forwardToOtherServerInChannel(cmd , channelId string, message []byte){
-	if !config.PushdConf.IsDistMode() || cmd == "" || channelId == "" || len(message) == 0{
+func forwardToOtherServerInChannel(cmd, channelId string, message []byte) {
+	if !config.PushdConf.IsDistMode() || cmd == "" || channelId == "" || len(message) == 0 {
 		return
 	}
 

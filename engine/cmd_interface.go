@@ -676,7 +676,6 @@ func (this *Cmdline) Process() (ret string, err error) {
 		// force notify all relevant online users
 		notice := fmt.Sprintf("%s %s %d %s %s %s", OUTPUT_FRAME_CHAT, CMD_FRAME_APPLY, mainType, this.Client.uuid, newChannelId, oldChannelId)
 		PublishStrMsg(oldChannelId, notice, this.Client.uuid, true)
-		ret = newChannelId
 		return fmt.Sprintf("%d %s", CODE_SUCCESS, newChannelId), nil
 
 	case CMD_FRAME_JOIN:
