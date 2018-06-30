@@ -1,6 +1,6 @@
 pushd
 ====================
-An open source distributed pubsub(publish/subscribe) server
+An open source distributed pubsub/IM server
 
 	                  _         _ 
 	  _ __  _   _ ___| |__   __| |

@@ -201,7 +201,6 @@ func pushToNativeClient(op, channelId, ownerId string, msg []byte) {
 		}
 		go cli.WriteFormatBinMsg(op, msg)
 	}
-
 }
 
 // 转发给所有其他节点
